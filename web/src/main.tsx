@@ -130,13 +130,6 @@ function Landing() {
 
         <LiveDemo />
       </main>
-
-      <footer className="l-foot reveal d5">
-        <span>MCP 接入点 <code>/mcp/student</code> <code>/mcp/teacher</code> <code>/mcp</code></span>
-        <span>供 OpenClaw / WorkBuddy 等第三方 Agent 接入</span>
-        <Link to="/portal" className="l-foot-portal">管理工作台</Link>
-        <span className="sim">咨询时间 9:00—21:00 · 其余时段可直接留言</span>
-      </footer>
     </div>
   )
 }
