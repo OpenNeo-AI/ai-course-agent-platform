@@ -145,6 +145,15 @@ nav .container {
     color: #fff;
     letter-spacing: 0.04em;
     text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.brand-logo {
+    width: 32px;
+    height: 32px;
+    border-radius: 7px;
+    object-fit: contain;
 }
 
 .tab-nav {
@@ -814,7 +823,7 @@ footer p {
 
 <nav>
     <div class="container">
-        <a href="#" class="brand"><img src="/logo.png" alt="AI 课程顾问" style="height:2rem;vertical-align:middle;margin-right:.5rem" />AI 课程顾问</a>
+        <a href="#" class="brand"><img src="/logo.png" alt="AI 课程顾问" class="brand-logo" />AI 课程顾问</a>
         <ul class="tab-nav">
             <li><button class="active" data-tab="product">产品介绍</button></li>
             <li><button data-tab="engineering">建设思路</button></li>
