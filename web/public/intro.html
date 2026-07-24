@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>智课顾问 · OpenNeo AI Course Advisor</title>
+<title>AI 课程顾问 · OpenNeo AI Course Advisor</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -512,6 +512,18 @@ nav .container {
     box-shadow: var(--shadow-xl);
 }
 
+/* Product screenshots */
+.battle-visual img.screenshot {
+    width: 100%;
+    max-height: 640px;
+    object-fit: cover;
+    object-position: top;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    box-shadow: var(--shadow-xl);
+}
+
 /* Dark AI-like section */
 .dark-section {
     background: var(--ink);
@@ -698,48 +710,6 @@ nav .container {
     line-height: 1.75;
 }
 
-/* Operations portal diagram */
-.arch-diagram { margin-top: 4rem; }
-.arch-columns {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 1.5rem;
-}
-.arch-col {
-    background: var(--paper);
-    border: 1px solid var(--line);
-    padding: 1.75rem;
-    transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-}
-.arch-col:hover {
-    transform: translateY(-5px);
-    box-shadow: var(--shadow-md);
-    border-color: rgba(58,66,198,0.25);
-}
-.arch-col h5 {
-    font-family: var(--display);
-    font-size: 0.8125rem;
-    font-weight: 800;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--primary);
-    margin-bottom: 1.25rem;
-}
-.arch-item {
-    font-size: 0.9375rem;
-    color: var(--text-secondary);
-    line-height: 1.7;
-    margin-bottom: 0.75rem;
-    padding-left: 1rem;
-    border-left: 2px solid var(--line);
-}
-.arch-item strong {
-    color: var(--text);
-    font-weight: 600;
-    display: block;
-    margin-bottom: 0.15rem;
-}
-
 /* Tabs panels */
 .tabs-content { background: var(--canvas); }
 
@@ -843,7 +813,7 @@ footer p {
 
 <nav>
     <div class="container">
-        <a href="#" class="brand">智课顾问</a>
+        <a href="#" class="brand">AI 课程顾问</a>
         <ul class="tab-nav">
             <li><button class="active" data-tab="product">产品介绍</button></li>
             <li><button data-tab="engineering">建设思路</button></li>
@@ -854,17 +824,17 @@ footer p {
 
 <section class="hero">
     <div class="hero-media">
-        <img src="assets/hero.jpg" alt="智课顾问 AI 知识图谱">
+        <img src="assets/hero.jpg" alt="AI 课程顾问 AI 知识图谱">
     </div>
     <div class="hero-overlay"></div>
     <div class="hero-content">
         <div class="eyebrow">OpenNeo · AI Course Advisor</div>
-        <h1>智课顾问</h1>
+        <h1>AI 课程顾问</h1>
         <p class="hero-tagline">基于知识本体引擎的 AI 原生课程顾问平台</p>
         <p class="hero-desc">从课程文档到经营大脑。让学生、教师与机构用户的每一次咨询都精准、可信、可追溯。</p>
         <div class="hero-cta">
             <a href="https://edu-demo.openneo.ai/" target="_blank" class="btn btn-primary"><span>立即体验</span></a>
-            <a href="#" class="btn btn-secondary" onclick="switchTab('engineering'); return false;">查看建设思路</a>
+            <a href="https://github.com/OpenNeo-AI/ai-course-agent-platform" target="_blank" class="btn btn-secondary">访问 GitHub 仓库</a>
         </div>
     </div>
     <div class="scroll-hint">Scroll</div>
@@ -885,12 +855,12 @@ footer p {
             </div>
 
             <div class="statement reveal">
-                <p>智课顾问不是一套简单的问答机器人，而是教育机构的数字课程顾问——帮运营者看清知识边界在哪里、费用该如何计算、用户该推荐什么班型。</p>
+                <p>AI 课程顾问不是一套简单的问答机器人，而是教育机构的数字课程顾问——帮运营者看清知识边界在哪里、费用该如何计算、用户该推荐什么班型。</p>
             </div>
 
             <table class="comparison reveal">
                 <thead>
-                    <tr><th>经营命题</th><th>传统做法</th><th>智课顾问做法</th></tr>
+                    <tr><th>经营命题</th><th>传统做法</th><th>AI 课程顾问做法</th></tr>
                 </thead>
                 <tbody>
                     <tr>
@@ -960,7 +930,7 @@ footer p {
                     </div>
                 </div>
                 <div class="battle-visual">
-                    <div class="visual-placeholder">STUDENT</div>
+                    <img src="../pics/学生咨询.png" alt="学生咨询界面" class="screenshot">
                     <p class="battle-caption">学生 H5：移动优先的对话式咨询界面</p>
                 </div>
             </div>
@@ -984,7 +954,7 @@ footer p {
                     </div>
                 </div>
                 <div class="battle-visual">
-                    <div class="visual-placeholder">TEACHER</div>
+                    <img src="../pics/教师咨询.png" alt="教师咨询界面" class="screenshot">
                     <p class="battle-caption">教师 H5：等级化培训咨询与前置校验</p>
                 </div>
             </div>
@@ -1008,7 +978,7 @@ footer p {
                     </div>
                 </div>
                 <div class="battle-visual">
-                    <div class="visual-placeholder">PLATFORM</div>
+                    <img src="../pics/平台咨询.png" alt="平台咨询界面" class="screenshot">
                     <p class="battle-caption">平台/机构通道：会员权益与企业合作咨询</p>
                 </div>
             </div>
@@ -1017,95 +987,157 @@ footer p {
 
     <section class="battle">
         <div class="container">
-            <div class="section-intro reveal">
+            <div class="section-intro center reveal">
                 <div class="eyebrow">Operations Portal</div>
-                <h2>运营后台：知识资产的中央控制台</h2>
+                <h2>管理工作台：知识资产的中央控制台</h2>
                 <div class="rule"></div>
-                <p class="lead">访问 <span class="mono">https://edu-demo.openneo.ai/portal</span>，使用演示账户 demo / demo1234 登录。运营人员可管理知识域、维护本体图谱、配置智能体、分析运营数据、跟进留资工单，所有变更热加载生效。</p>
-                <p class="lead" style="margin-top: 1rem;">七大核心模块覆盖知识治理、智能体配置、运营分析、质量管理与人机协作全链路，是区别于"只会答题的机器人"的关键。</p>
+                <p class="lead">访问 <span class="mono">https://edu-demo.openneo.ai/portal</span>，使用演示账户 demo / demo1234 登录。七大核心模块覆盖知识治理、智能体配置、运营分析、质量管理与人机协作全链路，所有变更热加载生效。</p>
             </div>
+        </div>
+    </section>
 
-            <div class="arch-diagram reveal">
-                <div class="arch-columns">
-                    <div class="arch-col">
-                        <h5>知识域</h5>
-                        <div class="arch-item"><strong>上传文档</strong>.txt / .docx / .pdf</div>
-                        <div class="arch-item"><strong>自动解析</strong>切块 · 向量化 · 本体抽取</div>
-                        <div class="arch-item"><strong>知识库维护</strong>增删改 · 重建索引</div>
-                    </div>
-                    <div class="arch-col">
-                        <h5>本体知识</h5>
-                        <div class="arch-item"><strong>可视化图谱</strong>力导向 / 放射 / 聚簇 / 层级</div>
-                        <div class="arch-item"><strong>节点管理</strong>确认 · 编辑 · 链接</div>
-                        <div class="arch-item"><strong>派生重算</strong>归属链 / 前置链 / 变体链</div>
-                    </div>
-                    <div class="arch-col">
-                        <h5>智能体设置</h5>
-                        <div class="arch-item"><strong>对接知识域</strong>勾选可见范围</div>
-                        <div class="arch-item"><strong>模型选择</strong>从支持的模型清单切换</div>
-                        <div class="arch-item"><strong>能力配置</strong>留资转人工 · 对话质检</div>
-                    </div>
-                    <div class="arch-col">
-                        <h5>数据分析</h5>
-                        <div class="arch-item"><strong>运营概览</strong>会话 / 提问 / 趋势</div>
-                        <div class="arch-item"><strong>知识缺口</strong>未答 / 边界问题</div>
-                        <div class="arch-item"><strong>LLM 洞察</strong>一键生成运营报告</div>
-                    </div>
-                    <div class="arch-col">
-                        <h5>线索转化</h5>
-                        <div class="arch-item"><strong>留资工单</strong>采集报名意向</div>
-                        <div class="arch-item"><strong>状态流转</strong>待跟进 → 已跟进 → 已转化</div>
-                        <div class="arch-item"><strong>跟进记录</strong>仅做留资流转</div>
-                    </div>
-                    <div class="arch-col">
-                        <h5>会话记录</h5>
-                        <div class="arch-item"><strong>逐条消息</strong>含工具调用</div>
-                        <div class="arch-item"><strong>质检评分</strong>准确性 / 规范性 / 体验</div>
-                        <div class="arch-item"><strong>红线问题</strong>批量或单个质检</div>
-                    </div>
-                    <div class="arch-col">
-                        <h5>系统设置</h5>
-                        <div class="arch-item"><strong>模型参数</strong>地址 / Key / 温度 / 轮次</div>
-                        <div class="arch-item"><strong>渠道令牌</strong>签发 MCP 接入令牌</div>
-                        <div class="arch-item"><strong>热加载</strong>保存即生效</div>
-                    </div>
+    <section class="battle">
+        <div class="container">
+            <div class="battle-grid reveal">
+                <div class="battle-content">
+                    <div class="eyebrow">Module 01</div>
+                    <h3>知识域管理</h3>
+                    <p>维护知识域（学生课程域 / 教师培训域 / 平台服务域，可自建扩展）-> 其下知识库 -> 文档，是问答的唯一边界单位。</p>
+                    <ul class="battle-list">
+                        <li>上传 .txt / .docx / .pdf，自动完成解析</li>
+                        <li>切块向量化与本体抽取，无需改代码</li>
+                        <li>知识库增删改与重建索引</li>
+                    </ul>
+                </div>
+                <div class="battle-visual">
+                    <img src="../pics/管理工作台-知识域.png" alt="知识域管理" class="screenshot">
+                    <p class="battle-caption">知识域管理：上传文档、维护知识库</p>
                 </div>
             </div>
         </div>
     </section>
 
-    <section class="dark-section">
+    <section class="battle">
         <div class="container">
-            <div class="section-intro reveal">
-                <div class="eyebrow">AI Assistant</div>
-                <h2>对话即咨询</h2>
-                <div class="rule"></div>
-                <p class="lead">对家长和教师而言，时间是最稀缺的资源。智课顾问让用户通过自然语言直接获取课程答案与可执行建议。</p>
+            <div class="battle-grid reverse reveal">
+                <div class="battle-content">
+                    <div class="eyebrow">Module 02</div>
+                    <h3>本体知识</h3>
+                    <p>可视化呈现 8 类对象与 10 类链接，将课程领域的业务实体与规则建模为类型化对象。</p>
+                    <ul class="battle-list">
+                        <li>力导向 / 放射 / 聚簇 / 层级等多布局切换</li>
+                        <li>节点确认、编辑属性、增删对象间链接</li>
+                        <li>派生链接一键重算，全部变更可审计</li>
+                    </ul>
+                </div>
+                <div class="battle-visual">
+                    <img src="../pics/管理工作台-本体知识.png" alt="本体知识图谱" class="screenshot">
+                    <p class="battle-caption">本体知识：可视化图谱与节点关系</p>
+                </div>
             </div>
+        </div>
+    </section>
 
+    <section class="battle">
+        <div class="container">
             <div class="battle-grid reveal">
                 <div class="battle-content">
-                    <div class="statement" style="border-left-color: var(--accent);">
-                        <p style="color: #fff;">「孩子在北京，8月1日到7日有空，想线下参加，推荐哪个班？」—— 一句话，系统直接给出推荐班型、费用拆解与报名建议。</p>
-                    </div>
+                    <div class="eyebrow">Module 03</div>
+                    <h3>智能体设置</h3>
+                    <p>按学生 / 教师 / 平台三个智能体分别配置，范围外内容不参与该智能体的检索、推荐与计算。</p>
+                    <ul class="battle-list">
+                        <li>勾选对接的知识域，控制可见范围</li>
+                        <li>从支持的模型清单切换对话模型</li>
+                        <li>留资转人工 / 对话质检能力开关</li>
+                    </ul>
                 </div>
-                <div class="scenarios">
-                    <div class="scenario">
-                        <h4>班型推荐</h4>
-                        <p>自动采集城市、日期、形式等约束，按真实班型筛选并生成逐条理由</p>
-                    </div>
-                    <div class="scenario">
-                        <h4>费用计算</h4>
-                        <p>早鸟 / 团报 / 食宿逐项拆解，纯确定性计算，不经过 LLM 推理</p>
-                    </div>
-                    <div class="scenario">
-                        <h4>详情答疑</h4>
-                        <p>真流式逐字输出，回答末尾以「引用出处」卡片呈现文档名、章节与关键原文摘录</p>
-                    </div>
-                    <div class="scenario">
-                        <h4>与众不同</h4>
-                        <p>基于知识本体调用 7 个核心工具，含 capture_lead 留资转人工，输出可执行建议，过程透明可审计</p>
-                    </div>
+                <div class="battle-visual">
+                    <img src="../pics/管理工作台-智能体设置.png" alt="智能体设置" class="screenshot">
+                    <p class="battle-caption">智能体设置：知识域对接与能力配置</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="battle">
+        <div class="container">
+            <div class="battle-grid reverse reveal">
+                <div class="battle-content">
+                    <div class="eyebrow">Module 04</div>
+                    <h3>数据分析</h3>
+                    <p>智能体运营分析，可按智能体筛选，从会话趋势中发现知识缺口与优化机会。</p>
+                    <ul class="battle-list">
+                        <li>运营概览与近 14 日会话趋势</li>
+                        <li>高频问题 TOP、未答 / 边界问题</li>
+                        <li>LLM 一键生成运营洞察报告</li>
+                    </ul>
+                </div>
+                <div class="battle-visual">
+                    <img src="../pics/管理工作台-数据分析.png" alt="数据分析" class="screenshot">
+                    <p class="battle-caption">数据分析：会话趋势、高频问题、知识缺口</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="battle">
+        <div class="container">
+            <div class="battle-grid reveal">
+                <div class="battle-content">
+                    <div class="eyebrow">Module 05</div>
+                    <h3>线索转换</h3>
+                    <p>智能体采集的报名意向留资在此转为线索跟进，工单状态流转，仅做线索转换不做报名/支付管理。</p>
+                    <ul class="battle-list">
+                        <li>采集报名意向生成线索工单</li>
+                        <li>状态流转：待跟进 → 已跟进 → 已转化 / 无效</li>
+                        <li>填写跟进记录，人机协作闭环</li>
+                    </ul>
+                </div>
+                <div class="battle-visual">
+                    <img src="../pics/管理工作台-人工跟进.png" alt="线索转换" class="screenshot">
+                    <p class="battle-caption">线索转换：留资工单状态流转</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="battle">
+        <div class="container">
+            <div class="battle-grid reverse reveal">
+                <div class="battle-content">
+                    <div class="eyebrow">Module 06</div>
+                    <h3>会话记录与质检</h3>
+                    <p>查看全部会话的逐条消息（含工具调用），对单个或批量会话进行质检评分，确保服务质量。</p>
+                    <ul class="battle-list">
+                        <li>逐条消息回放，含完整工具调用链</li>
+                        <li>准确性 / 规范性 / 体验三维评分</li>
+                        <li>批量或单个质检，列表显示质检分</li>
+                    </ul>
+                </div>
+                <div class="battle-visual">
+                    <img src="../pics/管理工作台-会话记录.png" alt="会话记录" class="screenshot">
+                    <p class="battle-caption">会话记录：逐条消息与质检评分</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="battle">
+        <div class="container">
+            <div class="battle-grid reveal">
+                <div class="battle-content">
+                    <div class="eyebrow">Module 07</div>
+                    <h3>系统设置</h3>
+                    <p>配置模型参数与第三方接入渠道，保存后热加载，无需重启服务。</p>
+                    <ul class="battle-list">
+                        <li>对话服务地址、API Key、温度、上下文轮次</li>
+                        <li>为第三方 Agent / 合作系统签发 MCP 渠道令牌</li>
+                        <li>保存即生效，变更即时生效</li>
+                    </ul>
+                </div>
+                <div class="battle-visual">
+                    <img src="../pics/管理工作台-系统设置.png" alt="系统设置" class="screenshot">
+                    <p class="battle-caption">系统设置：模型参数与渠道令牌</p>
                 </div>
             </div>
         </div>
@@ -1126,12 +1158,12 @@ footer p {
             </div>
 
             <div class="statement reveal">
-                <p>智课顾问的核心设计原则：知识即数据，规则即记录，配置即文件。所有业务数值均存于库内规则对象，引擎代码中不含任何价格、日期、人数的字面量。</p>
+                <p>AI 课程顾问的核心设计原则：知识即数据，规则即记录，配置即文件。所有业务数值均存于库内规则对象，引擎代码中不含任何价格、日期、人数的字面量。</p>
             </div>
 
             <table class="comparison reveal">
                 <thead>
-                    <tr><th>业务场景</th><th>传统硬编码做法</th><th>智课顾问做法</th></tr>
+                    <tr><th>业务场景</th><th>传统硬编码做法</th><th>AI 课程顾问做法</th></tr>
                 </thead>
                 <tbody>
                     <tr>
@@ -1399,7 +1431,7 @@ footer p {
         <div class="reveal">
             <div class="eyebrow">Get Started</div>
             <h2>让教育咨询开始精准可信</h2>
-            <p class="lead">学生 / 教师 / 机构三个入口均已上线，管理工作台同步开放。立即体验智课顾问的完整能力。</p>
+            <p class="lead">学生 / 教师 / 机构三个入口均已上线，管理工作台同步开放。立即体验AI 课程顾问的完整能力。</p>
             <div class="hero-cta">
                 <a href="https://edu-demo.openneo.ai/" target="_blank" class="btn btn-primary"><span>立即体验</span></a>
                 <a href="https://github.com/OpenNeo-AI/ai-course-agent-platform" target="_blank" class="btn btn-secondary">访问 GitHub 仓库</a>
@@ -1410,7 +1442,7 @@ footer p {
 
 <footer>
     <div class="container">
-        <p style="font-family: var(--display); font-weight: 800; color: var(--text);">智课顾问</p>
+        <p style="font-family: var(--display); font-weight: 800; color: var(--text);">AI 课程顾问</p>
         <p>© 2026 OpenNeo · 本页面所有机构、人物、价格均为竞赛模拟数据</p>
     </div>
 </footer>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>智课顾问 · OpenNeo AI Course Advisor</title>
+<title>AI 课程顾问 · OpenNeo AI Course Advisor</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -813,7 +813,7 @@ footer p {
 
 <nav>
     <div class="container">
-        <a href="#" class="brand">智课顾问</a>
+        <a href="#" class="brand">AI 课程顾问</a>
         <ul class="tab-nav">
             <li><button class="active" data-tab="product">产品介绍</button></li>
             <li><button data-tab="engineering">建设思路</button></li>
@@ -824,17 +824,17 @@ footer p {
 
 <section class="hero">
     <div class="hero-media">
-        <img src="assets/hero.jpg" alt="智课顾问 AI 知识图谱">
+        <img src="assets/hero.jpg" alt="AI 课程顾问 AI 知识图谱">
     </div>
     <div class="hero-overlay"></div>
     <div class="hero-content">
         <div class="eyebrow">OpenNeo · AI Course Advisor</div>
-        <h1>智课顾问</h1>
+        <h1>AI 课程顾问</h1>
         <p class="hero-tagline">基于知识本体引擎的 AI 原生课程顾问平台</p>
         <p class="hero-desc">从课程文档到经营大脑。让学生、教师与机构用户的每一次咨询都精准、可信、可追溯。</p>
         <div class="hero-cta">
             <a href="https://edu-demo.openneo.ai/" target="_blank" class="btn btn-primary"><span>立即体验</span></a>
-            <a href="#" class="btn btn-secondary" onclick="switchTab('engineering'); return false;">查看建设思路</a>
+            <a href="https://github.com/OpenNeo-AI/ai-course-agent-platform" target="_blank" class="btn btn-secondary">访问 GitHub 仓库</a>
         </div>
     </div>
     <div class="scroll-hint">Scroll</div>
@@ -855,12 +855,12 @@ footer p {
             </div>
 
             <div class="statement reveal">
-                <p>智课顾问不是一套简单的问答机器人，而是教育机构的数字课程顾问——帮运营者看清知识边界在哪里、费用该如何计算、用户该推荐什么班型。</p>
+                <p>AI 课程顾问不是一套简单的问答机器人，而是教育机构的数字课程顾问——帮运营者看清知识边界在哪里、费用该如何计算、用户该推荐什么班型。</p>
             </div>
 
             <table class="comparison reveal">
                 <thead>
-                    <tr><th>经营命题</th><th>传统做法</th><th>智课顾问做法</th></tr>
+                    <tr><th>经营命题</th><th>传统做法</th><th>AI 课程顾问做法</th></tr>
                 </thead>
                 <tbody>
                     <tr>
@@ -1085,17 +1085,17 @@ footer p {
             <div class="battle-grid reveal">
                 <div class="battle-content">
                     <div class="eyebrow">Module 05</div>
-                    <h3>线索转化</h3>
-                    <p>智能体采集的报名意向留资在此转为线索跟进，工单状态流转，仅做留资跟进不做报名/支付管理。</p>
+                    <h3>线索转换</h3>
+                    <p>智能体采集的报名意向留资在此转为线索跟进，工单状态流转，仅做线索转换不做报名/支付管理。</p>
                     <ul class="battle-list">
-                        <li>采集报名意向生成留资工单</li>
+                        <li>采集报名意向生成线索工单</li>
                         <li>状态流转：待跟进 → 已跟进 → 已转化 / 无效</li>
                         <li>填写跟进记录，人机协作闭环</li>
                     </ul>
                 </div>
                 <div class="battle-visual">
-                    <img src="../pics/管理工作台-人工跟进.png" alt="线索转化" class="screenshot">
-                    <p class="battle-caption">线索转化：留资工单状态流转</p>
+                    <img src="../pics/管理工作台-人工跟进.png" alt="线索转换" class="screenshot">
+                    <p class="battle-caption">线索转换：留资工单状态流转</p>
                 </div>
             </div>
         </div>
@@ -1143,43 +1143,6 @@ footer p {
         </div>
     </section>
 
-    <section class="dark-section">
-        <div class="container">
-            <div class="section-intro reveal">
-                <div class="eyebrow">AI Assistant</div>
-                <h2>对话即咨询</h2>
-                <div class="rule"></div>
-                <p class="lead">对家长和教师而言，时间是最稀缺的资源。智课顾问让用户通过自然语言直接获取课程答案与可执行建议。</p>
-            </div>
-
-            <div class="battle-grid reveal">
-                <div class="battle-content">
-                    <div class="statement" style="border-left-color: var(--accent);">
-                        <p style="color: #fff;">「孩子在北京，8月1日到7日有空，想线下参加，推荐哪个班？」—— 一句话，系统直接给出推荐班型、费用拆解与报名建议。</p>
-                    </div>
-                </div>
-                <div class="scenarios">
-                    <div class="scenario">
-                        <h4>班型推荐</h4>
-                        <p>自动采集城市、日期、形式等约束，按真实班型筛选并生成逐条理由</p>
-                    </div>
-                    <div class="scenario">
-                        <h4>费用计算</h4>
-                        <p>早鸟 / 团报 / 食宿逐项拆解，纯确定性计算，不经过 LLM 推理</p>
-                    </div>
-                    <div class="scenario">
-                        <h4>详情答疑</h4>
-                        <p>真流式逐字输出，回答末尾以「引用出处」卡片呈现文档名、章节与关键原文摘录</p>
-                    </div>
-                    <div class="scenario">
-                        <h4>与众不同</h4>
-                        <p>基于知识本体调用 7 个核心工具，含 capture_lead 留资转人工，输出可执行建议，过程透明可审计</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
 </div>
 
 <!-- ========== TAB 2: ENGINEERING ========== -->
@@ -1195,12 +1158,12 @@ footer p {
             </div>
 
             <div class="statement reveal">
-                <p>智课顾问的核心设计原则：知识即数据，规则即记录，配置即文件。所有业务数值均存于库内规则对象，引擎代码中不含任何价格、日期、人数的字面量。</p>
+                <p>AI 课程顾问的核心设计原则：知识即数据，规则即记录，配置即文件。所有业务数值均存于库内规则对象，引擎代码中不含任何价格、日期、人数的字面量。</p>
             </div>
 
             <table class="comparison reveal">
                 <thead>
-                    <tr><th>业务场景</th><th>传统硬编码做法</th><th>智课顾问做法</th></tr>
+                    <tr><th>业务场景</th><th>传统硬编码做法</th><th>AI 课程顾问做法</th></tr>
                 </thead>
                 <tbody>
                     <tr>
@@ -1468,7 +1431,7 @@ footer p {
         <div class="reveal">
             <div class="eyebrow">Get Started</div>
             <h2>让教育咨询开始精准可信</h2>
-            <p class="lead">学生 / 教师 / 机构三个入口均已上线，管理工作台同步开放。立即体验智课顾问的完整能力。</p>
+            <p class="lead">学生 / 教师 / 机构三个入口均已上线，管理工作台同步开放。立即体验AI 课程顾问的完整能力。</p>
             <div class="hero-cta">
                 <a href="https://edu-demo.openneo.ai/" target="_blank" class="btn btn-primary"><span>立即体验</span></a>
                 <a href="https://github.com/OpenNeo-AI/ai-course-agent-platform" target="_blank" class="btn btn-secondary">访问 GitHub 仓库</a>
@@ -1479,7 +1442,7 @@ footer p {
 
 <footer>
     <div class="container">
-        <p style="font-family: var(--display); font-weight: 800; color: var(--text);">智课顾问</p>
+        <p style="font-family: var(--display); font-weight: 800; color: var(--text);">AI 课程顾问</p>
         <p>© 2026 OpenNeo · 本页面所有机构、人物、价格均为竞赛模拟数据</p>
     </div>
 </footer>
