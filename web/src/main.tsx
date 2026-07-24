@@ -70,7 +70,7 @@ function Landing() {
 
       <header className="l-topbar reveal d1">
         <div className="l-brand">
-          <span className="l-logo" aria-hidden="true">顾</span>
+          <img className="l-logo" src="/logo.png" alt="AI 课程顾问" />
           <b>AI 课程顾问</b>
         </div>
         <a href="/intro.html" className="l-intro-link">

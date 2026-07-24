@@ -53,7 +53,7 @@ function Login({ onOk }: { onOk: () => void }) {
   return (
     <div className="p-login">
       <div className="p-login-box">
-        <span className="p-login-logo">管</span>
+        <img className="p-login-logo" src="/logo.png" alt="AI 课程顾问" />
         <h2>管理工作台</h2>
         <p>请使用账户与密码登录。</p>
         <input placeholder="账户" value={username} autoFocus
@@ -1044,7 +1044,7 @@ export default function Portal() {
     <div className="portal">
       <aside className="p-side">
         <div className="p-brand">
-          <span className="p-logo">管</span>
+          <img className="p-logo" src="/logo.png" alt="AI 课程顾问" />
           <div><b>管理工作台</b><small>AI 课程顾问 · 运营后台</small></div>
         </div>
         <nav className="p-nav" aria-label="管理功能">
