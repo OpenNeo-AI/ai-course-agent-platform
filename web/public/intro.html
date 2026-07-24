@@ -1,0 +1,1450 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智课顾问 · OpenNeo AI Course Advisor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+    --ink: #05060B;
+    --charcoal: #0A0C18;
+    --slate: #14182E;
+    --canvas: #F7F7F9;
+    --paper: #FFFFFF;
+    --primary: #3A42C6;
+    --primary-vivid: #4F58E8;
+    --primary-soft: rgba(58, 66, 198, 0.08);
+    --accent: #C97A1F;
+    --text: #0B0D1A;
+    --text-secondary: #4B5068;
+    --text-muted: #8B90A8;
+    --line: rgba(20, 24, 46, 0.10);
+    --line-dark: rgba(255, 255, 255, 0.12);
+    --shadow-sm: 0 1px 2px rgba(5, 6, 11, 0.04);
+    --shadow-md: 0 8px 32px rgba(5, 6, 11, 0.08);
+    --shadow-xl: 0 32px 80px rgba(5, 6, 11, 0.18);
+    --display: 'Montserrat', 'Noto Sans SC', sans-serif;
+    --body: 'Noto Sans SC', 'Montserrat', sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+    font-family: var(--body);
+    background: var(--canvas);
+    color: var(--text);
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+}
+
+::selection { background: var(--primary); color: white; }
+
+/* Typography */
+.eyebrow {
+    font-family: var(--display);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 1.5rem;
+}
+
+h1, h2, h3, h4 {
+    font-family: var(--display);
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+}
+
+h1 { font-size: clamp(3.5rem, 9vw, 8.5rem); font-weight: 900; letter-spacing: -0.05em; }
+h2 { font-size: clamp(2rem, 4.8vw, 4rem); }
+h3 { font-size: clamp(1.35rem, 2.4vw, 1.85rem); font-weight: 600; letter-spacing: -0.02em; }
+
+p {
+    font-size: 1.0625rem;
+    color: var(--text-secondary);
+    line-height: 1.85;
+}
+
+.lead {
+    font-size: 1.25rem;
+    color: var(--text-secondary);
+    line-height: 1.9;
+    max-width: 54ch;
+}
+
+.mono {
+    font-family: var(--display);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+/* Grain overlay */
+.grain {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.04;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+}
+
+/* Layout */
+.container {
+    width: 100%;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 2.5rem;
+}
+
+section { position: relative; padding: 9rem 0; }
+.section-intro {
+    max-width: 780px;
+    margin: 0 0 5rem;
+}
+.section-intro.center { margin: 0 auto 5rem; text-align: center; }
+.section-intro.center .rule { margin-left: auto; margin-right: auto; }
+
+.rule {
+    width: 72px;
+    height: 3px;
+    background: var(--primary);
+    margin: 1.5rem 0 2rem;
+}
+
+.section-intro h2 { margin-bottom: 1.5rem; }
+
+/* Navigation */
+nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    padding: 1.5rem 0;
+    mix-blend-mode: difference;
+}
+
+nav .container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.brand {
+    font-family: var(--display);
+    font-size: 1.35rem;
+    font-weight: 900;
+    color: #fff;
+    letter-spacing: 0.04em;
+    text-decoration: none;
+}
+
+.tab-nav {
+    display: flex;
+    gap: 0.75rem;
+    list-style: none;
+}
+
+.tab-nav button {
+    background: transparent;
+    border: none;
+    color: rgba(255,255,255,0.7);
+    font-family: var(--display);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    transition: color 0.3s ease;
+}
+
+.tab-nav button:hover { color: #fff; }
+.tab-nav button.active { color: #fff; box-shadow: 0 2px 0 0 var(--accent); }
+
+/* Hero */
+.hero {
+    position: relative;
+    min-height: 100svh;
+    display: flex;
+    align-items: flex-end;
+    padding: 0 0 6rem;
+    overflow: hidden;
+    background: var(--ink);
+}
+
+.hero-media {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+}
+
+.hero-media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.85;
+    transform: scale(1.05);
+    animation: heroZoom 12s ease-out forwards;
+}
+
+.hero-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        180deg,
+        rgba(5, 6, 11, 0.45) 0%,
+        rgba(5, 6, 11, 0.25) 40%,
+        rgba(5, 6, 11, 0.82) 100%
+    );
+    z-index: 1;
+}
+
+.hero-content {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 2.5rem;
+}
+
+.hero h1 {
+    color: #fff;
+    margin-bottom: 0.5rem;
+    opacity: 0;
+    transform: translateY(60px);
+    animation: rise 1.2s cubic-bezier(0.22, 1, 0.36, 1) 0.2s forwards;
+}
+
+.hero-tagline {
+    font-family: var(--display);
+    font-size: clamp(1.15rem, 2.2vw, 1.65rem);
+    font-weight: 500;
+    color: rgba(255,255,255,0.92);
+    letter-spacing: -0.01em;
+    margin-bottom: 1.25rem;
+    opacity: 0;
+    transform: translateY(40px);
+    animation: rise 1.2s cubic-bezier(0.22, 1, 0.36, 1) 0.35s forwards;
+}
+
+.hero-desc {
+    font-size: 1.125rem;
+    color: rgba(255,255,255,0.65);
+    max-width: 600px;
+    margin-bottom: 2.75rem;
+    opacity: 0;
+    transform: translateY(40px);
+    animation: rise 1.2s cubic-bezier(0.22, 1, 0.36, 1) 0.5s forwards;
+}
+
+.hero-cta {
+    display: inline-flex;
+    gap: 1rem;
+    opacity: 0;
+    transform: translateY(40px);
+    animation: rise 1.2s cubic-bezier(0.22, 1, 0.36, 1) 0.65s forwards;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.05rem 2.5rem;
+    font-family: var(--display);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-decoration: none;
+    border-radius: 0;
+    transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+    cursor: pointer;
+    border: none;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-primary {
+    background: #fff;
+    color: var(--ink);
+}
+
+.btn-primary::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--primary);
+    transform: translateY(100%);
+    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+    z-index: 0;
+}
+
+.btn-primary span { position: relative; z-index: 1; transition: color 0.4s; }
+.btn-primary:hover::after { transform: translateY(0); }
+.btn-primary:hover span { color: #fff; }
+
+.btn-secondary {
+    background: transparent;
+    color: #fff;
+    border: 1px solid var(--line-dark);
+}
+
+.btn-secondary:hover {
+    border-color: #fff;
+    background: rgba(255,255,255,0.08);
+}
+
+.scroll-hint {
+    position: absolute;
+    bottom: 2.5rem;
+    right: 2.5rem;
+    z-index: 3;
+    color: rgba(255,255,255,0.45);
+    font-family: var(--display);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    writing-mode: vertical-rl;
+    opacity: 0;
+    animation: fadeIn 1s ease 1.4s forwards;
+}
+
+.scroll-hint::before {
+    content: '';
+    display: block;
+    width: 1px;
+    height: 64px;
+    background: rgba(255,255,255,0.25);
+    margin: 0 auto 1rem;
+    animation: scrollLine 2.2s ease-in-out infinite;
+}
+
+/* Statement */
+.statement {
+    border-left: 3px solid var(--primary);
+    padding-left: 2rem;
+    margin: 3.5rem 0;
+}
+
+.statement p {
+    font-family: var(--display);
+    font-size: 1.5rem;
+    font-weight: 500;
+    color: var(--text);
+    line-height: 1.65;
+    max-width: 48ch;
+}
+
+/* Comparison table */
+.comparison {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 3.5rem;
+}
+
+.comparison th {
+    text-align: left;
+    padding: 1.1rem 1.5rem;
+    font-family: var(--display);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    background: var(--ink);
+    border-bottom: 1px solid var(--line);
+}
+
+.comparison td {
+    padding: 1.35rem 1.5rem;
+    font-size: 1rem;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+}
+
+.comparison td:first-child {
+    font-family: var(--display);
+    color: var(--text);
+    font-weight: 600;
+    width: 24%;
+}
+
+.comparison td:nth-child(2) { color: var(--text-secondary); width: 38%; }
+.comparison td:nth-child(3) { color: var(--primary); font-weight: 500; width: 38%; }
+.comparison tr:nth-child(even) td { background: var(--paper); }
+.comparison tr:last-child td { border-bottom: none; }
+
+/* Metrics */
+.metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--line);
+    margin-top: 4.5rem;
+    border: 1px solid var(--line);
+}
+
+.metric {
+    background: var(--paper);
+    padding: 3.5rem 2rem;
+    text-align: left;
+}
+
+.metric-number {
+    font-family: var(--display);
+    font-size: clamp(2.75rem, 5vw, 4rem);
+    font-weight: 800;
+    color: var(--primary);
+    line-height: 1;
+    margin-bottom: 0.75rem;
+}
+
+.metric-label {
+    font-family: var(--display);
+    font-size: 1rem;
+    color: var(--text);
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.metric-desc {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+/* Battle / feature grid */
+.battle { background: var(--paper); }
+.battle:nth-child(even) { background: var(--canvas); }
+
+.battle-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.15fr;
+    gap: 6rem;
+    align-items: center;
+}
+
+.battle-grid.reverse { direction: rtl; }
+.battle-grid.reverse > * { direction: ltr; }
+
+.battle-content { max-width: 520px; }
+.battle-content h3 { margin-bottom: 1.25rem; color: var(--text); }
+
+.battle-list {
+    list-style: none;
+    margin: 1.75rem 0;
+}
+
+.battle-list li {
+    position: relative;
+    padding-left: 1.5rem;
+    margin-bottom: 1rem;
+    color: var(--text-secondary);
+    font-size: 1rem;
+    line-height: 1.75;
+}
+
+.battle-list li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.6rem;
+    width: 6px;
+    height: 6px;
+    background: var(--primary);
+}
+
+.battle-formula {
+    margin-top: 2.25rem;
+    padding: 1.5rem 1.75rem;
+    background: var(--primary-soft);
+    border-left: 3px solid var(--accent);
+}
+
+.battle-formula p {
+    font-family: var(--display);
+    font-size: 1.0625rem;
+    color: var(--text);
+    line-height: 1.75;
+    font-weight: 500;
+}
+
+.battle-visual { position: relative; }
+
+.battle-visual img {
+    width: 100%;
+    box-shadow: var(--shadow-xl);
+    transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.battle-visual:hover img { transform: translateY(-6px) scale(1.01); }
+
+.battle-caption {
+    margin-top: 1rem;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    letter-spacing: 0.02em;
+}
+
+/* Visual placeholder for battles without image */
+.visual-placeholder {
+    width: 100%;
+    aspect-ratio: 16/10;
+    background: linear-gradient(135deg, var(--primary-soft), rgba(201,122,31,0.05));
+    border: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--display);
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--primary);
+    letter-spacing: 0.1em;
+    box-shadow: var(--shadow-xl);
+}
+
+/* Dark AI-like section */
+.dark-section {
+    background: var(--ink);
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+}
+
+.dark-section::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 75% 20%, rgba(58,66,198,0.22), transparent 45%),
+                radial-gradient(circle at 20% 80%, rgba(201,122,31,0.10), transparent 40%);
+    pointer-events: none;
+}
+
+.dark-section .container { position: relative; z-index: 2; }
+.dark-section .section-intro h2 { color: #fff; }
+.dark-section .lead { color: rgba(255,255,255,0.65); }
+
+.scenarios {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.scenario {
+    padding: 1.75rem 2rem;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--line-dark);
+    transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.scenario:hover {
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(255,255,255,0.22);
+    transform: translateX(8px);
+}
+
+.scenario h4 {
+    font-family: var(--display);
+    font-size: 0.8125rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 0.5rem;
+}
+
+.scenario p {
+    font-size: 1rem;
+    color: rgba(255,255,255,0.65);
+    line-height: 1.75;
+}
+
+/* Test cards */
+.test-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+    margin-top: 3rem;
+}
+
+.test-case {
+    padding: 1.75rem 2rem;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    transition: all 0.3s ease;
+}
+
+.test-case:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+    border-color: rgba(58,66,198,0.25);
+}
+
+.test-case-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.test-case-id {
+    font-family: var(--display);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--primary);
+}
+
+.test-case-result {
+    font-family: var(--display);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 0.25rem 0.6rem;
+}
+
+.test-case-result.pass {
+    background: rgba(16, 185, 129, 0.12);
+    color: #059669;
+}
+
+.test-case-result.fail {
+    background: rgba(239, 68, 68, 0.12);
+    color: #dc2626;
+}
+
+.test-case h5 {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--text);
+}
+
+.test-case p {
+    font-size: 0.9375rem;
+    color: var(--text-secondary);
+    line-height: 1.7;
+}
+
+/* Evidence */
+.evidence {
+    margin-top: 4rem;
+}
+
+.evidence-item {
+    padding: 2.5rem 0;
+    border-bottom: 1px solid var(--line);
+}
+
+.evidence-item:last-child { border-bottom: none; }
+
+.evidence-item h5 {
+    font-family: var(--display);
+    font-size: 0.8125rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--primary);
+    margin-bottom: 1rem;
+}
+
+.evidence-item blockquote {
+    font-size: 1.15rem;
+    color: var(--text);
+    line-height: 1.75;
+    padding-left: 1.5rem;
+    border-left: 3px solid var(--accent);
+    margin-bottom: 0.75rem;
+}
+
+.evidence-item .source {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    font-family: var(--display);
+}
+
+/* Failure box */
+.failure-box {
+    margin-top: 2.5rem;
+    padding: 2rem;
+    background: rgba(239, 68, 68, 0.04);
+    border-left: 3px solid var(--error);
+}
+
+.failure-box h4 {
+    font-family: var(--display);
+    font-size: 0.8125rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--error);
+    margin-bottom: 0.75rem;
+}
+
+.failure-box p {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    line-height: 1.75;
+}
+
+/* Operations portal diagram */
+.arch-diagram { margin-top: 4rem; }
+.arch-columns {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.5rem;
+}
+.arch-col {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    padding: 1.75rem;
+    transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.arch-col:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-md);
+    border-color: rgba(58,66,198,0.25);
+}
+.arch-col h5 {
+    font-family: var(--display);
+    font-size: 0.8125rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--primary);
+    margin-bottom: 1.25rem;
+}
+.arch-item {
+    font-size: 0.9375rem;
+    color: var(--text-secondary);
+    line-height: 1.7;
+    margin-bottom: 0.75rem;
+    padding-left: 1rem;
+    border-left: 2px solid var(--line);
+}
+.arch-item strong {
+    color: var(--text);
+    font-weight: 600;
+    display: block;
+    margin-bottom: 0.15rem;
+}
+
+/* Tabs panels */
+.tabs-content { background: var(--canvas); }
+
+.tab-panel {
+    display: none;
+    animation: panelIn 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.tab-panel.active { display: block; }
+
+@keyframes panelIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Final CTA */
+.final-cta {
+    text-align: center;
+    padding: 10rem 0;
+    background: var(--paper);
+}
+
+.final-cta h2 { margin-bottom: 1.25rem; }
+.final-cta .lead { margin: 0 auto 2.75rem; }
+.final-cta .hero-cta { justify-content: center; }
+.final-cta .btn-primary { background: var(--ink); color: #fff; }
+.final-cta .btn-primary::after { background: var(--primary); }
+.final-cta .btn-secondary { color: var(--text); border-color: var(--line); }
+.final-cta .btn-secondary:hover { background: var(--primary-soft); border-color: var(--primary); }
+
+/* Footer */
+footer {
+    padding: 3rem 0;
+    border-top: 1px solid var(--line);
+    background: var(--paper);
+}
+
+footer .container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+footer p {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+/* Reveal animation */
+.reveal {
+    opacity: 0;
+    transform: translateY(48px);
+    transition: all 1s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.reveal.active { opacity: 1; transform: translateY(0); }
+
+/* Keyframes */
+@keyframes rise {
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn { to { opacity: 1; } }
+
+@keyframes heroZoom {
+    to { transform: scale(1); }
+}
+
+@keyframes scrollLine {
+    0%, 100% { transform: scaleY(0); transform-origin: top; }
+    50% { transform: scaleY(1); transform-origin: top; }
+    51% { transform-origin: bottom; }
+    100% { transform: scaleY(0); transform-origin: bottom; }
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .battle-grid, .dark-section .ai-grid { grid-template-columns: 1fr; gap: 3rem; }
+    .battle-grid.reverse { direction: ltr; }
+    .metrics { grid-template-columns: 1fr; }
+    .test-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 768px) {
+    .container { padding: 0 1.5rem; }
+    section { padding: 6rem 0; }
+    .hero-content { padding: 0 1.5rem; padding-bottom: 4rem; }
+    .hero-cta { flex-direction: column; width: 100%; }
+    .btn { width: 100%; }
+    .comparison th, .comparison td { padding: 1rem; font-size: 0.875rem; }
+    .comparison td:first-child { width: 30%; }
+    .statement p { font-size: 1.15rem; }
+    .tab-nav { gap: 0.25rem; }
+    .tab-nav button { padding: 0.5rem 0.6rem; font-size: 0.7rem; }
+    footer .container { flex-direction: column; gap: 0.5rem; text-align: center; }
+}
+</style>
+</head>
+<body>
+<div class="grain"></div>
+
+<nav>
+    <div class="container">
+        <a href="#" class="brand">智课顾问</a>
+        <ul class="tab-nav">
+            <li><button class="active" data-tab="product">产品介绍</button></li>
+            <li><button data-tab="engineering">建设思路</button></li>
+            <li><button data-tab="testing">测试记录</button></li>
+        </ul>
+    </div>
+</nav>
+
+<section class="hero">
+    <div class="hero-media">
+        <img src="assets/hero.jpg" alt="智课顾问 AI 知识图谱">
+    </div>
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+        <div class="eyebrow">OpenNeo · AI Course Advisor</div>
+        <h1>智课顾问</h1>
+        <p class="hero-tagline">基于知识本体引擎的 AI 原生课程顾问平台</p>
+        <p class="hero-desc">从课程文档到经营大脑。让学生、教师与机构用户的每一次咨询都精准、可信、可追溯。</p>
+        <div class="hero-cta">
+            <a href="https://edu-demo.openneo.ai/" target="_blank" class="btn btn-primary"><span>立即体验</span></a>
+            <a href="#" class="btn btn-secondary" onclick="switchTab('engineering'); return false;">查看建设思路</a>
+        </div>
+    </div>
+    <div class="scroll-hint">Scroll</div>
+</section>
+
+<div class="tabs-content">
+
+<!-- ========== TAB 1: PRODUCT ========== -->
+<div class="tab-panel active" id="tab-product">
+
+    <section>
+        <div class="container">
+            <div class="section-intro center reveal">
+                <div class="eyebrow">Value Proposition</div>
+                <h2>教育咨询的真正战场</h2>
+                <div class="rule"></div>
+                <p class="lead">当课程产品越来越复杂，咨询竞争进入精准运营期。核心命题不再是资料有多少，而是每一次回答能否让用户立刻做出正确决策。</p>
+            </div>
+
+            <div class="statement reveal">
+                <p>智课顾问不是一套简单的问答机器人，而是教育机构的数字课程顾问——帮运营者看清知识边界在哪里、费用该如何计算、用户该推荐什么班型。</p>
+            </div>
+
+            <table class="comparison reveal">
+                <thead>
+                    <tr><th>经营命题</th><th>传统做法</th><th>智课顾问做法</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>课程推荐</td>
+                        <td>依赖顾问经验，推荐口径不一致</td>
+                        <td>按城市/日期/形式/等级多约束筛选真实班型</td>
+                    </tr>
+                    <tr>
+                        <td>费用计算</td>
+                        <td>人工核对，早鸟/团报/食宿易出错</td>
+                        <td>规则引擎确定性计算，逐项拆解</td>
+                    </tr>
+                    <tr>
+                        <td>知识边界</td>
+                        <td>学生/教师/机构知识混用，易泄露</td>
+                        <td>知识域隔离，范围外内容不可见</td>
+                    </tr>
+                    <tr>
+                        <td>资料维护</td>
+                        <td>改代码或重新训练模型</td>
+                        <td>上传文档 → 自动抽取 → 确认即生效</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="metrics reveal">
+                <div class="metric">
+                    <div class="metric-number">8</div>
+                    <div class="metric-label">本体对象类型</div>
+                    <div class="metric-desc">班型 / 营期 / 地点 / 师资 / 费用项 / 规则 / 文档 / 知识域</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-number">10</div>
+                    <div class="metric-label">语义链接类型</div>
+                    <div class="metric-desc">归属 / 开设于 / 位于 / 前置 / 同级 / 来源溯源等</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-number">25/25</div>
+                    <div class="metric-label">测试验收通过</div>
+                    <div class="metric-desc">事实 / 边界 / 推荐 / 多轮 / 异常五维度覆盖</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="battle">
+        <div class="container">
+            <div class="section-intro reveal">
+                <div class="eyebrow">User Entrances</div>
+                <h2>三种身份，三个入口</h2>
+                <div class="rule"></div>
+                <p class="lead">学生、教师、机构用户分别使用独立入口，系统自动预置身份与知识域，无需反复澄清。</p>
+            </div>
+
+            <div class="battle-grid reveal">
+                <div class="battle-content">
+                    <div class="eyebrow">Entrance 01</div>
+                    <h3>学生 / 家长通道</h3>
+                    <p>暑期 AI 素养夏令营咨询。北京线下班、上海线下班、线上直播班，按城市、日期、形式精准匹配。</p>
+                    <ul class="battle-list">
+                        <li>预置学生身份，免身份澄清</li>
+                        <li>自然语言描述约束即可推荐</li>
+                        <li>连续追问时间、费用、物资自动继承班型上下文</li>
+                    </ul>
+                    <div class="battle-formula">
+                        <p class="mono">访问地址：https://edu-demo.openneo.ai/s</p>
+                    </div>
+                </div>
+                <div class="battle-visual">
+                    <div class="visual-placeholder">STUDENT</div>
+                    <p class="battle-caption">学生 H5：移动优先的对话式咨询界面</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="battle">
+        <div class="container">
+            <div class="battle-grid reverse reveal">
+                <div class="battle-content">
+                    <div class="eyebrow">Entrance 02</div>
+                    <h3>教师培训通道</h3>
+                    <p>初高中教师 AI 素养培训 L1-L3。按是否连续脱岗、等级目标推荐暑期集训班或周末研修班。</p>
+                    <ul class="battle-list">
+                        <li>预置教师身份，直接咨询培训体系</li>
+                        <li>自动校验 L2/L3 前置要求</li>
+                        <li>早鸟 / 团报费用逐项拆解</li>
+                    </ul>
+                    <div class="battle-formula">
+                        <p class="mono">访问地址：https://edu-demo.openneo.ai/t</p>
+                    </div>
+                </div>
+                <div class="battle-visual">
+                    <div class="visual-placeholder">TEACHER</div>
+                    <p class="battle-caption">教师 H5：等级化培训咨询与前置校验</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="battle">
+        <div class="container">
+            <div class="battle-grid reveal">
+                <div class="battle-content">
+                    <div class="eyebrow">Entrance 03</div>
+                    <h3>平台 / 机构通道</h3>
+                    <p>自动预置机构身份，面向园区/企业用户咨询平台服务、会员权益与企业合作事项。平台资料缺失时如实回答"无法确认"。</p>
+                    <ul class="battle-list">
+                        <li>预置机构身份，直接咨询平台服务</li>
+                        <li>对接平台服务知识域</li>
+                        <li>统一人工服务引导话术</li>
+                    </ul>
+                    <div class="battle-formula">
+                        <p class="mono">访问地址：https://edu-demo.openneo.ai/c</p>
+                    </div>
+                </div>
+                <div class="battle-visual">
+                    <div class="visual-placeholder">PLATFORM</div>
+                    <p class="battle-caption">平台/机构通道：会员权益与企业合作咨询</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="battle">
+        <div class="container">
+            <div class="section-intro reveal">
+                <div class="eyebrow">Operations Portal</div>
+                <h2>运营后台：知识资产的中央控制台</h2>
+                <div class="rule"></div>
+                <p class="lead">访问 <span class="mono">https://edu-demo.openneo.ai/portal</span>，使用演示账户 demo / demo1234 登录。运营人员可管理知识域、维护本体图谱、配置智能体、分析运营数据、跟进留资工单，所有变更热加载生效。</p>
+                <p class="lead" style="margin-top: 1rem;">七大核心模块覆盖知识治理、智能体配置、运营分析、质量管理与人机协作全链路，是区别于"只会答题的机器人"的关键。</p>
+            </div>
+
+            <div class="arch-diagram reveal">
+                <div class="arch-columns">
+                    <div class="arch-col">
+                        <h5>知识域</h5>
+                        <div class="arch-item"><strong>上传文档</strong>.txt / .docx / .pdf</div>
+                        <div class="arch-item"><strong>自动解析</strong>切块 · 向量化 · 本体抽取</div>
+                        <div class="arch-item"><strong>知识库维护</strong>增删改 · 重建索引</div>
+                    </div>
+                    <div class="arch-col">
+                        <h5>本体知识</h5>
+                        <div class="arch-item"><strong>可视化图谱</strong>力导向 / 放射 / 聚簇 / 层级</div>
+                        <div class="arch-item"><strong>节点管理</strong>确认 · 编辑 · 链接</div>
+                        <div class="arch-item"><strong>派生重算</strong>归属链 / 前置链 / 变体链</div>
+                    </div>
+                    <div class="arch-col">
+                        <h5>智能体设置</h5>
+                        <div class="arch-item"><strong>对接知识域</strong>勾选可见范围</div>
+                        <div class="arch-item"><strong>模型选择</strong>从支持的模型清单切换</div>
+                        <div class="arch-item"><strong>能力配置</strong>留资转人工 · 对话质检</div>
+                    </div>
+                    <div class="arch-col">
+                        <h5>数据分析</h5>
+                        <div class="arch-item"><strong>运营概览</strong>会话 / 提问 / 趋势</div>
+                        <div class="arch-item"><strong>知识缺口</strong>未答 / 边界问题</div>
+                        <div class="arch-item"><strong>LLM 洞察</strong>一键生成运营报告</div>
+                    </div>
+                    <div class="arch-col">
+                        <h5>人工跟进</h5>
+                        <div class="arch-item"><strong>留资工单</strong>采集报名意向</div>
+                        <div class="arch-item"><strong>状态流转</strong>待跟进 → 已跟进 → 已转化</div>
+                        <div class="arch-item"><strong>跟进记录</strong>仅做留资流转</div>
+                    </div>
+                    <div class="arch-col">
+                        <h5>会话记录</h5>
+                        <div class="arch-item"><strong>逐条消息</strong>含工具调用</div>
+                        <div class="arch-item"><strong>质检评分</strong>准确性 / 规范性 / 体验</div>
+                        <div class="arch-item"><strong>红线问题</strong>批量或单个质检</div>
+                    </div>
+                    <div class="arch-col">
+                        <h5>系统设置</h5>
+                        <div class="arch-item"><strong>模型参数</strong>地址 / Key / 温度 / 轮次</div>
+                        <div class="arch-item"><strong>渠道令牌</strong>签发 MCP 接入令牌</div>
+                        <div class="arch-item"><strong>热加载</strong>保存即生效</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="dark-section">
+        <div class="container">
+            <div class="section-intro reveal">
+                <div class="eyebrow">AI Assistant</div>
+                <h2>对话即咨询</h2>
+                <div class="rule"></div>
+                <p class="lead">对家长和教师而言，时间是最稀缺的资源。智课顾问让用户通过自然语言直接获取课程答案与可执行建议。</p>
+            </div>
+
+            <div class="battle-grid reveal">
+                <div class="battle-content">
+                    <div class="statement" style="border-left-color: var(--accent);">
+                        <p style="color: #fff;">「孩子在北京，8月1日到7日有空，想线下参加，推荐哪个班？」—— 一句话，系统直接给出推荐班型、费用拆解与报名建议。</p>
+                    </div>
+                </div>
+                <div class="scenarios">
+                    <div class="scenario">
+                        <h4>班型推荐</h4>
+                        <p>自动采集城市、日期、形式等约束，按真实班型筛选并生成逐条理由</p>
+                    </div>
+                    <div class="scenario">
+                        <h4>费用计算</h4>
+                        <p>早鸟 / 团报 / 食宿逐项拆解，纯确定性计算，不经过 LLM 推理</p>
+                    </div>
+                    <div class="scenario">
+                        <h4>详情答疑</h4>
+                        <p>真流式逐字输出，回答末尾以「引用出处」卡片呈现文档名、章节与关键原文摘录</p>
+                    </div>
+                    <div class="scenario">
+                        <h4>与众不同</h4>
+                        <p>基于知识本体调用 7 个核心工具，含 capture_lead 留资转人工，输出可执行建议，过程透明可审计</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+</div>
+
+<!-- ========== TAB 2: ENGINEERING ========== -->
+<div class="tab-panel" id="tab-engineering">
+
+    <section>
+        <div class="container">
+            <div class="section-intro center reveal">
+                <div class="eyebrow">Engineering Philosophy</div>
+                <h2>知识即数据，规则即记录</h2>
+                <div class="rule"></div>
+                <p class="lead">面向专家评审的建设思路：以 Palantir Foundry 本体范式为核心，将课程领域的业务实体与规则建模为类型化对象，通过确定性引擎执行计算，从根本上消除大模型在垂直领域的数字幻觉。</p>
+            </div>
+
+            <div class="statement reveal">
+                <p>智课顾问的核心设计原则：知识即数据，规则即记录，配置即文件。所有业务数值均存于库内规则对象，引擎代码中不含任何价格、日期、人数的字面量。</p>
+            </div>
+
+            <table class="comparison reveal">
+                <thead>
+                    <tr><th>业务场景</th><th>传统硬编码做法</th><th>智课顾问做法</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>早鸟折扣</td>
+                        <td><span class="mono">if days &lt; 21: fee -= 500</span></td>
+                        <td>读取 <span class="mono">early_bird</span> 规则参数 <span class="mono">days_before_start / discount</span></td>
+                    </tr>
+                    <tr>
+                        <td>优惠叠加</td>
+                        <td><span class="mono">if early and group: take_max()</span></td>
+                        <td>读取 <span class="mono">stack_policy</span> 规则 <span class="mono">mode = "max_one"</span></td>
+                    </tr>
+                    <tr>
+                        <td>前置校验</td>
+                        <td><span class="mono">if target == "L3": check("L2")</span></td>
+                        <td>遍历 <span class="mono">prerequisite_of</span> 链接校验前置产品</td>
+                    </tr>
+                    <tr>
+                        <td>班型筛选</td>
+                        <td>硬编码城市 / 日期 / 形式过滤</td>
+                        <td>执行库内 <span class="mono">recommend</span> 规则：needs / match / 日期来源 / 限额</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="battle">
+        <div class="container">
+            <div class="section-intro reveal">
+                <div class="eyebrow">Domain Architecture</div>
+                <h2>知识域是唯一的边界单位</h2>
+                <div class="rule"></div>
+                <p class="lead">摒弃素材 A/B/C 的硬分类，采用知识域 -> 知识库 -> 文档三级结构。智能体通过 agents.yaml 声明对接的知识域，范围外内容在工具层不可见。</p>
+            </div>
+
+            <div class="battle-grid reveal">
+                <div class="battle-content">
+                    <div class="eyebrow">Hierarchy</div>
+                    <h3>三级知识结构</h3>
+                    <p>实体 / 规则 / 知识块经 文档 -> 知识库 -> 知识域 链路归属，无 material 列。资料分类的本质是知识域隔离。</p>
+                    <ul class="battle-list">
+                        <li><strong>知识域 Domain</strong>：语义边界单元，可自建扩展</li>
+                        <li><strong>知识库 KB</strong>：文档集合与对应的本体实体、检索索引</li>
+                        <li><strong>文档 Document</strong>：原始文件，用于对象溯源</li>
+                    </ul>
+                    <div class="battle-formula">
+                        <p class="mono">学生通道无法检索教师域价格，教师通道无法访问学生域内容</p>
+                    </div>
+                </div>
+                <div class="battle-visual">
+                    <div class="visual-placeholder">DOMAIN</div>
+                    <p class="battle-caption">知识域 -> 知识库 -> 文档三级隔离架构</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="battle">
+        <div class="container">
+            <div class="battle-grid reverse reveal">
+                <div class="battle-content">
+                    <div class="eyebrow">Retrieval Pipeline</div>
+                    <h3>多路混合检索</h3>
+                    <p>原始问题先经 LLM 结构化改写，三路并行召回后经 RRF 融合与 LLM 重排。价格、日期等精确事实直接由本体命中，不经过 LLM 改写。</p>
+                    <ul class="battle-list">
+                        <li><strong>向量语义召回</strong>：doubao-embedding-vision 2048 维 + sqlite-vec</li>
+                        <li><strong>FTS5 关键词召回</strong>：trigram 中文分词</li>
+                        <li><strong>本体精确匹配</strong>：产品 / 营期 / 规则结构化直取</li>
+                        <li><strong>RRF + LLM Rerank</strong>：Top-K 生成，自动标注引用</li>
+                    </ul>
+                    <div class="battle-formula">
+                        <p class="mono">Query Rewrite → Vec + FTS + Ontology → RRF → Rerank → Generate + Citation</p>
+                    </div>
+                </div>
+                <div class="battle-visual">
+                    <div class="visual-placeholder">RETRIEVAL</div>
+                    <p class="battle-caption">三路并行召回与重排管线</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="dark-section">
+        <div class="container">
+            <div class="section-intro reveal">
+                <div class="eyebrow">Tech Stack</div>
+                <h2>单一 SQLite，单一 FastAPI 服务</h2>
+                <div class="rule"></div>
+                <p class="lead">本体、向量索引、全文检索、会话与消息全部存储在单一 SQLite 文件。FastAPI 同时提供 REST + SSE、三个 MCP streamable HTTP 端点、静态前端。</p>
+            </div>
+
+            <div class="battle-grid reveal">
+                <div class="battle-content">
+                    <div class="statement" style="border-left-color: var(--accent);">
+                        <p style="color: #fff;">核心工具一份实现三处复用：Agent 会话循环、MCP server、REST API 调用的是同一份 tools.py。</p>
+                    </div>
+                </div>
+                <div class="scenarios">
+                    <div class="scenario">
+                        <h4>后端</h4>
+                        <p>Python · FastAPI · uvicorn · sqlite-vec · FTS5 · MCP Python SDK</p>
+                    </div>
+                    <div class="scenario">
+                        <h4>前端</h4>
+                        <p>React · Vite · TypeScript · Cytoscape.js 本体图谱 · SSE 流式对话</p>
+                    </div>
+                    <div class="scenario">
+                        <h4>大模型</h4>
+                        <p>火山方舟豆包：对话 / function calling / embedding / 重排评分</p>
+                    </div>
+                    <div class="scenario">
+                        <h4>部署</h4>
+                        <p>nginx → uvicorn · systemd 守护 · 单文件备份</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+</div>
+
+<!-- ========== TAB 3: TESTING ========== -->
+<div class="tab-panel" id="tab-testing">
+
+    <section>
+        <div class="container">
+            <div class="section-intro center reveal">
+                <div class="eyebrow">Quality Assurance</div>
+                <h2>事实回归 + 端到端验收</h2>
+                <div class="rule"></div>
+                <p class="lead">20 项事实断言单测锁定已知事实，25 组测试验收用例全部通过，覆盖事实正确性、资料边界、推荐准确性、多轮上下文继承与异常处理。</p>
+            </div>
+
+            <div class="metrics reveal">
+                <div class="metric">
+                    <div class="metric-number">25/25</div>
+                    <div class="metric-label">验收用例全部通过</div>
+                    <div class="metric-desc">事实 / 边界 / 推荐 / 多轮 / 异常</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-number">20/20</div>
+                    <div class="metric-label">事实回归单测通过</div>
+                    <div class="metric-desc">价格 / 日期 / 优惠 / 退费 / 前置</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-number">100%</div>
+                    <div class="metric-label">测试验收通过率</div>
+                    <div class="metric-desc">MCP 全链路 / 红线自查同步通过</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="battle">
+        <div class="container">
+            <div class="section-intro reveal">
+                <div class="eyebrow">Test Cases</div>
+                <h2>12 组代表用例</h2>
+                <div class="rule"></div>
+                <p class="lead">覆盖资料事实、资料边界、推荐、多轮对话与异常处理五个维度。</p>
+            </div>
+
+            <div class="test-grid reveal">
+                <div class="test-case">
+                    <div class="test-case-header"><span class="test-case-id">事实 01</span><span class="test-case-result pass">通过</span></div>
+                    <h5>北京线下班费用</h5>
+                    <p>标准课程费 6980 元、早鸟价 5980 元，含早鸟条件与团报说明，引用来源正确。</p>
+                </div>
+                <div class="test-case">
+                    <div class="test-case-header"><span class="test-case-id">事实 02</span><span class="test-case-result pass">通过</span></div>
+                    <h5>线上直播班安排</h5>
+                    <p>标准费 3980 元、早鸟 3280 元，提供 30 天回放，按日期判断早鸟资格。</p>
+                </div>
+                <div class="test-case">
+                    <div class="test-case-header"><span class="test-case-id">事实 03</span><span class="test-case-result pass">通过</span></div>
+                    <h5>教师培训费用</h5>
+                    <p>L1=2980 元、L2=6980 元、L3=12800 元，含费用包含说明与优惠规则。</p>
+                </div>
+                <div class="test-case">
+                    <div class="test-case-header"><span class="test-case-id">边界 01</span><span class="test-case-result pass">通过</span></div>
+                    <h5>平台会员价格</h5>
+                    <p>回答"无法确认"，引导联系人工，未编造任何价格。</p>
+                </div>
+                <div class="test-case">
+                    <div class="test-case-header"><span class="test-case-id">边界 02</span><span class="test-case-result pass">通过</span></div>
+                    <h5>学生通道问教师价格</h5>
+                    <p>说明属于教师培训域，不在学生通道服务范围，未泄露教师域价格。</p>
+                </div>
+                <div class="test-case">
+                    <div class="test-case-header"><span class="test-case-id">推荐 01</span><span class="test-case-result pass">通过</span></div>
+                    <h5>北京学生线下推荐</h5>
+                    <p>推荐北京线下班第一期，理由逐条对应地点 / 时间 / 形式约束。</p>
+                </div>
+                <div class="test-case">
+                    <div class="test-case-header"><span class="test-case-id">推荐 02</span><span class="test-case-result pass">通过</span></div>
+                    <h5>教师连续脱岗推荐</h5>
+                    <p>推荐 L2 暑期集训班，提示前置要求（需完成 L1 或通过测评）。</p>
+                </div>
+                <div class="test-case">
+                    <div class="test-case-header"><span class="test-case-id">推荐 03</span><span class="test-case-result pass">通过</span></div>
+                    <h5>教师不能脱岗推荐</h5>
+                    <p>推荐 L1 周末研修班而非集训班，对应周末可用约束。</p>
+                </div>
+                <div class="test-case">
+                    <div class="test-case-header"><span class="test-case-id">多轮 01</span><span class="test-case-result pass">通过</span></div>
+                    <h5>教师推荐后追问费用与前置</h5>
+                    <p>三轮继承同一班型上下文，费用与前置要求均正确。</p>
+                </div>
+                <div class="test-case">
+                    <div class="test-case-header"><span class="test-case-id">多轮 02</span><span class="test-case-result pass">通过</span></div>
+                    <h5>重置后不引用旧班型</h5>
+                    <p>重置后重新采集约束，未引用旧班型。</p>
+                </div>
+                <div class="test-case">
+                    <div class="test-case-header"><span class="test-case-id">异常 01</span><span class="test-case-result pass">通过</span></div>
+                    <h5>超长输入</h5>
+                    <p>502 字输入触发精简提示，会话未中断。</p>
+                </div>
+                <div class="test-case">
+                    <div class="test-case-header"><span class="test-case-id">异常 02</span><span class="test-case-result pass">通过</span></div>
+                    <h5>模型失败降级</h5>
+                    <p>模拟模型失败时返回"请稍后重试"，不崩溃。</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="battle">
+        <div class="container">
+            <div class="section-intro reveal">
+                <div class="eyebrow">Evidence</div>
+                <h2>抽样证据</h2>
+                <div class="rule"></div>
+            </div>
+
+            <div class="evidence reveal">
+                <div class="evidence-item">
+                    <h5>事实1：北京线下班费用</h5>
+                    <blockquote>标准课程费：6980元/人；早鸟价：5980元/人；早鸟条件为开营前21天及以上缴费。团报优惠：同一期同一班型3人及以上每人减300元，早鸟与团报不可叠加取更高一项。</blockquote>
+                    <div class="source">— 出自《学生个人课程资料》第一章 / 第五章 · calculate_fee</div>
+                </div>
+                <div class="evidence-item">
+                    <h5>推荐1：北京学生线下</h5>
+                    <blockquote>推荐北京线下班·第一期（8月1日-8月7日）。推荐理由：1. 地点完全匹配；2. 时间完全匹配；3. 线下学习体验。</blockquote>
+                    <div class="source">— recommend_products · 北京 / 8月1-7日 / offline</div>
+                </div>
+                <div class="evidence-item">
+                    <h5>边界1：平台会员价格</h5>
+                    <blockquote>根据平台资料，无法确认 OPC 平台会员的具体价格。建议请联系人工课程顾问进行详细咨询。</blockquote>
+                    <div class="source">— 出自《统一赛题》前言 · ask_knowledge</div>
+                </div>
+            </div>
+
+
+        </div>
+    </section>
+
+</div>
+
+</div>
+
+<section class="final-cta">
+    <div class="container">
+        <div class="reveal">
+            <div class="eyebrow">Get Started</div>
+            <h2>让教育咨询开始精准可信</h2>
+            <p class="lead">学生 / 教师 / 机构三个入口均已上线，管理工作台同步开放。立即体验智课顾问的完整能力。</p>
+            <div class="hero-cta">
+                <a href="https://edu-demo.openneo.ai/" target="_blank" class="btn btn-primary"><span>立即体验</span></a>
+                <a href="https://github.com/OpenNeo-AI/ai-course-agent-platform" target="_blank" class="btn btn-secondary">访问 GitHub 仓库</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<footer>
+    <div class="container">
+        <p style="font-family: var(--display); font-weight: 800; color: var(--text);">智课顾问</p>
+        <p>© 2026 OpenNeo · 本页面所有机构、人物、价格均为竞赛模拟数据</p>
+    </div>
+</footer>
+
+<script>
+// Tab switching
+const tabs = document.querySelectorAll('.tab-nav button');
+const panels = document.querySelectorAll('.tab-panel');
+
+function switchTab(tabId) {
+    tabs.forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tabId));
+    panels.forEach(panel => panel.classList.toggle('active', panel.id === 'tab-' + tabId));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // re-trigger reveal animations for newly visible panel
+    document.querySelectorAll('.tab-panel.active .reveal').forEach(el => {
+        el.classList.remove('active');
+        setTimeout(() => observer.observe(el), 50);
+    });
+}
+
+tabs.forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
+
+// Scroll reveal
+const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            entry.target.classList.add('active');
+            observer.unobserve(entry.target);
+        }
+    });
+}, { threshold: 0.12, rootMargin: '0px 0px -60px 0px' });
+
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+
+</body>
+</html>

@@ -1,0 +1,6 @@
+# 工作台登录账户(用户名 + 密码)。可在此增删账户。
+# 也可用环境变量 PORTAL_USERNAME / PORTAL_PASSWORD 覆盖(优先级更高)。
+# 注意:此处为明文存储,生产环境请改用环境变量或接入统一认证。
+accounts:
+  - username: demo
+    password: demo1234

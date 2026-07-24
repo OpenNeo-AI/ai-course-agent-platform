@@ -1,0 +1,23 @@
+# 智能体引用范围与能力定义:
+# - domains:对接的知识域(范围外知识域不参与该智能体的检索、推荐与计算)。
+# - capabilities:该智能体启用的扩展能力(lead_capture 留资转人工 / quality_check 对话质检),
+#   portal「智能体设置」可视化开关,热加载生效。
+# 知识域标识见 portal「知识域」页(如 domain-a)。
+student:
+  identity: student
+  domains: [domain-a]
+  capabilities:
+    lead_capture: true
+    quality_check: true
+teacher:
+  identity: teacher
+  domains: [domain-b]
+  capabilities:
+    lead_capture: true
+    quality_check: true
+platform:
+  identity: org
+  domains: [domain-c]
+  capabilities:
+    lead_capture: true
+    quality_check: true

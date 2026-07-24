@@ -1,0 +1,27 @@
+# 敏感:密钥与部署私钥,严禁提交
+.env
+wink.pem
+
+# 运行时数据(config/ 作为初始配置随库提交)
+server/data/*
+!server/data/config/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# Node
+node_modules/
+web/dist/
+
+# 其他
+.DS_Store
+*.db
+
+# Claude Code (contains local paths and session state)
+.claude/
+
+# Editor artifacts
+.trae-html-share-packages/

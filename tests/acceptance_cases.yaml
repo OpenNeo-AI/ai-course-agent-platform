@@ -1,0 +1,203 @@
+# 官方验收用例编码(25组):事实8 / 边界4 / 推荐5 / 多轮3 / 异常5
+# 断言:must(回复须含全部)、must_not(不得含)、citation(须含引用标注"出自")、
+#      tools(须调用过的工具)、min_len(最小长度)。
+# 运行:server/.venv/Scripts/python ../tests/run_acceptance.py
+
+- name: 事实1-北京线下班费用
+  category: 资料事实
+  role: student
+  turns:
+    - text: 北京线下班的标准课程费和早鸟价分别是多少?
+      must: ["6980", "5980"]
+      must_not: ["已满", "报名成功", "已付款"]
+      citation: true
+
+- name: 事实2-北京线下班地点与规模
+  category: 资料事实
+  role: student
+  turns:
+    - text: 北京线下班在哪里上课?多少人一个班?
+      must: ["海淀", "30"]
+      citation: true
+
+- name: 事实3-线上直播班安排
+  category: 资料事实
+  role: student
+  turns:
+    - text: 线上直播班多少钱?有回放吗?
+      must: ["3980", "回放"]
+      citation: true
+
+- name: 事实4-营期日期
+  category: 资料事实
+  role: student
+  turns:
+    - text: 夏令营一共有几期?分别是什么时间?
+      must: ["8月1", "8月10", "8月20"]
+      citation: true
+
+- name: 事实5-课程大纲
+  category: 资料事实
+  role: student
+  turns:
+    - text: 夏令营这7天每天都学什么内容?
+      must: ["提示词", "智能体"]
+      citation: true
+
+- name: 事实6-L2集训班时间与课时
+  category: 资料事实
+  role: teacher
+  turns:
+    - text: L2暑期集训班什么时候开课?共多少课时?
+      must: ["8月3", "20"]
+      citation: true
+
+- name: 事实7-教师培训费用
+  category: 资料事实
+  role: teacher
+  turns:
+    - text: L1、L2、L3的培训价格分别是多少?
+      must: ["2980", "6980", "12800"]
+      citation: true
+
+- name: 事实8-周末研修班形式
+  category: 资料事实
+  role: teacher
+  turns:
+    - text: L2周末研修班是怎么安排的?都是线上吗?
+      must: ["线上", "线下"]
+      citation: true
+
+- name: 边界1-平台会员价格
+  category: 资料边界
+  role: platform
+  turns:
+    - text: 我是学生,请问OPC平台的会员价格是多少?
+      must: ["无法"]
+      must_not: ["元/月", "元/年", "套餐价格如下"]
+
+- name: 边界2-课程价格与平台价格不混淆
+  category: 资料边界
+  role: student
+  turns:
+    - text: 平台会员价和夏令营课程费是一个价格吗?会员多少钱?
+      must_not: ["报名成功"]
+
+- name: 边界3-资料外问题
+  category: 资料边界
+  role: student
+  turns:
+    - text: 隔壁XX机构的夏令营比你们便宜吗?他们8月开课吗?
+      must_not: ["便宜", "8月1日开"]
+
+- name: 边界4-学生通道问教师价格
+  category: 资料边界
+  role: student
+  turns:
+    - text: 我是家长,顺便问下教师培训L2多少钱?
+      must_not: ["6980", "报名成功"]
+
+- name: 推荐1-北京学生线下
+  category: 推荐
+  role: student
+  turns:
+    - text: 孩子在北京,8月1日到7日有空,想线下参加,推荐哪个班?
+      must: ["北京线下班"]
+
+- name: 推荐2-上海周边学生
+  category: 推荐
+  role: student
+  turns:
+    - text: 我们在杭州,8月10日到16日有空,能去上海线下参加,推荐一下
+      must: ["上海线下班"]
+
+- name: 推荐3-不便出行选线上
+  category: 推荐
+  role: student
+  turns:
+    - text: 孩子在外地不方便出行,8月下旬有空,想要有回放的,怎么推荐?
+      must: ["线上直播班"]
+
+- name: 推荐4-教师连续脱岗
+  category: 推荐
+  role: teacher
+  turns:
+    - text: 我是初中信息技术老师,想学AI教学应用开发,8月3日到5日能连续脱岗,推荐什么?
+      must: ["L2暑期集训班"]
+
+- name: 推荐5-教师不能脱岗
+  category: 推荐
+  role: teacher
+  turns:
+    - text: 我是高中老师,工作日不能请假,只有周末有空,想参加L1培训,有合适的吗?
+      must: ["L1周末研修班"]
+
+- name: 多轮1-推荐后追问时间与物资
+  category: 多轮
+  role: student
+  turns:
+    - text: 北京的学生,8月1日到7日有空,线下参加,推荐哪个班?
+      must: ["北京线下班"]
+    - text: 这个班每天几点上课?
+      must: ["09:00"]
+    - text: 需要带什么东西?
+      must: ["笔记本"]
+      citation: true
+
+- name: 多轮2-教师推荐后追问费用与前置
+  category: 多轮
+  role: teacher
+  turns:
+    - text: 我是老师,8月3日到5日能连续脱岗,想提升到AI教学应用开发水平,推荐什么?
+      must: ["L2暑期集训班"]
+    - text: 这个多少钱?8月3日前14天缴费有优惠吗?
+      must: ["6980", "5980"]
+    - text: 报名需要什么前置条件?
+      must: ["L1"]
+
+- name: 多轮3-重置后不引用旧班型
+  category: 多轮
+  role: student
+  turns:
+    - text: 北京学生,8月1日到7日线下,推荐一下
+      must: ["北京线下班"]
+    - text: 重新开始
+      must: ["重置"]
+    - text: 我想咨询一下
+      must_not: ["北京线下班第一期"]
+
+- name: 异常1-空输入
+  category: 异常
+  role: platform
+  turns:
+    - text: "   "
+      must: ["请输入"]
+
+- name: 异常2-超长输入
+  category: 异常
+  role: platform
+  turns:
+    - text: "{long500}"
+      must: ["500"]
+
+- name: 异常3-特殊符号
+  category: 异常
+  role: platform
+  turns:
+    - text: "@#$%^&*()_+{}|:<>?!@#$%^&* 。。。【】、"
+      min_len: 4
+
+- name: 异常4-无关问题
+  category: 异常
+  role: platform
+  turns:
+    - text: 今天北京天气怎么样?明天会下雨吗?
+      must_not: ["℃", "降雨"]
+
+- name: 异常5-模型失败降级
+  category: 异常
+  role: platform
+  simulate_model_failure: true
+  turns:
+    - text: 北京线下班多少钱?
+      must: ["稍后重试"]

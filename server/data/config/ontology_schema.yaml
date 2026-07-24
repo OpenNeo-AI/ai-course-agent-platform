@@ -1,0 +1,163 @@
+# 本体 Schema(Palantir Ontology 范式):对象类型 + 链接类型
+# 建模原则:对象类型是领域专家可识别的单一具体名词;链接双向可读、标注基数;
+# 属性名自解释。本文件由 portal 热加载,抽取提示词据此生成链接类型约束。
+
+object_types:
+  domain:
+    label: 知识域
+    color: "#D9B46F"
+    shape: ellipse
+    display: name
+    description: 知识域对象:一组知识库与其本体的语义边界
+    properties:
+      name: 名称
+      description: 描述
+      code: 标识
+  product:
+    label: 班型/产品
+    color: "#8AA5CE"
+    shape: ellipse
+    display: name
+    description: 可报名的班型或培训产品(如北京线下班、L2暑期集训班)
+    properties:
+      name: 名称
+      format: 形式(offline/online/hybrid)
+      city: 城市
+      venue: 地点
+      fee_standard: 标准课程费(元)
+      fee: 价格(元)
+      scale: 规模(人)
+      min_open: 开班门槛(人)
+      hours: 课时
+      start: 开始日期
+      end: 结束日期
+      deadline: 报名截止
+      level: 等级
+      prereq_text: 前置要求
+      boarding: 食宿构成
+      includes: 费用包含
+      services: 增值服务
+      schedule_text: 日程说明
+  period:
+    label: 营期
+    color: "#C7A876"
+    shape: ellipse
+    display: name
+    description: 学生夏令营的开营期次
+    properties:
+      label: 名称
+      start: 开始日期
+      end: 结束日期
+      weekdays: 星期
+      enroll_deadline: 报名截止
+      early_deadline: 早鸟截止
+  location:
+    label: 教学地点
+    color: "#8AB3A6"
+    shape: ellipse
+    display: name
+    description: 教学基地、工作坊等物理或线上场所
+    properties:
+      address: 地址
+      note: 备注
+  person:
+    label: 师资
+    color: "#A79BC2"
+    shape: ellipse
+    display: name
+    description: 课程负责人与导师
+    properties:
+      role: 角色
+      note: 备注
+  fee_item:
+    label: 费用项
+    color: "#C69A78"
+    shape: ellipse
+    display: name
+    description: 可独立计费的项目(住宿、餐食、早鸟立减额等)
+    properties:
+      amount: 金额(元)
+      unit: 单位
+      note: 说明
+  rule:
+    label: 业务规则
+    color: "#BC93A4"
+    shape: ellipse
+    display: kind
+    description: 早鸟、团报、叠加、退费、前置等规则对象,由规则引擎解释执行
+    properties:
+      kind: 种类
+      scope: 作用域
+      params: 参数
+  document:
+    label: 知识文档
+    color: "#8E9DB2"
+    shape: ellipse
+    display: filename
+    description: 知识库中的原始文档,用于对象来源溯源
+    properties:
+      filename: 文件名
+      title: 标题
+      status: 状态
+
+link_types:
+  belongs_to:
+    label: 归属
+    source: [product, period, location, person, fee_item]
+    target: [domain]
+    cardinality: many-to-one
+    description: 对象归属于某个知识域
+  runs_in:
+    label: 开设于
+    source: [product]
+    target: [period]
+    cardinality: many-to-many
+    description: 班型在指定营期开设
+  located_at:
+    label: 位于
+    source: [product]
+    target: [location]
+    cardinality: many-to-one
+    description: 班型的上课地点
+  teaches:
+    label: 负责教学
+    source: [person]
+    target: [product]
+    cardinality: many-to-many
+    description: 师资负责班型的教学(不承诺每个班型同一导师)
+  has_fee_item:
+    label: 费用构成
+    source: [product]
+    target: [fee_item]
+    cardinality: one-to-many
+    description: 班型涉及的费用项(食宿、早鸟额度等)
+  governed_by:
+    label: 受规则约束
+    source: [product]
+    target: [rule]
+    cardinality: many-to-many
+    description: 班型受特定业务规则约束(前置要求等)
+  discount_of:
+    label: 优惠适用
+    source: [rule]
+    target: [product]
+    cardinality: many-to-many
+    description: 早鸟/团报优惠规则适用的班型
+  prerequisite_of:
+    label: 是前置
+    source: [product]
+    target: [product]
+    cardinality: many-to-many
+    description: 完成源等级产品是修读目标等级产品的前提(L1→L2→L3)
+  variant_of:
+    label: 同级班型
+    source: [product]
+    target: [product]
+    cardinality: one-to-one
+    description: 同一等级的集训班与周末研修班互为变体(内容课时一致)
+  sourced_from:
+    label: 来源
+    source: [product, period, location, person, fee_item]
+    target: [document]
+    cardinality: many-to-one
+    description: 对象的抽取来源文档(溯源)

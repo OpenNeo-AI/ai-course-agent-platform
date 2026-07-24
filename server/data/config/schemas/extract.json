@@ -1,0 +1,52 @@
+{
+  "type": "object",
+  "properties": {
+    "entities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["product", "period", "location", "person", "fee_item", "other"]
+          },
+          "name": {"type": "string", "description": "实体规范名,如 北京线下班 / 第一期 / L2暑期集训班"},
+          "attrs": {
+            "type": "object",
+            "description": "结构化属性,字段名见抽取提示词约定;日期一律 YYYY-MM-DD;金额一律数字(元)"
+          },
+          "excerpt": {"type": "string", "description": "原文依据片段(≤80字)"}
+        },
+        "required": ["type", "name", "attrs"]
+      }
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "src": {"type": "string"},
+          "rel": {"type": "string", "description": "如 runs_in(班型在营期开设) / located_at / teaches / fee_of"},
+          "dst": {"type": "string"}
+        },
+        "required": ["src", "rel", "dst"]
+      }
+    },
+    "rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["early_bird", "group_discount", "stack_policy", "fee_formula", "refund", "prerequisite", "reschedule", "other"]
+          },
+          "params": {"type": "object", "description": "规则参数,结构见抽取提示词约定"},
+          "excerpt": {"type": "string"}
+        },
+        "required": ["kind", "params"]
+      }
+    }
+  },
+  "required": ["entities", "relations", "rules"]
+}

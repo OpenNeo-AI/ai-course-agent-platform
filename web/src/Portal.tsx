@@ -1,0 +1,1073 @@
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
+import OntologyTab from './OntologyTab'
+
+import { api, API, TOKEN_KEY } from './api'
+
+/* ---------- SVG 图标 ---------- */
+const Ic = ({ d }: { d: string }) => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d={d} />
+  </svg>
+)
+const NAV_ICONS: Record<string, ReactNode> = {
+  docs: <Ic d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20 M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" />,
+  ontology: <Ic d="M12 2 2 7l10 5 10-5-10-5Z M2 17l10 5 10-5 M2 12l10 5 10-5" />,
+  agents: <Ic d="M12 8V4H8 M4 8h16v12H4Z M2 14h2 M20 14h2 M15 13v2 M9 13v2" />,
+  analytics: <Ic d="M3 3v18h18 M8 16v-5 M12 16V8 M16 16v-8" />,
+  leads: <Ic d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z M20 8v6 M23 11h-6" />,
+  system: <Ic d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />,
+  sessions: <Ic d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z" />,
+}
+
+const AGENTS = [
+  { key: 'student', label: '学生智能体', sub: '学生 / 家长入口 · /s', endpoint: '/mcp/student', welcomeFile: 'welcome_student.md' },
+  { key: 'teacher', label: '教师智能体', sub: '教师入口 · /t', endpoint: '/mcp/teacher', welcomeFile: 'welcome_teacher.md' },
+  { key: 'platform', label: '平台智能体', sub: '机构 / 企业入口 · /c', endpoint: '/mcp', welcomeFile: 'welcome_platform.md' },
+]
+
+/* 按智能体可配置的扩展能力 */
+const CAPABILITIES = [
+  { key: 'lead_capture', label: '留资转人工', desc: '用户表达报名意向时采集联系方式,转人工跟进' },
+  { key: 'quality_check', label: '对话质检', desc: '对该智能体的会话进行质检评分' },
+]
+
+/* ---------- 登录 ---------- */
+function Login({ onOk }: { onOk: () => void }) {
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [err, setErr] = useState('')
+  async function submit() {
+    try {
+      const res = await fetch(API + '/api/portal/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      })
+      if (!res.ok) throw new Error('账户或密码错误')
+      const data = await res.json()
+      localStorage.setItem(TOKEN_KEY, data.token)
+      onOk()
+    } catch (e: any) { setErr(e.message || '登录失败') }
+  }
+  return (
+    <div className="p-login">
+      <div className="p-login-box">
+        <span className="p-login-logo">管</span>
+        <h2>管理工作台</h2>
+        <p>请使用账户与密码登录。</p>
+        <input placeholder="账户" value={username} autoFocus
+          onChange={e => setUsername(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && submit()} />
+        <input type="password" placeholder="密码" value={password}
+          onChange={e => setPassword(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && submit()} />
+        <button onClick={submit}>登 录</button>
+        {err && <div className="p-err">{err}</div>}
+        <div className="p-login-demo">演示账户:demo / demo1234</div>
+        <Link to="/">← 返回前台</Link>
+      </div>
+    </div>
+  )
+}
+
+/* ---------- 知识域 / 知识库 / 文档 ---------- */
+function DomainsTab() {
+  const [domains, setDomains] = useState<any[]>([])
+  const [selDom, setSelDom] = useState<number | null>(null)
+  const [kbs, setKbs] = useState<any[]>([])
+  const [selKb, setSelKb] = useState<number | null>(null)
+  const [docs, setDocs] = useState<any[]>([])
+  const [creatingDom, setCreatingDom] = useState(false)
+  const [domForm, setDomForm] = useState({ name: '', description: '' })
+  const [editingDom, setEditingDom] = useState(false)
+  const [domEdit, setDomEdit] = useState({ name: '', description: '' })
+  const [creatingKb, setCreatingKb] = useState(false)
+  const [kbForm, setKbForm] = useState({ name: '', description: '' })
+  const [title, setTitle] = useState('')
+  const [busy, setBusy] = useState('')
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  const loadDomains = useCallback(() => api('/api/portal/domains').then(r => {
+    setDomains(r)
+    setSelDom(s => s ?? (r[0]?.id ?? null))
+  }), [])
+  const loadKbs = useCallback(() => {
+    if (selDom) api('/api/portal/kbs?domain_id=' + selDom).then(r => {
+      setKbs(r)
+      setSelKb(s => (s && r.some((k: any) => k.id === s)) ? s : (r[0]?.id ?? null))
+    })
+    else { setKbs([]); setSelKb(null) }
+  }, [selDom])
+  const loadDocs = useCallback(() => {
+    if (selKb) api('/api/portal/documents?kb_id=' + selKb).then(setDocs).catch(alert)
+    else setDocs([])
+  }, [selKb])
+  useEffect(() => { loadDomains() }, [loadDomains])
+  useEffect(() => { loadKbs() }, [loadKbs])
+  useEffect(() => { loadDocs() }, [loadDocs])
+
+  const dom = domains.find(d => d.id === selDom)
+  const kb = kbs.find(k => k.id === selKb)
+
+  async function createDom() {
+    if (!domForm.name.trim()) return alert('请填写知识域名称')
+    await api('/api/portal/domains', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(domForm),
+    })
+    setCreatingDom(false)
+    setDomForm({ name: '', description: '' })
+    loadDomains()
+  }
+  async function delDom() {
+    if (!dom) return
+    if (!confirm(`删除知识域「${dom.name}」及其下全部知识库、文档与本体?`)) return
+    await api(`/api/portal/domains/${dom.id}`, { method: 'DELETE' })
+    setSelDom(null)
+    loadDomains()
+  }
+  async function renameDom() {
+    if (!dom) return
+    setDomEdit({ name: dom.name, description: dom.description || '' })
+    setEditingDom(true)
+  }
+  async function saveDom() {
+    if (!dom) return
+    if (!domEdit.name.trim()) return alert('请填写知识域名称')
+    await api(`/api/portal/domains/${dom.id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: domEdit.name.trim(),
+        description: domEdit.description.trim(),
+      }),
+    })
+    setEditingDom(false)
+    loadDomains()
+  }
+  async function createKb() {
+    if (!kbForm.name.trim()) return alert('请填写知识库名称')
+    if (!selDom) return
+    await api('/api/portal/kbs', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...kbForm, domain_id: selDom }),
+    })
+    setCreatingKb(false)
+    setKbForm({ name: '', description: '' })
+    loadKbs(); loadDomains()
+  }
+  async function delKb(k: any) {
+    if (!confirm(`删除知识库「${k.name}」及其全部文档与知识块?`)) return
+    await api(`/api/portal/kbs/${k.id}`, { method: 'DELETE' })
+    loadKbs(); loadDomains()
+  }
+  async function upload() {
+    const f = fileRef.current?.files?.[0]
+    if (!f) return alert('请先选择文件(.txt / .docx / .doc / .pdf)')
+    if (!selKb) return alert('请先选择知识库')
+    const fd = new FormData()
+    fd.append('file', f)
+    fd.append('kb_id', String(selKb))
+    fd.append('title', title || f.name.replace(/\.[^.]+$/, ''))
+    setBusy(`正在解析并摄入 ${f.name}(解析 → 切块向量化 → 本体抽取,约 1—3 分钟)…`)
+    try {
+      const r = await api('/api/portal/documents', { method: 'POST', body: fd })
+      const s = r.stats || {}
+      alert(`摄入完成:知识块 ${s.chunks ?? '?'};抽取实体 ${s.extract?.entities ?? '?'}、规则 ${s.extract?.rules ?? '?'};错误 ${s.extract?.errors?.length ?? 0}`)
+      setTitle('')
+      if (fileRef.current) fileRef.current.value = ''
+      loadDocs(); loadKbs(); loadDomains()
+    } catch (e: any) { alert('上传失败:' + e.message) } finally { setBusy('') }
+  }
+  async function removeDoc(id: number, name: string) {
+    if (!confirm(`删除文档「${name}」及其全部知识块与本体记录?`)) return
+    await api(`/api/portal/documents/${id}`, { method: 'DELETE' })
+    loadDocs(); loadKbs(); loadDomains()
+  }
+
+  return (
+    <div className="p-docgrid">
+      <div className="p-kblist">
+        {domains.map(d => (
+          <button key={d.id} className={`p-kb ${d.id === selDom ? 'on' : ''}`}
+            onClick={() => { setSelDom(d.id); setEditingDom(false) }}>
+            <b>{d.name}</b>
+            <small>{d.description || '—'}</small>
+            <span className="meta">
+              <span className="p-mat">{d.kbs} 知识库</span>
+              <span className="p-count">{d.entities} 实体 · {d.rules} 规则</span>
+            </span>
+          </button>
+        ))}
+        {creatingDom
+          ? (
+            <div className="p-kbform">
+              <input placeholder="知识域名称" value={domForm.name}
+                onChange={e => setDomForm({ ...domForm, name: e.target.value })} />
+              <input placeholder="描述(可选)" value={domForm.description}
+                onChange={e => setDomForm({ ...domForm, description: e.target.value })} />
+              <div className="p-kbform-btns">
+                <button onClick={createDom}>创建</button>
+                <button className="ghost" onClick={() => setCreatingDom(false)}>取消</button>
+              </div>
+            </div>
+          )
+          : <button className="p-kb-new" onClick={() => setCreatingDom(true)}>+ 新建知识域</button>}
+      </div>
+
+      <div className="p-card">
+        {dom
+          ? (
+            <>
+              {editingDom ? (
+                <div className="p-domedit">
+                  <label>名称
+                    <input value={domEdit.name}
+                      onChange={e => setDomEdit({ ...domEdit, name: e.target.value })} />
+                  </label>
+                  <label>描述
+                    <input value={domEdit.description} placeholder="可选,例如:北京/上海线下班、线上直播班,营期、费用与物资"
+                      onChange={e => setDomEdit({ ...domEdit, description: e.target.value })} />
+                  </label>
+                  <div className="p-kbform-btns">
+                    <button onClick={saveDom}>保存</button>
+                    <button className="ghost" onClick={() => setEditingDom(false)}>取消</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-kbhead">
+                  <div>
+                    <b>{dom.name}</b>
+                    <small>{dom.description || '—'} · {dom.code}</small>
+                  </div>
+                  <span>
+                    <button className="p-mini" onClick={renameDom}>编辑</button>
+                    <button className="p-mini danger" onClick={delDom}>删除知识域</button>
+                  </span>
+                </div>
+              )}
+
+              <h3>知识库</h3>
+              <div className="p-kbchips">
+                {kbs.map(k => (
+                  <button key={k.id} className={`p-kbchip ${k.id === selKb ? 'on' : ''}`}
+                    onClick={() => setSelKb(k.id)}>
+                    <b>{k.name}</b><span>{k.docs} 篇</span>
+                    <i onClick={e => { e.stopPropagation(); delKb(k) }}>×</i>
+                  </button>
+                ))}
+                {creatingKb
+                  ? (
+                    <span className="p-kbform-inline">
+                      <input placeholder="知识库名称" value={kbForm.name}
+                        onChange={e => setKbForm({ ...kbForm, name: e.target.value })} />
+                      <button onClick={createKb}>创建</button>
+                      <button className="ghost" onClick={() => setCreatingKb(false)}>取消</button>
+                    </span>
+                  )
+                  : <button className="p-kbchip add" onClick={() => setCreatingKb(true)}>+ 新建知识库</button>}
+              </div>
+
+              {kb
+                ? (
+                  <>
+                    <div className="p-toolbar">
+                      <input ref={fileRef} type="file" accept=".txt,.docx,.doc,.pdf" />
+                      <input placeholder="文档标题(可选)" value={title} onChange={e => setTitle(e.target.value)} />
+                      <button onClick={upload} disabled={!!busy}>上传并摄入</button>
+                      {busy && <span className="p-busy">{busy}</span>}
+                    </div>
+                    <table className="p-table">
+                      <thead><tr><th>ID</th><th>文件</th><th>状态</th><th>知识块</th><th>实体</th><th>上传时间</th><th></th></tr></thead>
+                      <tbody>
+                        {docs.map(d => (
+                          <tr key={d.id}>
+                            <td>{d.id}</td>
+                            <td>{d.filename}</td><td>{d.status}</td>
+                            <td>{d.chunks}</td><td>{d.entities}</td>
+                            <td className="p-src">{d.uploaded_at}</td>
+                            <td><button className="p-mini danger" onClick={() => removeDoc(d.id, d.filename)}>删除</button></td>
+                          </tr>
+                        ))}
+                        {!docs.length && <tr><td colSpan={7} className="p-src">该知识库暂无文档</td></tr>}
+                      </tbody>
+                    </table>
+                  </>
+                )
+                : <div className="p-empty">请先创建或选择一个知识库</div>}
+            </>
+          )
+          : <div className="p-empty">请先创建或选择一个知识域</div>}
+      </div>
+    </div>
+  )
+}
+
+/* ---------- 智能体设置 ---------- */
+function AgentsTab() {
+  const [sel, setSel] = useState('student')
+  const [agents, setAgents] = useState<any>({})
+  const [domains, setDomains] = useState<any[]>([])
+  const [prompt, setPrompt] = useState('')
+  const [welcome, setWelcome] = useState('')
+  const [msg, setMsg] = useState('')
+  const [models, setModels] = useState<{ model: string; name: string }[]>([])
+  const [sysModel, setSysModel] = useState('')
+
+  const agent = AGENTS.find(a => a.key === sel)!
+  const loadAll = useCallback(() => {
+    api('/api/portal/agents').then(setAgents).catch(alert)
+    api('/api/portal/domains').then(setDomains).catch(alert)
+    api('/api/portal/llm').then(c => {
+      const cc = c || {}
+      const raw = Array.isArray(cc.chat_models) ? cc.chat_models : []
+      const list = raw
+        .map((m: any) => typeof m === 'string'
+          ? { model: m, name: '' }
+          : { model: m.model || '', name: m.name || '' })
+        .filter((m: any) => m.model)
+      if (!list.length && cc.chat_model) list.push({ model: cc.chat_model, name: '' })
+      setModels(list)
+      setSysModel(cc.chat_model || '')
+    }).catch(() => {})
+  }, [])
+  useEffect(() => { loadAll() }, [loadAll])
+  useEffect(() => {
+    setMsg('')
+    api(`/api/portal/config/prompts/${sel}.md`).then(r => setPrompt(r.content))
+      .catch(() => setPrompt(''))
+    api(`/api/portal/config/prompts/${agent.welcomeFile}`).then(r => setWelcome(r.content))
+      .catch(() => setWelcome(''))
+  }, [sel, agent.welcomeFile])
+
+  function flash(t: string) { setMsg(t); setTimeout(() => setMsg(''), 3500) }
+
+  async function toggleDomain(code: string) {
+    const cur: string[] = (agents[sel]?.domains) || []
+    const next = cur.includes(code) ? cur.filter(c => c !== code) : [...cur, code]
+    const body = { [sel]: { domains: next } }
+    const r = await api('/api/portal/agents', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    setAgents(r.agents)
+    flash('知识域对接已保存 · 即时生效')
+  }
+  async function setAgentModel(model: string) {
+    const r = await api('/api/portal/agents', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [sel]: { model } }),
+    })
+    setAgents(r.agents)
+    const label = models.find(m => m.model === model)?.name || model
+    flash(model ? `对话模型已切换为 ${label}` : '已恢复系统默认模型')
+  }
+  async function toggleCapability(capKey: string) {
+    const cur = (agents[sel]?.capabilities || {}) as Record<string, boolean>
+    const next = { ...cur, [capKey]: !cur[capKey] }
+    const r = await api('/api/portal/agents', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [sel]: { capabilities: next } }),
+    })
+    setAgents(r.agents)
+    flash('能力配置已保存 · 即时生效')
+  }
+  async function savePrompt() {
+    await api(`/api/portal/config/prompts/${sel}.md`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: prompt }),
+    })
+    flash('系统提示词已保存 · 热加载生效')
+  }
+  async function saveWelcome() {
+    await api(`/api/portal/config/prompts/${agent.welcomeFile}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: welcome }),
+    })
+    flash('欢迎词已保存 · 热加载生效')
+  }
+
+  const origin = window.location.origin
+  const endpoint = origin + agent.endpoint
+  const mcpJson = JSON.stringify({
+    mcpServers: {
+      [`opc-course-advisor-${sel}`]: { type: 'streamable-http', url: endpoint },
+    },
+  }, null, 2)
+
+  function copy(text: string) {
+    navigator.clipboard?.writeText(text).then(() => flash('已复制到剪贴板')).catch(() => flash('复制失败,请手动选择'))
+  }
+
+  const selected: string[] = agents[sel]?.domains || []
+
+  return (
+    <>
+      <div className="p-docgrid">
+        <div className="p-kblist">
+          {AGENTS.map(a => (
+            <button key={a.key} className={`p-kb ${a.key === sel ? 'on' : ''}`} onClick={() => setSel(a.key)}>
+              <b>{a.label}</b>
+              <small>{a.sub}</small>
+              <span className="meta">
+                <span className="p-mono">{a.endpoint}</span>
+                <span className="p-count">{(agents[a.key]?.domains || []).length} 知识域</span>
+              </span>
+            </button>
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
+          <div className="p-card">
+            <h3>推理模型</h3>
+            <p className="p-scope-hint">
+              为该智能体选择对话模型(选项来自「模型及参数 → 支持的模型」);不选则跟随系统默认模型。
+              切换即时生效,仅影响本智能体的对话生成。
+            </p>
+            <div className="p-modelpick">
+              <select value={(agents[sel]?.model as string) || ''}
+                onChange={e => setAgentModel(e.target.value)}>
+                <option value="">
+                  系统默认模型{sysModel ? `(${models.find(m => m.model === sysModel)?.name || sysModel})` : ''}
+                </option>
+                {models.map(m => (
+                  <option key={m.model} value={m.model}>
+                    {m.name ? `${m.name}(${m.model})` : m.model}
+                  </option>
+                ))}
+              </select>
+              {msg && <span className="p-ok">{msg}</span>}
+            </div>
+          </div>
+
+          <div className="p-card">
+            <h3>能力配置</h3>
+            <p className="p-scope-hint">
+              按智能体启用的扩展能力(留资转人工 / 对话质检 / 早鸟截止提醒),保存后即时生效。
+            </p>
+            <div className="p-caps">
+              {CAPABILITIES.map(c => {
+                const on = !!((agents[sel]?.capabilities || {})[c.key])
+                return (
+                  <label key={c.key} className={`p-cap ${on ? 'on' : ''}`}
+                    onClick={() => toggleCapability(c.key)}>
+                    <span className={`p-switch ${on ? 'on' : ''}`}><i /></span>
+                    <span className="p-cap-tx"><b>{c.label}</b><small>{c.desc}</small></span>
+                  </label>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="p-card">
+            <h3>知识域对接</h3>
+            <p className="p-scope-hint">
+              勾选 {agent.label} 可引用的知识域。<b>未勾选知识域的内容不参与该智能体的检索、推荐与计算</b>;
+              勾选变更立即保存并生效。
+            </p>
+            <div className="p-checks">
+              {domains.map(d => (
+                <label key={d.code} className={selected.includes(d.code) ? 'on' : ''}>
+                  <input type="checkbox" checked={selected.includes(d.code)}
+                    onChange={() => toggleDomain(d.code)} />
+                  <span><b>{d.name}</b><small>{d.description || d.code}</small></span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="p-card">
+            <h3>系统提示词(prompts/{sel}.md)</h3>
+            <p className="p-scope-hint">定义该智能体的身份、服务流程、红线规则与回答风格;保存后热加载生效。</p>
+            <textarea className="p-scope-editor" rows={16} value={prompt}
+              onChange={e => setPrompt(e.target.value)} />
+            <div className="p-toolbar" style={{ marginTop: 12 }}>
+              <button onClick={savePrompt}>保存提示词</button>
+              {msg && <span className="p-ok">{msg}</span>}
+            </div>
+          </div>
+
+          <div className="p-card">
+            <h3>欢迎词(prompts/{agent.welcomeFile})</h3>
+            <p className="p-scope-hint">新会话第一条消息(固定模板);保存后热加载生效。</p>
+            <textarea className="p-scope-editor" rows={9} value={welcome}
+              onChange={e => setWelcome(e.target.value)} />
+            <div className="p-toolbar" style={{ marginTop: 12 }}>
+              <button onClick={saveWelcome}>保存欢迎词</button>
+            </div>
+          </div>
+
+          <div className="p-card">
+            <h3>MCP 接入</h3>
+            <p className="p-scope-hint">
+              {agent.label}的独立 MCP 端点(streamable HTTP),工具调用自动限定在上述知识域内。
+              在支持 MCP 的宿主(WorkBuddy、OpenClaw、Claude Desktop 等)中添加如下配置:
+            </p>
+            <div className="p-endpoint">
+              <code>{endpoint}</code>
+              <button className="p-mini" onClick={() => copy(endpoint)}>复制地址</button>
+            </div>
+            <pre className="p-json">{mcpJson}</pre>
+            <div className="p-toolbar">
+              <button onClick={() => copy(mcpJson)}>复制 JSON 配置</button>
+              <span className="p-count">部分宿主字段名为 url/endpoint 或 serverUrl,按其文档调整即可</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  )
+}
+
+/* ---------- 系统设置(模型服务 · API Key · 全局参数) ---------- */
+function SystemTab() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <LlmConfigCard />
+      <ChannelsCard />
+    </div>
+  )
+}
+
+/* ---------- 渠道令牌(MCP 接入鉴权) ---------- */
+function ChannelsCard() {
+  const [channels, setChannels] = useState<any[]>([])
+  const [name, setName] = useState('')
+  const [msg, setMsg] = useState('')
+  const [showToken, setShowToken] = useState<Record<number, boolean>>({})
+  const origin = window.location.origin
+  const load = useCallback(() => { api('/api/portal/channels').then(setChannels).catch(alert) }, [])
+  useEffect(() => { load() }, [load])
+  const flash = (t: string) => { setMsg(t); setTimeout(() => setMsg(''), 3000) }
+  async function create() {
+    if (!name.trim()) return alert('请填写渠道名称')
+    await api('/api/portal/channels', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name.trim() }),
+    })
+    setName('')
+    load()
+  }
+  async function toggle(c: any) {
+    await api(`/api/portal/channels/${c.id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ disabled: !c.disabled }),
+    })
+    load()
+  }
+  async function remove(c: any) {
+    if (!confirm(`删除渠道「${c.name}」?删除后使用该令牌的连接将失效。`)) return
+    await api(`/api/portal/channels/${c.id}`, { method: 'DELETE' })
+    load()
+  }
+  function copyCfg(c: any) {
+    const slug = c.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'channel'
+    const cfg = {
+      [slug]: {
+        type: 'http',
+        url: origin + '/mcp',
+        headers: { Authorization: `Bearer ${c.token}` },
+        description: `${c.name} MCP`,
+        disabled: false,
+      },
+    }
+    navigator.clipboard?.writeText(JSON.stringify(cfg, null, 2))
+      .then(() => flash('MCP 配置已复制'))
+      .catch(() => flash('复制失败,请手动复制令牌'))
+  }
+  return (
+    <div className="p-card">
+      <h3>渠道令牌(MCP 接入鉴权)</h3>
+      <p className="p-scope-hint">
+        为不同渠道(第三方 Agent / 合作系统)签发令牌,用于接入 MCP 端点(请求头携带
+        <code> Authorization: Bearer &lt;token&gt;</code>)。
+        <b>一旦存在有效令牌,MCP 连接需携带有效令牌;尚无任何令牌时保持开放兼容。</b>
+      </p>
+      <div className="p-toolbar">
+        <input placeholder="渠道名称(如 WorkBuddy、某合作系统)" value={name}
+          onChange={e => setName(e.target.value)} onKeyDown={e => e.key === 'Enter' && create()} />
+        <button onClick={create}>签发令牌</button>
+        {msg && <span className="p-ok">{msg}</span>}
+      </div>
+      <table className="p-table">
+        <thead><tr><th>渠道</th><th>令牌</th><th>状态</th><th>最近使用</th><th>操作</th></tr></thead>
+        <tbody>
+          {channels.map(c => (
+            <tr key={c.id}>
+              <td>{c.name}</td>
+              <td className="p-mono">
+                {showToken[c.id] ? c.token : c.token.slice(0, 10) + '••••••••'}
+                <button className="p-mini" style={{ marginLeft: 6 }}
+                  onClick={() => setShowToken(s => ({ ...s, [c.id]: !s[c.id] }))}>
+                  {showToken[c.id] ? '隐藏' : '显示'}
+                </button>
+              </td>
+              <td><span className={`p-lead-st ${c.disabled ? 'invalid' : 'converted'}`}>{c.disabled ? '已禁用' : '启用'}</span></td>
+              <td className="p-src">{c.last_used_at || '—'}</td>
+              <td className="p-ops">
+                <button className="p-mini" onClick={() => copyCfg(c)}>复制配置</button>
+                <button className="p-mini" onClick={() => toggle(c)}>{c.disabled ? '启用' : '禁用'}</button>
+                <button className="p-mini danger" onClick={() => remove(c)}>删除</button>
+              </td>
+            </tr>
+          ))}
+          {!channels.length && <tr><td colSpan={5} className="p-src">暂无渠道令牌(当前 MCP 开放访问)</td></tr>}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+/* ---------- 模型及参数(llm.yaml 结构化配置) ---------- */
+const LLM_FIELDS: { key: string; label: string; type: 'text' | 'number' | 'select'; hint?: string; options?: string[] }[] = [
+  { key: 'embedding_model', label: '向量模型(全平台统一)', type: 'text', hint: '文档向量化与对话检索向量化共用,不按智能体单独设置' },
+  { key: 'rerank_model', label: '重排模型(全平台统一)', type: 'text', hint: '检索结果重排序' },
+  { key: 'rerank_strategy', label: '重排策略', type: 'select', options: ['llm', 'endpoint'], hint: 'llm=模型打分(任意环境可用);endpoint=调用重排端点' },
+  { key: 'rerank_url', label: '重排端点地址', type: 'text', hint: '仅策略为 endpoint 时生效' },
+  { key: 'temperature', label: 'Temperature', type: 'number', hint: '生成随机性,0–2' },
+  { key: 'max_tokens', label: '最大输出 max_tokens', type: 'number' },
+  { key: 'request_timeout', label: '请求超时(秒)', type: 'number' },
+  { key: 'context_turns', label: '上下文轮次', type: 'number', hint: '每轮注入的历史消息条数;0 或负数 = 不限制' },
+]
+
+function LlmConfigCard() {
+  const [cfg, setCfg] = useState<Record<string, any>>({})
+  const [models, setModels] = useState<{ model: string; name: string }[]>([])
+  const [showKey, setShowKey] = useState(false)
+  const [msg, setMsg] = useState('')
+  const [loaded, setLoaded] = useState(false)
+  useEffect(() => {
+    api('/api/portal/llm').then(c => {
+      const cc = c || {}
+      setCfg(cc)
+      const raw = Array.isArray(cc.chat_models) ? cc.chat_models : []
+      const list = raw.map((m: any) => typeof m === 'string'
+        ? { model: m, name: '' }
+        : { model: m.model || '', name: m.name || '' })
+      if (!list.length && cc.chat_model) list.push({ model: cc.chat_model, name: '' })
+      setModels(list.length ? list : [{ model: '', name: '' }])
+      setLoaded(true)
+    }).catch(alert)
+  }, [])
+  function setField(key: string, v: any) { setCfg(c => ({ ...c, [key]: v })) }
+  function setModelAt(i: number, patch: Partial<{ model: string; name: string }>) {
+    setModels(ms => ms.map((x, j) => (j === i ? { ...x, ...patch } : x)))
+  }
+  async function save() {
+    const body: Record<string, any> = {
+      chat_models: models
+        .map(m => ({ model: (m.model || '').trim(), name: (m.name || '').trim() }))
+        .filter(m => m.model),
+      api_key: (cfg.api_key ?? '').trim(),
+      base_url: (cfg.base_url ?? '').trim(),
+    }
+    for (const f of LLM_FIELDS) {
+      const raw = cfg[f.key]
+      if (raw === '' || raw == null) continue
+      body[f.key] = f.type === 'number' ? Number(raw) : raw
+    }
+    await api('/api/portal/llm', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    setMsg('已保存 · 热加载即时生效')
+    setTimeout(() => setMsg(''), 3500)
+  }
+  return (
+    <div className="p-card">
+      <h3>模型及参数(llm.yaml)</h3>
+      <p className="p-scope-hint">对话服务与模型清单在此统一维护;各智能体可从「支持的模型」中选择自己的对话模型。向量/重排模型全平台统一。保存后热加载即时生效。</p>
+      {loaded ? (
+        <>
+          <div className="p-llmgrid">
+            <label className="p-llmfield">
+              <span className="p-llmlabel">对话服务地址(URL)</span>
+              <input type="text" value={cfg.base_url ?? ''} onChange={e => setField('base_url', e.target.value)} />
+              <em>OpenAI 兼容接口地址</em>
+            </label>
+            <label className="p-llmfield">
+              <span className="p-llmlabel">API Key</span>
+              <span className="p-keywrap">
+                <input type={showKey ? 'text' : 'password'} value={cfg.api_key ?? ''}
+                  placeholder="留空则回退环境变量 VOLCANO_API_KEY"
+                  onChange={e => setField('api_key', e.target.value)} />
+                <button type="button" className="p-keytoggle" onClick={() => setShowKey(v => !v)}>
+                  {showKey ? '隐藏' : '显示'}
+                </button>
+              </span>
+              <em>写入服务端 llm.yaml(不入库、不随部署覆盖)</em>
+            </label>
+            <div className="p-llmfield" style={{ gridColumn: '1 / -1' }}>
+              <span className="p-llmlabel">支持的模型(各智能体可切换的对话模型)</span>
+              <div className="p-models">
+                <div className="p-modelhead">
+                  <span>模型 ID(实际调用所用)</span>
+                  <span>显示名称(配置与展示用)</span>
+                  <span />
+                </div>
+                {models.map((m, i) => (
+                  <div key={i} className="p-modelrow">
+                    <input type="text" value={m.model} placeholder="如 ep-20260513181443-mgmn4"
+                      onChange={e => setModelAt(i, { model: e.target.value })} />
+                    <input type="text" value={m.name} placeholder="如 豆包 Seed 1.6"
+                      onChange={e => setModelAt(i, { name: e.target.value })} />
+                    <button type="button" className="p-mini danger" title="移除"
+                      onClick={() => setModels(ms => ms.filter((_, j) => j !== i))}>✕</button>
+                  </div>
+                ))}
+                <button type="button" className="p-mini" onClick={() => setModels(ms => [...ms, { model: '', name: '' }])}>+ 添加模型</button>
+              </div>
+            </div>
+          </div>
+          <h4 className="p-subhead">生成与检索参数</h4>
+          <div className="p-llmgrid">
+            {LLM_FIELDS.map(f => (
+              <label key={f.key} className="p-llmfield">
+                <span className="p-llmlabel">{f.label}</span>
+                {f.type === 'select' ? (
+                  <select value={String(cfg[f.key] ?? '')} onChange={e => setField(f.key, e.target.value)}>
+                    {(f.options || []).map(o => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                ) : (
+                  <input type={f.type} step="any" value={cfg[f.key] ?? ''}
+                    onChange={e => setField(f.key, e.target.value)} />
+                )}
+                {f.hint && <em>{f.hint}</em>}
+              </label>
+            ))}
+          </div>
+        </>
+      ) : <div className="p-empty">加载中…</div>}
+      <div className="p-toolbar" style={{ marginTop: 12 }}>
+        <button onClick={save}>保存模型参数</button>
+        {msg && <span className="p-ok">{msg}</span>}
+      </div>
+    </div>
+  )
+}
+
+/* ---------- 会话查看 ---------- */
+function SessionsTab() {
+  const [sessions, setSessions] = useState<any[]>([])
+  const [sid, setSid] = useState('')
+  const [msgs, setMsgs] = useState<any[]>([])
+  const [qc, setQc] = useState<any>(null)
+  const [checking, setChecking] = useState(false)
+  const [batching, setBatching] = useState(false)
+  const load = useCallback(() => { api('/api/portal/sessions').then(setSessions).catch(alert) }, [])
+  useEffect(() => { load() }, [load])
+  async function open(id: string) {
+    setSid(id)
+    setMsgs(await api(`/api/portal/sessions/${id}/messages`))
+    const ql = await api(`/api/portal/quality?session_id=${id}`)
+    setQc(ql && ql.length ? ql[0] : null)
+  }
+  async function checkOne() {
+    if (!sid) return
+    setChecking(true)
+    try {
+      const r = await api(`/api/portal/quality/${sid}`, { method: 'POST' })
+      if (r.error) { alert(r.error) } else { setQc(r); load() }
+    } catch (e: any) { alert('质检失败:' + e.message) } finally { setChecking(false) }
+  }
+  async function checkBatch() {
+    if (!confirm('质检最近 10 个未质检会话?(每个会话一次 LLM 评分,约需数十秒)')) return
+    setBatching(true)
+    try {
+      const r = await api('/api/portal/quality/batch', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limit: 10 }),
+      })
+      alert(`已质检 ${r.checked} 个会话`)
+      load()
+      if (sid) open(sid)
+    } catch (e: any) { alert('批量质检失败:' + e.message) } finally { setBatching(false) }
+  }
+  const scoreClass = (s: number) => (s >= 85 ? 'good' : s >= 70 ? 'mid' : 'bad')
+  const roleZh: Record<string, string> = { student: '学生', teacher: '教师', platform: '平台/机构' }
+  return (
+    <div className="p-sessions">
+      <div className="p-card" style={{ flex: 1.15 }}>
+        <div className="p-toolbar" style={{ marginBottom: 10 }}>
+          <button onClick={checkBatch} disabled={batching}>{batching ? '质检中…' : '批量质检(最近10个)'}</button>
+        </div>
+        <table className="p-table">
+          <thead><tr><th>会话</th><th>入口</th><th>消息</th><th>质检分</th><th>更新时间</th></tr></thead>
+          <tbody>
+            {sessions.map(s => (
+              <tr key={s.id} className={s.id === sid ? 'on' : ''} onClick={() => open(s.id)}>
+                <td className="p-mono">{s.id}</td>
+                <td><span className="p-mat">{roleZh[s.role] || s.role}</span></td>
+                <td>{s.msgs}</td>
+                <td>{s.quality_score != null
+                  ? <span className={`p-score ${scoreClass(s.quality_score)}`}>{s.quality_score}</span>
+                  : <span className="p-score-none">未质检</span>}</td>
+                <td className="p-src">{s.updated_at}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="p-card" style={{ flex: 1 }}>
+        {sid ? (
+          <>
+            <div className="p-toolbar" style={{ marginBottom: 10 }}>
+              <button onClick={checkOne} disabled={checking}>{checking ? '质检中…' : '质检此会话'}</button>
+            </div>
+            {qc && (
+              <div className={`p-qc p-qc-${scoreClass(qc.score)}`}>
+                <div className="p-qc-score"><b>{qc.score}</b><span>质检总分</span></div>
+                <div className="p-qc-dims">
+                  <span>准确 {qc.accuracy}</span><span>规范 {qc.compliance}</span><span>体验 {qc.experience}</span>
+                </div>
+                {qc.comment && <div className="p-qc-comment">{qc.comment}</div>}
+                {qc.issues && qc.issues.length > 0 && (
+                  <div className="p-qc-issues">
+                    <b>问题:</b>
+                    <ul>{qc.issues.map((x: string, i: number) => <li key={i}>{x}</li>)}</ul>
+                  </div>
+                )}
+              </div>
+            )}
+            <div className="p-msgs">{msgs.map((m, i) => (
+              <div key={i} className={`p-msg ${m.role}`}>
+                <b>{m.role}</b>
+                {m.tool_calls ? <code>{JSON.stringify(m.tool_calls)}</code> : null}
+                <div>{m.content}</div>
+              </div>
+            ))}</div>
+          </>
+        ) : <div className="p-empty">点击左侧会话查看消息明细,并可质检评分</div>}
+      </div>
+    </div>
+  )
+}
+
+/* ---------- 主组件:左侧导航布局 ---------- */
+/* ---------- 人工跟进(留资转人工工单) ---------- */
+const LEAD_STATUS: Record<string, { label: string; cls: string }> = {
+  pending: { label: '待跟进', cls: 'pending' },
+  followed: { label: '已跟进', cls: 'followed' },
+  converted: { label: '已转化', cls: 'converted' },
+  invalid: { label: '无效', cls: 'invalid' },
+}
+function LeadsTab() {
+  const [leads, setLeads] = useState<any[]>([])
+  const [status, setStatus] = useState('')
+  const load = useCallback(() => {
+    api(`/api/portal/leads?status=${status}`).then(setLeads).catch(alert)
+  }, [status])
+  useEffect(() => { load() }, [load])
+  async function patch(id: number, body: any) {
+    await api(`/api/portal/leads/${id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    })
+    load()
+  }
+  function follow(id: number) {
+    const note = prompt('跟进记录(可选)')
+    if (note === null) return
+    patch(id, { status: 'followed', follow_note: note })
+  }
+  const roleZh = (r: string) => ({ student: '学生', teacher: '教师', platform: '平台' }[r] || r)
+  return (
+    <div className="p-card">
+      <p className="p-scope-hint">
+        智能体在对话中采集的用户报名意向(留资),在此人工跟进。<b>仅做留资跟进流转,不做报名/支付管理。</b>
+      </p>
+      <div className="p-toolbar">
+        <select value={status} onChange={e => setStatus(e.target.value)}>
+          <option value="">全部状态</option>
+          <option value="pending">待跟进</option>
+          <option value="followed">已跟进</option>
+          <option value="converted">已转化</option>
+          <option value="invalid">无效</option>
+        </select>
+        <button onClick={load}>刷新</button>
+      </div>
+      <table className="p-table">
+        <thead><tr><th>姓名</th><th>联系方式</th><th>意向</th><th>来源</th><th>状态</th><th>时间</th><th>操作</th></tr></thead>
+        <tbody>
+          {leads.map(l => (
+            <tr key={l.id}>
+              <td>{l.name || '—'}</td>
+              <td className="p-mono">{l.phone || '—'}</td>
+              <td title={l.note || ''}>{l.intent || '—'}</td>
+              <td><span className="p-mat">{roleZh(l.agent_role)}</span></td>
+              <td><span className={`p-lead-st ${LEAD_STATUS[l.status]?.cls}`}>{LEAD_STATUS[l.status]?.label}</span></td>
+              <td className="p-src">{l.created_at}</td>
+              <td className="p-ops">
+                {l.status === 'pending' && <button className="p-mini" onClick={() => follow(l.id)}>跟进</button>}
+                {l.status !== 'converted' && <button className="p-mini" onClick={() => patch(l.id, { status: 'converted' })}>已转化</button>}
+                {l.status !== 'invalid' && <button className="p-mini danger" onClick={() => patch(l.id, { status: 'invalid' })}>无效</button>}
+              </td>
+            </tr>
+          ))}
+          {!leads.length && <tr><td colSpan={7} className="p-src">暂无工单</td></tr>}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+/* ---------- 数据分析(智能体运营分析) ---------- */
+function AnalyticsTab() {
+  const [role, setRole] = useState('')
+  const [data, setData] = useState<any>(null)
+  const [insight, setInsight] = useState<any>(null)
+  const [genIng, setGenIng] = useState(false)
+  const load = useCallback(() => {
+    api(`/api/portal/analytics?role=${role}`).then(setData).catch(alert)
+    api(`/api/portal/analytics/insight?role=${role}`).then(setInsight).catch(() => setInsight(null))
+  }, [role])
+  useEffect(() => { load() }, [load])
+  async function genInsight() {
+    setGenIng(true)
+    try {
+      const r = await api('/api/portal/analytics/insight', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role }),
+      })
+      setInsight(r)
+    } catch (e: any) { alert('洞察生成失败:' + e.message) } finally { setGenIng(false) }
+  }
+  const ov = data?.overview || {}
+  const maxQ = Math.max(1, ...(data?.top_questions || []).map((x: any) => x.c))
+  const maxR = Math.max(1, ...(data?.recommend_dist || []).map((x: any) => x.count))
+  const maxT = Math.max(1, ...(data?.trend || []).map((x: any) => x.c))
+  const roleZh = (r: string) => ({ student: '学生', teacher: '教师', platform: '平台' }[r] || r)
+  return (
+    <div className="p-ana">
+      <div className="p-toolbar">
+        <select value={role} onChange={e => setRole(e.target.value)}>
+          <option value="">全部智能体</option>
+          <option value="student">学生智能体</option>
+          <option value="teacher">教师智能体</option>
+          <option value="platform">平台智能体</option>
+        </select>
+        <button onClick={load}>刷新</button>
+      </div>
+
+      <div className="p-stats">
+        <div className="p-stat"><b>{ov.total_sessions ?? 0}</b><span>总会话数</span></div>
+        <div className="p-stat"><b>{ov.total_questions ?? 0}</b><span>总提问数</span></div>
+        {(data?.by_agent || []).map((a: any) => (
+          <div className="p-stat" key={a.role}><b>{a.c}</b><span>{roleZh(a.role)}会话</span></div>
+        ))}
+        {(data?.quality || []).map((q: any) => (
+          <div className="p-stat" key={'q' + q.role}><b>{q.avg_score}</b><span>{roleZh(q.role)}质检分</span></div>
+        ))}
+      </div>
+
+      <div className="p-ana-grid">
+        <div className="p-card">
+          <h3>近 14 日会话趋势</h3>
+          <div className="p-trend">
+            {(data?.trend || []).map((t: any) => (
+              <div className="p-trend-col" key={t.d} title={`${t.d}:${t.c}`}>
+                <i style={{ height: `${Math.max(6, (t.c / maxT) * 100)}%` }} />
+                <span>{t.d.slice(5)}</span>
+              </div>
+            ))}
+            {!(data?.trend || []).length && <div className="p-empty">暂无数据</div>}
+          </div>
+        </div>
+
+        <div className="p-card">
+          <h3>推荐班型分布</h3>
+          <div className="p-bars">
+            {(data?.recommend_dist || []).map((x: any) => (
+              <div className="p-bar-row" key={x.name}>
+                <span className="p-bar-name" title={x.name}>{x.name}</span>
+                <span className="p-bar-track"><i style={{ width: `${(x.count / maxR) * 100}%` }} /></span>
+                <b>{x.count}</b>
+              </div>
+            ))}
+            {!(data?.recommend_dist || []).length && <div className="p-empty">暂无推荐记录</div>}
+          </div>
+        </div>
+
+        <div className="p-card">
+          <h3>高频问题 TOP</h3>
+          <div className="p-bars">
+            {(data?.top_questions || []).map((x: any, i: number) => (
+              <div className="p-bar-row" key={i}>
+                <span className="p-bar-name" title={x.q}>{x.q}</span>
+                <span className="p-bar-track"><i style={{ width: `${(x.c / maxQ) * 100}%` }} /></span>
+                <b>{x.c}</b>
+              </div>
+            ))}
+            {!(data?.top_questions || []).length && <div className="p-empty">暂无提问</div>}
+          </div>
+        </div>
+
+        <div className="p-card">
+          <h3>未答 / 边界问题(知识缺口)</h3>
+          <div className="p-unans">
+            {(data?.unanswered || []).map((u: any, i: number) => (
+              <div className="p-unans-item" key={i}>{u.q}</div>
+            ))}
+            {!(data?.unanswered || []).length && <div className="p-empty">暂无未答问题</div>}
+          </div>
+        </div>
+      </div>
+
+      <div className="p-card">
+        <div className="p-toolbar" style={{ marginBottom: 8 }}>
+          <h3 style={{ margin: 0 }}>LLM 运营洞察</h3>
+          <button onClick={genInsight} disabled={genIng}>{genIng ? '生成中…' : '生成/刷新洞察'}</button>
+        </div>
+        {insight?.content
+          ? <div className="p-insight">{insight.content}</div>
+          : <div className="p-empty">点击「生成/刷新洞察」,由 LLM 分析运营数据给出改进建议</div>}
+      </div>
+    </div>
+  )
+}
+
+const TABS = [
+  { key: 'docs', label: '知识域', desc: '知识域 · 知识库 · 文档', el: <DomainsTab /> },
+  { key: 'ontology', label: '本体知识', desc: '实体 · 规则 · 关系', el: <OntologyTab /> },
+  { key: 'agents', label: '智能体设置', desc: '对接 · 模型 · 能力 · 提示词 · MCP', el: <AgentsTab /> },
+  { key: 'analytics', label: '数据分析', desc: '运营指标 · 质检 · 洞察', el: <AnalyticsTab /> },
+  { key: 'leads', label: '人工跟进', desc: '报名意向 · 留资工单', el: <LeadsTab /> },
+  { key: 'sessions', label: '会话记录', desc: '状态 · 消息追溯 · 质检', el: <SessionsTab /> },
+  { key: 'system', label: '系统设置', desc: '模型服务 · API Key · 全局参数', el: <SystemTab /> },
+]
+
+export default function Portal() {
+  const [authed, setAuthed] = useState(!!localStorage.getItem(TOKEN_KEY))
+  const [tab, setTab] = useState('docs')
+  if (!authed) return <Login onOk={() => setAuthed(true)} />
+  const active = TABS.find(t => t.key === tab)!
+  return (
+    <div className="portal">
+      <aside className="p-side">
+        <div className="p-brand">
+          <span className="p-logo">管</span>
+          <div><b>管理工作台</b><small>AI 课程顾问 · 运营后台</small></div>
+        </div>
+        <nav className="p-nav" aria-label="管理功能">
+          {TABS.map(t => (
+            <button key={t.key} className={t.key === tab ? 'on' : ''} onClick={() => setTab(t.key)}>
+              <span className="ic">{NAV_ICONS[t.key]}</span>
+              <span className="tx"><b>{t.label}</b><small>{t.desc}</small></span>
+            </button>
+          ))}
+        </nav>
+        <div className="p-side-foot">
+          <Link to="/">↗ 返回前台</Link>
+          <button onClick={() => { localStorage.removeItem(TOKEN_KEY); setAuthed(false) }}>退出登录</button>
+        </div>
+      </aside>
+
+      <main className="p-main">
+        <header className="p-pagehead">
+          <h2>{active.label}</h2>
+          <p>{active.desc}</p>
+        </header>
+        {active.el}
+      </main>
+    </div>
+  )
+}

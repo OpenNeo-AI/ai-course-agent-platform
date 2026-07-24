@@ -1,0 +1,13 @@
+# LLM 参数(火山方舟 OpenAI 兼容接口)。可由 portal 编辑;密钥仅走环境变量 ARK_API_KEY。
+# 模型 id 以方舟控制台「在线推理」可用模型为准,按需修改。
+base_url: https://ark.cn-beijing.volces.com/api/v3
+chat_model: doubao-seed-1-6-250615
+embedding_model: doubao-embedding-seed-250615
+rerank_model: doubao-seed-rerank-250615
+rerank_strategy: llm
+rerank_url: ''
+temperature: 0.3
+max_tokens: 2048
+request_timeout: 60
+# 上下文轮次上限:每轮注入的历史消息条数;设为 0 或负数表示不限制(完整上下文)
+context_turns: 24
