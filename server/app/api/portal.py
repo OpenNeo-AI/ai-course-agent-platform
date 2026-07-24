@@ -736,7 +736,7 @@ async def quality_batch(request: Request):
     return {"checked": len(results), "results": results}
 
 
-# ---------- 报名意向 / 人工跟进工单(留资转人工,非报名管理) ----------
+# ---------- 报名意向 / 线索转化工单(留资转线索,非报名管理) ----------
 
 _LEAD_STATUS = ("pending", "followed", "converted", "invalid")
 

@@ -29,7 +29,7 @@ const AGENTS = [
 
 /* 按智能体可配置的扩展能力 */
 const CAPABILITIES = [
-  { key: 'lead_capture', label: '留资转人工', desc: '用户表达报名意向时采集联系方式,转人工跟进' },
+  { key: 'lead_capture', label: '留资转线索', desc: '用户表达报名意向时采集联系方式,转线索跟进' },
   { key: 'quality_check', label: '对话质检', desc: '对该智能体的会话进行质检评分' },
 ]
 
@@ -844,7 +844,7 @@ function SessionsTab() {
 }
 
 /* ---------- 主组件:左侧导航布局 ---------- */
-/* ---------- 人工跟进(留资转人工工单) ---------- */
+/* ---------- 线索转化(留资转线索工单) ---------- */
 const LEAD_STATUS: Record<string, { label: string; cls: string }> = {
   pending: { label: '待跟进', cls: 'pending' },
   followed: { label: '已跟进', cls: 'followed' },
@@ -873,7 +873,7 @@ function LeadsTab() {
   return (
     <div className="p-card">
       <p className="p-scope-hint">
-        智能体在对话中采集的用户报名意向(留资),在此人工跟进。<b>仅做留资跟进流转,不做报名/支付管理。</b>
+        智能体在对话中采集的用户报名意向(留资),在此转化为线索跟进。<b>仅做留资跟进流转,不做报名/支付管理。</b>
       </p>
       <div className="p-toolbar">
         <select value={status} onChange={e => setStatus(e.target.value)}>
@@ -1030,7 +1030,7 @@ const TABS = [
   { key: 'ontology', label: '本体知识', desc: '实体 · 规则 · 关系', el: <OntologyTab /> },
   { key: 'agents', label: '智能体设置', desc: '对接 · 模型 · 能力 · 提示词 · MCP', el: <AgentsTab /> },
   { key: 'analytics', label: '数据分析', desc: '运营指标 · 质检 · 洞察', el: <AnalyticsTab /> },
-  { key: 'leads', label: '人工跟进', desc: '报名意向 · 留资工单', el: <LeadsTab /> },
+  { key: 'leads', label: '线索转化', desc: '报名意向 · 留资工单', el: <LeadsTab /> },
   { key: 'sessions', label: '会话记录', desc: '状态 · 消息追溯 · 质检', el: <SessionsTab /> },
   { key: 'system', label: '系统设置', desc: '模型服务 · API Key · 全局参数', el: <SystemTab /> },
 ]

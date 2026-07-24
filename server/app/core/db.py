@@ -158,7 +158,7 @@ CREATE TABLE IF NOT EXISTS quality_checks(
   created_at TEXT DEFAULT (datetime('now','localtime'))
 );
 
--- 报名意向 / 人工跟进工单(留资转人工,非报名管理)
+-- 报名意向 / 线索转化工单(留资转线索,非报名管理)
 CREATE TABLE IF NOT EXISTS leads(
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   session_id TEXT,
