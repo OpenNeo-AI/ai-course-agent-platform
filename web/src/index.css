@@ -1373,6 +1373,90 @@ button { font-family: inherit; cursor: pointer; }
 .board-table th, .board-table td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--line-soft); }
 .board-table th { background: #FAFBFC; color: var(--mut); font-size: 12px; }
 
+/* ---------- 统一认证面板(横版 + 多页签) ---------- */
+.aw-page {
+  min-height: 100dvh; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(160deg, #0F172A 0%, #1B2942 55%, #233250 100%);
+  padding: 24px;
+}
+.aw-card {
+  display: flex; width: min(920px, 100%); min-height: 520px;
+  background: var(--paper); border-radius: 20px; overflow: hidden;
+  box-shadow: var(--sh-lg);
+}
+.aw-brand {
+  flex: 0 0 340px; padding: 40px 34px; color: #E2E8F0;
+  background: linear-gradient(170deg, #101C36 0%, #16233F 60%, #1D2C4E 100%);
+  display: flex; flex-direction: column; gap: 18px; position: relative;
+}
+.aw-brand::after {
+  content: "問"; position: absolute; right: -26px; bottom: -40px;
+  font-family: var(--serif); font-size: 190px; color: rgba(202, 138, 4, .07);
+  line-height: 1; pointer-events: none;
+}
+.aw-brand-top { display: flex; align-items: center; gap: 10px; }
+.aw-brand-top img { width: 34px; height: 34px; border-radius: 9px; }
+.aw-brand-top b { font-size: 14px; letter-spacing: .5px; color: #F1F5F9; }
+.aw-brand h2 { font-family: var(--serif); font-size: 26px; line-height: 1.5; color: #F8FAFC; }
+.aw-brand ul { list-style: none; display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+.aw-brand li {
+  font-size: 12.5px; color: #B6C2D4; padding-left: 18px; position: relative; line-height: 1.6;
+}
+.aw-brand li::before {
+  content: ""; position: absolute; left: 0; top: 7px; width: 8px; height: 8px;
+  border-radius: 2px; background: linear-gradient(135deg, var(--gold-soft), var(--gold));
+}
+.aw-brand-demo {
+  margin-top: auto; font-size: 11.5px; line-height: 1.9; color: #8B99AD;
+  border-top: 1px dashed rgba(148, 163, 184, .25); padding-top: 14px;
+}
+.aw-form { flex: 1; padding: 40px 42px 34px; display: flex; flex-direction: column; position: relative; }
+.aw-back { position: absolute; top: 16px; right: 20px; font-size: 12.5px; color: var(--mut); text-decoration: none; }
+.aw-back:hover { color: var(--gold-deep); }
+.aw-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 22px; }
+.aw-tabs button {
+  border: none; background: none; padding: 10px 16px 12px; font-size: 14px; color: var(--mut);
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.aw-tabs button.on { color: var(--gold-deep); font-weight: 700; border-bottom-color: var(--gold); }
+.aw-field { display: block; margin-bottom: 14px; }
+.aw-field span { display: block; font-size: 12.5px; color: var(--slate); font-weight: 600; margin-bottom: 6px; }
+.aw-field input {
+  width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px;
+  font-size: 14px; background: #FBFCFE; transition: border-color .15s;
+}
+.aw-field input:focus { outline: none; border-color: var(--gold); background: #fff; }
+.aw-code-row { display: flex; gap: 8px; }
+.aw-code-row input { flex: 1; }
+.aw-code-btn {
+  flex: none; padding: 0 14px; border-radius: 10px; border: 1px solid rgba(202, 138, 4, .4);
+  background: rgba(202, 138, 4, .08); color: var(--gold-deep); font-size: 12.5px; white-space: nowrap;
+}
+.aw-code-btn:disabled { opacity: .55; cursor: wait; }
+.aw-demo-code {
+  font-size: 12.5px; color: var(--ok); background: rgba(21, 128, 61, .08);
+  border: 1px solid rgba(21, 128, 61, .25); border-radius: 8px; padding: 8px 10px; margin-bottom: 12px;
+}
+.aw-error {
+  font-size: 12.5px; color: var(--bad); background: #FEF2F2; border: 1px solid #FECACA;
+  border-radius: 8px; padding: 8px 10px; margin-bottom: 12px;
+}
+.aw-submit {
+  width: 100%; padding: 11px; border: none; border-radius: 10px; margin-top: 2px;
+  background: linear-gradient(135deg, var(--ink) 0%, var(--ink-2) 100%);
+  color: #F8FAFC; font-size: 14.5px; font-weight: 600; letter-spacing: 2px;
+}
+.aw-submit:hover { background: linear-gradient(135deg, var(--ink-2) 0%, var(--ink-3) 100%); }
+.aw-submit:disabled { opacity: .6; cursor: wait; }
+.aw-hint { margin-top: 14px; font-size: 11.5px; color: var(--faint); line-height: 1.8; text-align: center; }
+@media (max-width: 860px) {
+  .aw-card { flex-direction: column; min-height: 0; }
+  .aw-brand { flex: none; padding: 26px 26px 20px; }
+  .aw-brand h2 { font-size: 20px; }
+  .aw-brand ul, .aw-brand-demo { display: none; }
+  .aw-form { padding: 26px; }
+}
+
 /* ---------- 语言切换 ---------- */
 .lang-switch {
   display: inline-flex; border: 1px solid rgba(148, 163, 184, .5); border-radius: 999px;

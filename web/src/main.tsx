@@ -1,7 +1,7 @@
 import { StrictMode, useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Routes, Route, Link, useParams } from 'react-router-dom'
-import Auth from './Auth'
+import AuthPanel from './AuthPanel'
 import Chat from './Chat'
 import Portal from './Portal'
 import Pricing from './Pricing'
@@ -165,8 +165,8 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/c" element={<Chat role="platform" title="平台通道 · 机构/企业咨询" accent="#7c3aed"
           suggestions={['平台会员有哪些权益?', '机构批量采购如何合作?', '平台提供哪些服务?']} />} />
         <Route path="/portal" element={<Portal />} />
-        <Route path="/login" element={<Auth mode="login" />} />
-        <Route path="/register" element={<Auth mode="register" />} />
+        <Route path="/login" element={<AuthPanel initialTab="sms" standalone />} />
+        <Route path="/register" element={<AuthPanel initialTab="register" standalone />} />
         <Route path="/b/:slug" element={<TenantChat />} />
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/admin" element={<TenantAdmin />} />

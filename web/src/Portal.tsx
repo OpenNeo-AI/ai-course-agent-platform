@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import OntologyTab from './OntologyTab'
 
-import { api, API, clearAuth, saveAuth, TOKEN_KEY } from './api'
+import { api, clearAuth, TOKEN_KEY } from './api'
+import AuthPanel from './AuthPanel'
 import {
   TenantAgentTab, TenantDocsTab, TenantSessionsTab, TenantStatsTab, TenantSubTab,
   type TenantInfo,
@@ -43,62 +44,6 @@ const CAPABILITIES = [
   { key: 'lead_capture', label: '留资转线索', desc: '用户表达报名意向时采集联系方式,转线索跟进' },
   { key: 'quality_check', label: '对话质检', desc: '对该智能体的会话进行质检评分' },
 ]
-
-/* ---------- 登录 ---------- */
-function Login({ onOk }: { onOk: () => void }) {
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [err, setErr] = useState('')
-  async function submit() {
-    try {
-      // 优先走 SaaS 用户体系(带角色分叉);失败回退存量 portal 账户登录
-      const res = await fetch(API + '/api/auth/login', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-      })
-      if (res.ok) {
-        const data = await res.json()
-        saveAuth(data.token, {
-          username: data.user?.username, role: data.user?.role,
-          tenant_id: data.user?.tenant_id,
-          tenant_slug: data.tenant?.slug, tenant_name: data.tenant?.name,
-        })
-        onOk(); return   // 统一工作台:超管与租户管理员都在 /portal 内按身份装配
-      }
-      const fb = await fetch(API + '/api/portal/login', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-      })
-      if (!fb.ok) throw new Error('账户或密码错误')
-      const data = await fb.json()
-      localStorage.setItem(TOKEN_KEY, data.token)
-      onOk()
-    } catch (e: any) { setErr(e.message || '登录失败') }
-  }
-  return (
-    <div className="p-login">
-      <div className="p-login-box">
-        <img className="p-login-logo" src="/logo.png" alt="AI 课程顾问" />
-        <h2>管理工作台</h2>
-        <p>机构管理员登录;尚未开通请先注册。</p>
-        <input placeholder="账户 / 手机号" value={username} autoFocus
-          onChange={e => setUsername(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && submit()} />
-        <input type="password" placeholder="密码" value={password}
-          onChange={e => setPassword(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && submit()} />
-        <button onClick={submit}>登 录</button>
-        {err && <div className="p-err">{err}</div>}
-        <div className="p-login-links">
-          <Link to="/login">手机验证码登录</Link>
-          <Link to="/register">注册开通机构 →</Link>
-        </div>
-        <div className="p-login-demo">演示账户:平台超管 demo / demo1234 · 演示租户 demo-org / demo1234</div>
-        <Link to="/">← 返回前台</Link>
-      </div>
-    </div>
-  )
-}
 
 /* ---------- 知识域 / 知识库 / 文档 ---------- */
 function DomainsTab() {
@@ -1399,7 +1344,7 @@ export default function Portal() {
     return () => window.removeEventListener('opc-goto-tab', h)
   }, [])
 
-  if (!authed) return <Login onOk={() => setAuthed(true)} />
+  if (!authed) return <AuthPanel onOk={() => setAuthed(true)} />
   // 身份/租户信息加载完成前渲染占位,避免 tabs 为空导致渲染崩溃白屏
   if (isTenant && tinfoErr) {
     return (
