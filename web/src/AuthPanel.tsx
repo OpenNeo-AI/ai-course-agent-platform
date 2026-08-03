@@ -8,6 +8,7 @@ import { API, saveAuth } from './api'
 export type AuthTab = 'sms' | 'password' | 'register'
 
 const PHONE_RE = /^1[3-9]\d{9}$/
+const USER_RE = /^[A-Za-z0-9_-]{3,24}$/
 
 export default function AuthPanel({ initialTab = 'sms', onOk, standalone = false }: {
   initialTab?: AuthTab
@@ -17,9 +18,11 @@ export default function AuthPanel({ initialTab = 'sms', onOk, standalone = false
   const nav = useNavigate()
   const [tab, setTab] = useState<AuthTab>(initialTab)
   const [orgName, setOrgName] = useState('')
+  const [regUser, setRegUser] = useState('')     // 注册页签:账户名
+  const [regPass, setRegPass] = useState('')     // 注册页签:密码
   const [phone, setPhone] = useState('')
   const [code, setCode] = useState('')
-  const [username, setUsername] = useState('')
+  const [username, setUsername] = useState('')   // 密码登录页签:账户名或手机号
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -67,10 +70,12 @@ export default function AuthPanel({ initialTab = 'sms', onOk, standalone = false
       let body: Record<string, string> = {}
       if (tab === 'register') {
         if (!orgName.trim()) throw new Error('请填写机构名称')
+        if (!USER_RE.test(regUser.trim())) throw new Error('账户名需为 3-24 位字母/数字/下划线/中划线')
+        if (!regPass || regPass.length < 6) throw new Error('密码至少 6 位')
         if (!PHONE_RE.test(phone)) throw new Error('请输入正确的手机号')
         if (!code.trim()) throw new Error('请填写验证码')
         path = '/api/auth/sms/register'
-        body = { org_name: orgName, phone, code }
+        body = { org_name: orgName, username: regUser.trim(), password: regPass, phone, code }
       } else if (tab === 'sms') {
         if (!PHONE_RE.test(phone)) throw new Error('请输入正确的手机号')
         if (!code.trim()) throw new Error('请填写验证码')
@@ -126,13 +131,24 @@ export default function AuthPanel({ initialTab = 'sms', onOk, standalone = false
             ))}
           </div>
 
-          {tab === 'register' && (
+          {tab === 'register' && (<>
             <label className="aw-field">
               <span>机构名称</span>
               <input value={orgName} onChange={e => setOrgName(e.target.value)}
                 placeholder="例如:启明教育培训学校" maxLength={40} />
             </label>
-          )}
+            <label className="aw-field">
+              <span>账户名</span>
+              <input value={regUser} onChange={e => setRegUser(e.target.value.trim())}
+                placeholder="3-24 位字母/数字/下划线,用于密码登录" maxLength={24}
+                autoComplete="username" />
+            </label>
+            <label className="aw-field">
+              <span>密码</span>
+              <input type="password" value={regPass} onChange={e => setRegPass(e.target.value)}
+                placeholder="至少 6 位" autoComplete="new-password" />
+            </label>
+          </>)}
 
           {tab !== 'password' ? (<>
             <label className="aw-field">
@@ -161,8 +177,8 @@ export default function AuthPanel({ initialTab = 'sms', onOk, standalone = false
           </>) : (<>
             <label className="aw-field">
               <span>账户</span>
-              <input value={username} onChange={e => setUsername(e.target.value)}
-                placeholder="用户名" autoComplete="username" />
+              <input value={username} onChange={e => setUsername(e.target.value.trim())}
+                placeholder="账户名或注册手机号" autoComplete="username" />
             </label>
             <label className="aw-field">
               <span>密码</span>
@@ -180,9 +196,9 @@ export default function AuthPanel({ initialTab = 'sms', onOk, standalone = false
           </button>
           <p className="aw-hint">
             {tab === 'register'
-              ? '注册即开通免费版:智能体设置可用,知识域与业务功能升级后解锁'
+              ? '账户名+密码用于密码登录,手机号+验证码用于验证码登录;注册即开通免费版'
               : tab === 'sms' ? '未注册的手机号请先切换到「注册开通」页签'
-                : '短信注册的机构也可用密码登录(注册时自动生成账户)'}
+                : '支持账户名或注册手机号登录'}
           </p>
         </div>
       </div>

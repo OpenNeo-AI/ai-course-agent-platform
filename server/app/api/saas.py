@@ -116,7 +116,9 @@ async def sms_login(request: Request):
 
 @router.post("/api/auth/sms/register")
 async def sms_register(request: Request):
-    """手机验证码注册开通:机构名 + 手机号 + 验证码 → 租户 + 管理员 + 待开通订阅。"""
+    """手机验证码注册开通:机构名 + 账户 + 密码 + 手机号 + 验证码
+    → 租户 + 管理员 + 免费版订阅。账户用于密码登录;手机号用于验证码登录。
+    (账户/密码缺省时自动生成,兼容纯手机号注册调用。)"""
     from ..core import sms
     try:
         body = await request.json()
@@ -130,7 +132,8 @@ async def sms_register(request: Request):
         if db.execute("SELECT id FROM users WHERE phone=?", (phone,)).fetchone():
             raise HTTPException(status_code=400, detail="该手机号已注册,请直接登录")
     try:
-        t = tenancy.register_tenant(body.get("org_name", ""), body.get("username", ""),
+        t = tenancy.register_tenant(body.get("org_name", ""),
+                                    (body.get("username") or "").strip().lower(),
                                     body.get("password", ""), body.get("email", ""),
                                     phone=phone)
     except ValueError as e:
@@ -146,6 +149,8 @@ async def sms_register(request: Request):
 
 @router.post("/api/auth/login")
 async def login(request: Request):
+    """密码登录:账户名或注册手机号均可作为登录名。"""
+    import re as _re
     try:
         body = await request.json()
     except Exception:
@@ -154,7 +159,10 @@ async def login(request: Request):
     username = (body.get("username") or "").strip().lower()
     password = body.get("password") or ""
     with get_db() as db:
-        row = db.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
+        if _re.fullmatch(r"1[3-9]\d{9}", username):
+            row = db.execute("SELECT * FROM users WHERE phone=?", (username,)).fetchone()
+        else:
+            row = db.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
         if not row or not auth.verify_password(password, row["password_hash"]):
             raise HTTPException(status_code=401, detail="账户或密码错误")
         user = dict(row)
