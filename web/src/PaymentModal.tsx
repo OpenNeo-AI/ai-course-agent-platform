@@ -2,6 +2,7 @@
    渠道:内置模拟支付;支付宝/微信沙箱为预留位(CHANNELS 注册表挂接后自动出现)。 */
 import { useState } from 'react'
 import { api } from './api'
+import { useI18n } from './i18n'
 
 type Plan = { code: string; name: string; price_monthly: number }
 
@@ -12,6 +13,7 @@ export default function PaymentModal({ plan, onClose, onDone }: {
   const [channel, setChannel] = useState('mock')
   const [error, setError] = useState('')
   const [result, setResult] = useState<any>(null)
+  const { t } = useI18n()
 
   async function pay() {
     setError('')
@@ -36,44 +38,43 @@ export default function PaymentModal({ plan, onClose, onDone }: {
     <div className="pm-mask" onClick={stage === 'paying' ? undefined : onClose}>
       <div className="pm-modal" onClick={e => e.stopPropagation()}>
         {stage === 'confirm' && (<>
-          <h3>确认订单</h3>
+          <h3>{t('pay.orderTitle')}</h3>
           <div className="pm-order">
-            <div><span>套餐</span><b>{plan.name}</b></div>
-            <div><span>订阅周期</span><b>1 个月</b></div>
-            <div><span>应付金额</span><b className="pm-amount">¥{plan.price_monthly.toFixed(2)}</b></div>
+            <div><span>{t('pay.plan')}</span><b>{plan.name}</b></div>
+            <div><span>{t('pay.period')}</span><b>{t('pay.oneMonth')}</b></div>
+            <div><span>{t('pay.amount')}</span><b className="pm-amount">¥{plan.price_monthly.toFixed(2)}</b></div>
           </div>
           <div className="pm-channels">
             <label className={channel === 'mock' ? 'on' : ''}>
               <input type="radio" checked={channel === 'mock'} onChange={() => setChannel('mock')} />
-              <span><b>模拟支付</b><small>演示环境 · 点击即支付成功</small></span>
+              <span><b>{t('pay.mock')}</b><small>{t('pay.mockNote')}</small></span>
             </label>
             <label className="disabled" title="真实渠道沙箱挂接中">
               <input type="radio" disabled />
-              <span><b>支付宝 / 微信支付</b><small>沙箱接入预留</small></span>
+              <span><b>{t('pay.real')}</b><small>{t('pay.realNote')}</small></span>
             </label>
           </div>
           {error && <div className="auth-error">{error}</div>}
           <div className="pm-actions">
-            <button className="pm-cancel" onClick={onClose}>取消</button>
-            <button className="pm-pay" onClick={pay}>确认支付(演示)</button>
+            <button className="pm-cancel" onClick={onClose}>{t('common.cancel')}</button>
+            <button className="pm-pay" onClick={pay}>{t('pay.payBtn')}</button>
           </div>
         </>)}
 
         {stage === 'paying' && (
           <div className="pm-paying">
             <span className="pm-spinner" />
-            <p>正在处理支付请求…</p>
-            <small>模拟支付渠道回调中,请稍候</small>
+            <p>{t('pay.paying')}</p>
           </div>
         )}
 
         {stage === 'success' && (<>
           <div className="pm-success">
             <span className="pm-check">✓</span>
-            <h3>支付成功</h3>
+            <h3>{t('pay.success')}</h3>
             <p>已升级「{result?.subscription?.plan_name || plan.name}」,无限对话与知识库管理已解锁。</p>
             <div className="pm-actions">
-              <button className="pm-pay" onClick={onDone}>进入管理后台</button>
+              <button className="pm-pay" onClick={onDone}>{t('pay.goAdmin')}</button>
             </div>
           </div>
         </>)}

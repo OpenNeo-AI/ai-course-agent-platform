@@ -19,6 +19,7 @@ const NAV_ICONS: Record<string, ReactNode> = {
   leads: <Ic d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z M20 8v6 M23 11h-6" />,
   system: <Ic d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />,
   sessions: <Ic d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z" />,
+  board: <Ic d="M3 3v18h18 M8 16v-5 M12 16V8 M16 16v-8 M7 4h10" />,
 }
 
 const AGENTS = [
@@ -1059,10 +1060,114 @@ function AnalyticsTab() {
   )
 }
 
+/* ---------- 租户看板(SaaS · echarts 图表) ---------- */
+declare global { interface Window { echarts?: any } }
+
+function loadEcharts(): Promise<void> {
+  if (window.echarts) return Promise.resolve()
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script')
+    s.src = '/_shared/js/echarts.min.js'
+    s.onload = () => resolve()
+    s.onerror = reject
+    document.head.appendChild(s)
+  })
+}
+
+function BoardTab() {
+  const [data, setData] = useState<any>(null)
+  const [tenants, setTenants] = useState<any[]>([])
+  const trendRef = useRef<HTMLDivElement>(null)
+  const barRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    Promise.all([api('/api/portal/dashboard'), api('/api/portal/tenants')])
+      .then(([d, ts]) => { setData(d); setTenants(Array.isArray(ts) ? ts : []) })
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    if (!data) return
+    let charts: any[] = []
+    loadEcharts().then(() => {
+      const ec = window.echarts
+      if (!ec) return
+      if (trendRef.current) {
+        const c1 = ec.init(trendRef.current)
+        c1.setOption({
+          tooltip: { trigger: 'axis' },
+          grid: { left: 42, right: 16, top: 32, bottom: 30 },
+          xAxis: { type: 'category', data: data.trend.map((x: any) => x.date.slice(5)) },
+          yAxis: { type: 'value', minInterval: 1 },
+          series: [{ name: '新增会话', type: 'line', smooth: true,
+            areaStyle: { opacity: 0.14 }, itemStyle: { color: '#CA8A04' },
+            data: data.trend.map((x: any) => x.count) }],
+        })
+        charts.push(c1)
+      }
+      if (barRef.current && data.top_tenants?.length) {
+        const c2 = ec.init(barRef.current)
+        const rows = [...data.top_tenants].reverse()
+        c2.setOption({
+          tooltip: {},
+          grid: { left: 130, right: 24, top: 24, bottom: 30 },
+          xAxis: { type: 'value', minInterval: 1 },
+          yAxis: { type: 'category', data: rows.map((x: any) => x.name) },
+          series: [{ name: '对话数', type: 'bar', barWidth: 16,
+            itemStyle: { color: '#1B2942', borderRadius: 4 },
+            data: rows.map((x: any) => x.chats) }],
+        })
+        charts.push(c2)
+      }
+      const onResize = () => charts.forEach(c => c.resize())
+      window.addEventListener('resize', onResize)
+      return () => window.removeEventListener('resize', onResize)
+    }).catch(() => {})
+    return () => { charts.forEach(c => c.dispose()); charts = [] }
+  }, [data])
+
+  const totals = data?.totals || {}
+  return (
+    <div>
+      <div className="p-statrow">
+        {[['租户机构', totals.tenants], ['用户数', totals.users],
+          ['会话数', totals.sessions], ['对话次数', totals.chats]].map(([k, v]) => (
+          <div className="p-stat" key={k as string}><em>{v ?? '—'}</em><span>{k}</span></div>
+        ))}
+      </div>
+      <div className="board-charts">
+        <div className="board-chart-box">
+          <h4>近 14 日会话趋势(全平台)</h4>
+          <div ref={trendRef} className="board-chart" />
+        </div>
+        <div className="board-chart-box">
+          <h4>租户对话数排行</h4>
+          <div ref={barRef} className="board-chart" />
+        </div>
+      </div>
+      <table className="board-table">
+        <thead><tr><th>租户</th><th>标识</th><th>套餐</th><th>用户</th><th>会话</th><th>对话数</th><th>开通时间</th></tr></thead>
+        <tbody>
+          {tenants.map(x => (
+            <tr key={x.id}>
+              <td><b>{x.name}</b></td>
+              <td className="p-mono">{x.slug}</td>
+              <td>{x.plan_code === 'pro' ? '专业版' : '免费版'}</td>
+              <td>{x.users}</td><td>{x.sessions}</td><td>{x.chats}</td>
+              <td>{x.created_at}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 const TABS = [
   { key: 'docs', label: '知识域', desc: '知识域 · 知识库 · 文档', el: <DomainsTab /> },
   { key: 'ontology', label: '本体知识', desc: '实体 · 规则 · 关系', el: <OntologyTab /> },
   { key: 'agents', label: '智能体设置', desc: '对接 · 模型 · 能力 · 提示词 · MCP', el: <AgentsTab /> },
+  { key: 'board', label: '租户看板', desc: '租户级对话数 · 用户数 · 趋势图表', el: <BoardTab /> },
   { key: 'analytics', label: '数据分析', desc: '运营指标 · 质检 · 洞察', el: <AnalyticsTab /> },
   { key: 'leads', label: '线索转化', desc: '报名意向 · 留资工单', el: <LeadsTab /> },
   { key: 'sessions', label: '会话记录', desc: '状态 · 消息追溯 · 质检', el: <SessionsTab /> },

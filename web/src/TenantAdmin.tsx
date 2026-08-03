@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api, clearAuth, currentUser } from './api'
 import PaymentModal from './PaymentModal'
+import { LangSwitch, useI18n } from './i18n'
 
 type Doc = { id: number; filename: string; title: string; status: string; chunks: number;
   entities: number; uploaded_at: string }
@@ -12,15 +13,16 @@ type Info = { tenant: { id: number; slug: string; name: string }; subscription: 
   quota: any; features: any; documents: number; bot_url: string }
 
 const TABS = [
-  { key: 'docs', label: '课程资料' },
-  { key: 'sessions', label: '对话记录' },
-  { key: 'stats', label: '用量统计' },
-  { key: 'subscription', label: '套餐订阅' },
+  { key: 'docs', i18n: 'admin.docs' },
+  { key: 'sessions', i18n: 'admin.sessions' },
+  { key: 'stats', i18n: 'admin.stats' },
+  { key: 'subscription', i18n: 'admin.subscription' },
 ] as const
 
 export default function TenantAdmin() {
   const nav = useNavigate()
   const me = currentUser()
+  const { t } = useI18n()
   const [tab, setTab] = useState<string>('docs')
   const [info, setInfo] = useState<Info | null>(null)
   const [err, setErr] = useState('')
@@ -44,14 +46,14 @@ export default function TenantAdmin() {
           <div><b>AI 教育顾问</b><small>SaaS 管理后台</small></div>
         </div>
         <nav>
-          {TABS.map(t => (
-            <button key={t.key} className={tab === t.key ? 'on' : ''}
-              onClick={() => setTab(t.key)}>{t.label}</button>
+          {TABS.map(x => (
+            <button key={x.key} className={tab === x.key ? 'on' : ''}
+              onClick={() => setTab(x.key)}>{t(x.i18n)}</button>
           ))}
         </nav>
         <div className="tadm-side-foot">
-          {info && <Link className="tadm-botlink" to={info.bot_url}>打开 Bot 对话 ↗</Link>}
-          <button className="tadm-logout" onClick={() => { clearAuth(); nav('/') }}>退出登录</button>
+          {info && <Link className="tadm-botlink" to={info.bot_url}>{t('admin.openBot')}</Link>}
+          <button className="tadm-logout" onClick={() => { clearAuth(); nav('/') }}>{t('common.logout')}</button>
         </div>
       </aside>
 
@@ -64,6 +66,7 @@ export default function TenantAdmin() {
               {!info.quota?.unlimited && ` · 本月剩余 ${info.quota?.remaining} 次`}
             </span>
           )}
+          <span style={{ marginLeft: 'auto' }}><LangSwitch /></span>
         </header>
         {err && <div className="auth-error">{err}</div>}
         {tab === 'docs' && <DocsTab info={info} onChanged={refresh} />}

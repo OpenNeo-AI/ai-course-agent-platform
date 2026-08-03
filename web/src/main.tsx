@@ -6,6 +6,7 @@ import Chat from './Chat'
 import Portal from './Portal'
 import Pricing from './Pricing'
 import TenantAdmin from './TenantAdmin'
+import { I18nProvider, LangSwitch, useI18n } from './i18n'
 import './index.css'
 
 /* 租户专属对话入口 /b/:slug(会话按租户作用域与套餐配额运行) */
@@ -74,6 +75,7 @@ const ArrowIcon = () => (
 )
 
 function Landing() {
+  const { t } = useI18n()
   return (
     <div className="landing">
       <div className="landing-mark" aria-hidden="true">問</div>
@@ -84,18 +86,19 @@ function Landing() {
           <b>AI 课程顾问</b>
         </div>
         <a href="/intro.html" className="l-intro-link">
-          产品介绍
+          {t('landing.intro')}
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M7 17L17 7M17 7H9m8 0v8" />
           </svg>
         </a>
         <nav className="l-saas-links" aria-label="SaaS 平台">
-          <Link to="/pricing">机构套餐</Link>
-          <Link to="/register">注册开通</Link>
-          <Link to="/login">登录</Link>
+          <Link to="/pricing">{t('common.pricing')}</Link>
+          <Link to="/register">{t('common.register')}</Link>
+          <Link to="/login">{t('common.login')}</Link>
         </nav>
-        <span className="l-badge">AI 教育中心 · 课程咨询服务</span>
+        <LangSwitch />
+        <span className="l-badge">{t('landing.badge')}</span>
       </header>
 
       <main className="l-body">
@@ -152,6 +155,7 @@ function Landing() {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
+      <I18nProvider>
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/s" element={<Chat role="student" title="学生通道 · 夏令营咨询" accent="#2563eb"
@@ -167,6 +171,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/admin" element={<TenantAdmin />} />
       </Routes>
+      </I18nProvider>
     </BrowserRouter>
   </StrictMode>,
 )

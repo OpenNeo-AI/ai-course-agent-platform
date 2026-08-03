@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { marked } from 'marked'
+import { useI18n } from './i18n'
 
 marked.use({ breaks: true, gfm: true })
 
@@ -70,6 +71,7 @@ type Quota = { plan_code: string; plan_name: string; limit: number; unlimited: b
 export default function Chat({ role, title, accent, suggestions, tenant }: {
   role: string; title: string; accent: string; suggestions: string[]; tenant?: string
 }) {
+  const { t } = useI18n()
   const [session, setSession] = useState('')
   const [messages, setMessages] = useState<Msg[]>([])
   const [input, setInput] = useState('')
@@ -229,7 +231,9 @@ export default function Chat({ role, title, accent, suggestions, tenant }: {
         {quota && (
           <span className={`quota-badge${quota.unlimited ? ' unlimited' : ''}`}
             title={`当前套餐:${quota.plan_name}`}>
-            {quota.unlimited ? `${quota.plan_name} · 不限次` : `本月剩余 ${quota.remaining} 次`}
+            {quota.unlimited
+              ? `${quota.plan_name} · ${t('chat.unlimited')}`
+              : `${t('chat.quotaLeft')} ${quota.remaining} ${t('chat.quotaTimes')}`}
           </span>
         )}
         <button className="reset" onClick={reset} disabled={busy || !session}>重新开始</button>
@@ -237,8 +241,8 @@ export default function Chat({ role, title, accent, suggestions, tenant }: {
 
       {quotaHit && (
         <div className="quota-banner">
-          <span>本月免费额度已用完,升级专业版享无限对话与知识库管理。</span>
-          <Link to="/pricing">查看套餐 →</Link>
+          <span>{t('chat.quotaBanner')}</span>
+          <Link to="/pricing">{t('chat.viewPlans')}</Link>
         </div>
       )}
 

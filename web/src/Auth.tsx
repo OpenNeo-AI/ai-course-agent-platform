@@ -3,9 +3,11 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { API, saveAuth } from './api'
+import { useI18n } from './i18n'
 
 export default function Auth({ mode }: { mode: 'login' | 'register' }) {
   const nav = useNavigate()
+  const { t } = useI18n()
   const [orgName, setOrgName] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -42,32 +44,30 @@ export default function Auth({ mode }: { mode: 'login' | 'register' }) {
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <Link to="/" className="auth-back">← 返回首页</Link>
+        <Link to="/" className="auth-back">← {t('common.home')}</Link>
         <div className="auth-brand">
           <img src="/logo.png" alt="AI 教育顾问" />
           <b>AI 教育顾问 SaaS 平台</b>
         </div>
-        <h1>{mode === 'register' ? '开通机构账号' : '登录'}</h1>
+        <h1>{t(mode === 'register' ? 'auth.registerTitle' : 'auth.loginTitle')}</h1>
         <p className="auth-sub">
-          {mode === 'register'
-            ? '注册即开通:专属知识库 + 免费版每月 50 次 AI 对话'
-            : '机构管理员或平台管理员登录'}
+          {t(mode === 'register' ? 'auth.registerSub' : 'auth.loginSub')}
         </p>
 
         {mode === 'register' && (
           <label className="auth-field">
-            <span>机构名称</span>
+            <span>{t('auth.orgName')}</span>
             <input value={orgName} onChange={e => setOrgName(e.target.value)}
               placeholder="例如:启明教育培训学校" maxLength={40} />
           </label>
         )}
         <label className="auth-field">
-          <span>用户名</span>
+          <span>{t('auth.username')}</span>
           <input value={username} onChange={e => setUsername(e.target.value)}
             placeholder="3-24 位字母/数字/下划线" autoComplete="username" />
         </label>
         <label className="auth-field">
-          <span>密码</span>
+          <span>{t('auth.password')}</span>
           <input type="password" value={password} onChange={e => setPassword(e.target.value)}
             placeholder={mode === 'register' ? '至少 6 位' : '请输入密码'}
             autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
@@ -76,13 +76,13 @@ export default function Auth({ mode }: { mode: 'login' | 'register' }) {
 
         {error && <div className="auth-error">{error}</div>}
         <button className="auth-submit" onClick={submit} disabled={busy}>
-          {busy ? '处理中…' : (mode === 'register' ? '注册并开通' : '登录')}
+          {busy ? t('common.loading') : t(mode === 'register' ? 'auth.submitRegister' : 'auth.submitLogin')}
         </button>
 
         <div className="auth-switch">
           {mode === 'register'
-            ? <>已有账号?<Link to="/login">直接登录</Link></>
-            : <>还没有账号?<Link to="/register">免费注册开通</Link></>}
+            ? <>{t('auth.hasAccount')}<Link to="/login">{t('common.login')}</Link></>
+            : <>{t('auth.noAccount')}<Link to="/register">{t('pricing.freeCta')}</Link></>}
         </div>
         {mode === 'login' && (
           <div className="auth-demo">演示账号:平台超管 demo / demo1234 · 演示租户 demo-org / demo1234</div>
