@@ -11,7 +11,7 @@ type Plan = { code: string; name: string; price_monthly: number; chat_limit_mont
 const FEATURE_ROWS: { label: string; free: string | boolean; std: string | boolean; flag: string | boolean }[] = [
   { label: 'AI 对话次数', free: '不限', std: '不限', flag: '不限' },
   { label: '智能体设置(欢迎语/能力/模型)', free: true, std: true, flag: true },
-  { label: '知识域 / 课程资料管理(RAG)', free: false, std: true, flag: true },
+  { label: '知识域管理(含资料上传 · RAG 问答)', free: false, std: true, flag: true },
   { label: '本体知识维护', free: false, std: true, flag: true },
   { label: 'Agent Skill(课程详情/班型推荐)', free: false, std: true, flag: true },
   { label: '对话记录(脱敏 · 时间筛选 · 质检)', free: false, std: false, flag: true },

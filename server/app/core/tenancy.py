@@ -105,13 +105,23 @@ def tenant_welcome(db, tenant_id: int) -> str | None:
     return (bot_config_of(db, tenant_id).get("welcome_text") or "").strip() or None
 
 
+def tenant_prompt(db, tenant_id: int) -> str | None:
+    """租户自定义系统提示词(智能体设置);未配置返回 None 用平台 tenant.md。"""
+    return (bot_config_of(db, tenant_id).get("prompt_text") or "").strip() or None
+
+
 def scope_for_tenant(tenant_id: int) -> dict:
+    """租户 Bot 作用域:知识域按智能体设置的挂载列表过滤(空=全部挂载)。"""
     from .db import list_domains, list_kbs
     with get_db() as db:
         domains = [d for d in list_domains(db) if d.get("tenant_id") == tenant_id]
+        cfg = bot_config_of(db, tenant_id)
+        bound = cfg.get("domains") or []
+        if bound:
+            bound_ids = set(bound)
+            domains = [d for d in domains if d["id"] in bound_ids]
         dom_ids = {d["id"] for d in domains}
         kbs = [k for k in list_kbs(db) if k.get("domain_id") in dom_ids]
-        cfg = bot_config_of(db, tenant_id)
     return {"domains": domains,
             "domain_ids": sorted(dom_ids),
             "kbs": kbs, "kb_ids": [k["id"] for k in kbs],
@@ -119,7 +129,8 @@ def scope_for_tenant(tenant_id: int) -> dict:
             "identity": "tenant",
             "model": cfg.get("model") or None,
             "capabilities": {"tenant_bot": True,
-                             "lead_capture": bool(cfg.get("lead_capture", True))}}
+                             "lead_capture": bool(cfg.get("lead_capture", True)),
+                             "quality_check": bool(cfg.get("quality_check", True))}}
 
 
 # ---------- 套餐与配额 ----------

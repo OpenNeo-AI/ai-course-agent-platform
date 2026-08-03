@@ -416,7 +416,10 @@ def get_bot_config(request: Request):
     if llm_cfg.get("chat_model"):
         models = [llm_cfg["chat_model"], *[m for m in models if m != llm_cfg["chat_model"]]]
     return {"config": {"welcome_text": cfg.get("welcome_text", ""),
+                       "prompt_text": cfg.get("prompt_text", ""),
                        "lead_capture": cfg.get("lead_capture", True),
+                       "quality_check": cfg.get("quality_check", True),
+                       "domains": cfg.get("domains") or [],
                        "model": cfg.get("model") or ""},
             "model_options": models,
             "default_model": llm_cfg.get("chat_model") or "",
@@ -425,7 +428,9 @@ def get_bot_config(request: Request):
 
 @router.put("/api/tenant/bot-config")
 async def put_bot_config(request: Request):
-    """更新租户 Bot 设置;热生效(下一轮会话即采用)。"""
+    """更新租户 Bot 设置;热生效(下一轮会话即采用)。
+    字段:welcome_text / prompt_text / lead_capture / quality_check / domains / model。"""
+    from .portal import _tenant_domain_ids
     t, _ = _tenant_ctx(request)
     try:
         body = await request.json()
@@ -439,8 +444,24 @@ async def put_bot_config(request: Request):
             if len(wt) > 800:
                 raise HTTPException(status_code=400, detail="欢迎语不超过 800 字")
             cfg["welcome_text"] = wt
+        if "prompt_text" in body:
+            pt = (body.get("prompt_text") or "").strip()
+            if len(pt) > 4000:
+                raise HTTPException(status_code=400, detail="系统提示词不超过 4000 字")
+            cfg["prompt_text"] = pt
         if "lead_capture" in body:
             cfg["lead_capture"] = bool(body["lead_capture"])
+        if "quality_check" in body:
+            cfg["quality_check"] = bool(body["quality_check"])
+        if "domains" in body:
+            own = set(_tenant_domain_ids(db, t["id"]))
+            try:
+                sel = [int(d) for d in (body.get("domains") or [])]
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=400, detail="domains 需为知识域 id 列表")
+            if not set(sel) <= own:
+                raise HTTPException(status_code=400, detail="包含不属于本租户的知识域")
+            cfg["domains"] = sel
         if "model" in body:
             cfg["model"] = (body.get("model") or "").strip() or None
         db.execute("UPDATE tenants SET bot_config_json=? WHERE id=?",

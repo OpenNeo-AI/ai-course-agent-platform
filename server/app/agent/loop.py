@@ -64,8 +64,13 @@ REPLY_SUB_REQUIRED = ("本机构的 AI 课程顾问服务尚未开通或订阅�
                       "请联系机构管理员登录管理工作台,选购套餐并完成支付后即可使用。")
 
 
-def _system_prompt(role: str, state: dict, scope: dict) -> str:
-    base = config.get_prompt(role) or config.get_prompt("platform") or "你是AI课程顾问。"
+def _system_prompt(role: str, state: dict, scope: dict, tenant_id: int | None = None) -> str:
+    # 租户 Bot:智能体设置中的自定义系统提示词优先,缺省用平台 tenant.md
+    base = None
+    if tenant_id:
+        with get_db() as db:
+            base = tenancy.tenant_prompt(db, tenant_id)
+    base = base or config.get_prompt(role) or config.get_prompt("platform") or "你是AI课程顾问。"
     state_block = json.dumps(state, ensure_ascii=False) if state else "{}"
     dom_desc = "、".join(d["name"] for d in scope["domains"]) or "(未对接)"
     scope_block = (f"\n\n## 引用范围(严格遵守)\n"
@@ -150,7 +155,8 @@ def run_turn_stream(session_id: str, text: str):
             tenancy.quota_inc(db, tenant_id)
 
     # 工具循环(流式):逐轮调用模型,内容 token 实时 yield,工具调用累积后执行
-    messages = [{"role": "system", "content": _system_prompt(role, state, scope)}]
+    messages = [{"role": "system",
+                 "content": _system_prompt(role, state, scope, tenant_id)}]
     with get_db() as db:
         messages.extend(sess.history(db, session_id, config.context_turns()))
     messages.append({"role": "user", "content": stripped})

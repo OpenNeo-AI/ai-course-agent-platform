@@ -198,12 +198,18 @@ export function TenantStatsTab() {
   )
 }
 
-/* ---------- 智能体设置(免费版即可用:欢迎语/留资开关/模型) ---------- */
+/* ---------- 智能体设置(免费版即可用:知识域挂载/能力开关/提示词/模型) ---------- */
+const AGENT_CAPS = [
+  { key: 'lead_capture', label: '留资转线索', desc: '用户表达报名意向时采集联系方式,转线索跟进' },
+  { key: 'quality_check', label: '对话质检', desc: '对该智能体的会话进行质检评分' },
+]
+
 export function TenantAgentTab() {
   const [cfg, setCfg] = useState<any>(null)
   const [options, setOptions] = useState<string[]>([])
   const [defaultModel, setDefaultModel] = useState('')
   const [botUrl, setBotUrl] = useState('')
+  const [domains, setDomains] = useState<any[]>([])
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
@@ -215,31 +221,79 @@ export function TenantAgentTab() {
       setDefaultModel(d.default_model || '')
       setBotUrl(d.bot_url || '')
     }).catch(e => setErr(e.message))
+    api('/api/portal/domains').then(setDomains).catch(() => {})
   }, [])
 
-  async function save() {
-    setBusy(true); setErr(''); setMsg('')
+  function flash(t: string) { setMsg(t); setTimeout(() => setMsg(''), 3500) }
+
+  async function save(patch: Record<string, unknown>, note: string) {
+    setBusy(true); setErr('')
     try {
-      await api('/api/tenant/bot-config', {
+      const r = await api('/api/tenant/bot-config', {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(cfg),
+        body: JSON.stringify(patch),
       })
-      setMsg('已保存,新的会话立即生效')
+      setCfg((c: any) => ({ ...c, ...r.config }))
+      flash(note)
     } catch (e: any) { setErr(e.message || '保存失败') } finally { setBusy(false) }
   }
 
   if (!cfg) return <section className="tadm-card">{err || '加载中…'}</section>
+  const bound: number[] = cfg.domains || []
   return (
     <section className="tadm-card">
       <h3>智能体设置</h3>
-      <label className="auth-field" style={{ maxWidth: 640 }}>
-        <span>Bot 欢迎语(留空则使用平台默认欢迎语)</span>
-        <textarea value={cfg.welcome_text} rows={5} maxLength={800}
+      {msg && <div className="tadm-ok" style={{ marginBottom: 10 }}>{msg}</div>}
+      {err && <div className="auth-error" style={{ marginBottom: 10 }}>{err}</div>}
+
+      <h4 style={{ marginTop: 4 }}>知识域挂载</h4>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 6 }}>
+        {domains.map(d => (
+          <label key={d.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 13.5 }}>
+            <input type="checkbox" style={{ marginTop: 3 }} checked={bound.includes(d.id)}
+              onChange={e => {
+                const next = e.target.checked ? [...bound, d.id] : bound.filter((x: number) => x !== d.id)
+                setCfg({ ...cfg, domains: next })
+              }} />
+            <span><b>{d.name}</b>
+              <small style={{ color: 'var(--mut)', marginLeft: 8 }}>
+                {d.kbs ?? 0} 个知识库 · {d.entities ?? 0} 实体 · {d.rules ?? 0} 规则
+              </small></span>
+          </label>
+        ))}
+        {!domains.length && <div className="tadm-empty">暂无知识域,请先在「知识域」中创建并上传资料</div>}
+      </div>
+      <p style={{ fontSize: 12, color: 'var(--faint)', marginBottom: 14 }}>
+        不勾选任何知识域 = 挂载本租户全部知识域;勾选后 Bot 仅在所选知识域内检索与推荐。
+      </p>
+
+      <h4>扩展能力</h4>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+        {AGENT_CAPS.map(c => (
+          <label key={c.key} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 13.5 }}>
+            <input type="checkbox" style={{ marginTop: 3 }} checked={!!cfg[c.key]}
+              onChange={e => setCfg({ ...cfg, [c.key]: e.target.checked })} />
+            <span><b>{c.label}</b>
+              <small style={{ color: 'var(--mut)', marginLeft: 8 }}>{c.desc}</small></span>
+          </label>
+        ))}
+      </div>
+
+      <label className="auth-field" style={{ maxWidth: 720 }}>
+        <span>系统提示词(留空使用平台默认模板:角色设定与红线约束)</span>
+        <textarea value={cfg.prompt_text || ''} rows={7} maxLength={4000}
+          onChange={e => setCfg({ ...cfg, prompt_text: e.target.value })}
+          placeholder={'例如:你是启明教育的资深课程顾问,面向成人学员,语气专业亲和;优先推荐周末班…'}
+          style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 10, fontSize: 13, lineHeight: 1.7, resize: 'vertical', fontFamily: 'inherit' }} />
+      </label>
+      <label className="auth-field" style={{ maxWidth: 720 }}>
+        <span>Bot 欢迎语(留空使用平台默认欢迎语)</span>
+        <textarea value={cfg.welcome_text} rows={4} maxLength={800}
           onChange={e => setCfg({ ...cfg, welcome_text: e.target.value })}
           placeholder={'例如:你好!我是启明教育的 AI 课程顾问,可以解答课程安排、费用与推荐班型。'}
-          style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 10, fontSize: 13.5, lineHeight: 1.7, resize: 'vertical' }} />
+          style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 10, fontSize: 13, lineHeight: 1.7, resize: 'vertical', fontFamily: 'inherit' }} />
       </label>
-      <label className="auth-field" style={{ maxWidth: 640 }}>
+      <label className="auth-field" style={{ maxWidth: 720 }}>
         <span>推理模型(留空使用平台默认{defaultModel ? `:${defaultModel}` : ''})</span>
         <select value={cfg.model || ''}
           onChange={e => setCfg({ ...cfg, model: e.target.value })}
@@ -248,16 +302,13 @@ export function TenantAgentTab() {
           {options.map(m => <option key={m} value={m}>{m}</option>)}
         </select>
       </label>
-      <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13.5, marginBottom: 14 }}>
-        <input type="checkbox" checked={!!cfg.lead_capture}
-          onChange={e => setCfg({ ...cfg, lead_capture: e.target.checked })} />
-        开启留资转线索(用户表达报名意向时采集联系方式)
-      </label>
-      {msg && <div className="tadm-ok" style={{ marginBottom: 10 }}>{msg}</div>}
-      {err && <div className="auth-error" style={{ marginBottom: 10 }}>{err}</div>}
+
       <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
         <button className="plan-cta" style={{ width: 'auto', padding: '9px 22px' }}
-          disabled={busy} onClick={save}>{busy ? '保存中…' : '保存设置'}</button>
+          disabled={busy}
+          onClick={() => save(cfg, '配置已保存 · 新会话即时生效')}>
+          {busy ? '保存中…' : '保存全部设置'}
+        </button>
         {botUrl && <a className="tadm-botlink" style={{ display: 'inline-block', textDecoration: 'none' }}
           href={botUrl} target="_blank" rel="noreferrer">打开 Bot 对话验证 ↗</a>}
       </div>

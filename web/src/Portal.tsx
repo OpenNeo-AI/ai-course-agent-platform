@@ -5,7 +5,7 @@ import OntologyTab from './OntologyTab'
 import { api, clearAuth, TOKEN_KEY } from './api'
 import AuthPanel from './AuthPanel'
 import {
-  TenantAgentTab, TenantDocsTab, TenantSessionsTab, TenantStatsTab, TenantSubTab,
+  TenantAgentTab, TenantSessionsTab, TenantStatsTab, TenantSubTab,
   type TenantInfo,
 } from './TenantAdmin'
 
@@ -1251,8 +1251,7 @@ function OrdersTab() {
 
 /* ---------- 功能锁定面板(可见不可用,引导升级) ---------- */
 const LOCK_DESC: Record<string, { desc: string; need: string }> = {
-  docs: { desc: '知识域与知识库管理:创建知识域、挂载课程资料,是 AI 顾问的知识基础。', need: '标准版' },
-  materials: { desc: '课程资料管理:上传 PDF 课程手册,自动解析、向量化与本体抽取,Bot 立即可基于新资料回答。', need: '标准版' },
+  docs: { desc: '知识域与知识库管理:创建知识域、上传课程资料,是 AI 顾问的知识基础。', need: '标准版' },
   ontology: { desc: '本体知识:班型/营期/费用等实体与规则的图谱化维护。', need: '标准版' },
   sessions: { desc: '对话记录:查看会话明细(脱敏)、按时间筛选、质检评分。', need: '旗舰版' },
   leads: { desc: '线索转化:报名意向工单跟进与状态管理。', need: '旗舰版' },
@@ -1320,10 +1319,8 @@ export default function Portal() {
   const unlocked = (f: string) => !!feats[f]
   const tenantTabs = tinfo ? [
     { key: 'agents', label: '智能体设置', desc: '欢迎语 · 留资 · 模型', el: <TenantAgentTab /> },
-    { key: 'docs', label: '知识域', desc: '知识域 · 知识库 · 文档',
+    { key: 'docs', label: '知识域', desc: '知识域 · 知识库 · 课程资料',
       el: unlocked('domains') ? <DomainsTab /> : <LockPanel tabKey="docs" /> },
-    { key: 'materials', label: '课程资料', desc: '上传课程手册 · 解析 · 索引刷新',
-      el: unlocked('rag_manage') ? <TenantDocsTab info={tinfo} onChanged={loadTinfo} /> : <LockPanel tabKey="materials" /> },
     { key: 'ontology', label: '本体知识', desc: '实体 · 规则 · 关系',
       el: unlocked('ontology') ? <OntologyTab /> : <LockPanel tabKey="ontology" /> },
     { key: 'sessions', label: '对话记录', desc: '脱敏 · 时间筛选 · 质检',
