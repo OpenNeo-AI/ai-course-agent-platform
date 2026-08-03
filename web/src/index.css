@@ -948,6 +948,13 @@ button { font-family: inherit; cursor: pointer; }
   background: rgba(202,138,4,.08); border: 1px dashed rgba(202,138,4,.4);
   border-radius: 8px; padding: 7px 10px; font-family: var(--disp); letter-spacing: .02em;
 }
+.p-login-links { display: flex; gap: 10px; }
+.p-login-links a {
+  flex: 1; text-align: center; font-size: 13px; padding: 9px 6px;
+  border: 1px solid var(--line); border-radius: 9px; background: #FBFCFE;
+}
+.p-login-links a:last-child { border-color: rgba(202,138,4,.45); color: var(--gold-deep); font-weight: 600; background: rgba(202,138,4,.06); }
+.p-login-links a:hover { transform: translateY(-1px); box-shadow: var(--sh-sm); }
 
 /* ============================================================
    响应式

@@ -80,8 +80,8 @@ function Login({ onOk }: { onOk: () => void }) {
       <div className="p-login-box">
         <img className="p-login-logo" src="/logo.png" alt="AI 课程顾问" />
         <h2>管理工作台</h2>
-        <p>请使用账户与密码登录。</p>
-        <input placeholder="账户" value={username} autoFocus
+        <p>机构管理员登录;尚未开通请先注册。</p>
+        <input placeholder="账户 / 手机号" value={username} autoFocus
           onChange={e => setUsername(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && submit()} />
         <input type="password" placeholder="密码" value={password}
@@ -89,7 +89,11 @@ function Login({ onOk }: { onOk: () => void }) {
           onKeyDown={e => e.key === 'Enter' && submit()} />
         <button onClick={submit}>登 录</button>
         {err && <div className="p-err">{err}</div>}
-        <div className="p-login-demo">演示账户:demo / demo1234</div>
+        <div className="p-login-links">
+          <Link to="/login">手机验证码登录</Link>
+          <Link to="/register">注册开通机构 →</Link>
+        </div>
+        <div className="p-login-demo">演示账户:平台超管 demo / demo1234 · 演示租户 demo-org / demo1234</div>
         <Link to="/">← 返回前台</Link>
       </div>
     </div>
