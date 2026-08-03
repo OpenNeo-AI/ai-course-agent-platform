@@ -4,7 +4,8 @@ import OntologyTab from './OntologyTab'
 
 import { api, API, clearAuth, saveAuth, TOKEN_KEY } from './api'
 import {
-  TenantDocsTab, TenantSessionsTab, TenantStatsTab, TenantSubTab, type TenantInfo,
+  TenantAgentTab, TenantDocsTab, TenantSessionsTab, TenantStatsTab, TenantSubTab,
+  type TenantInfo,
 } from './TenantAdmin'
 
 /* ---------- SVG 图标 ---------- */
@@ -1299,6 +1300,31 @@ function OrdersTab() {
   )
 }
 
+/* ---------- 功能锁定面板(可见不可用,引导升级) ---------- */
+const LOCK_DESC: Record<string, { desc: string; need: string }> = {
+  docs: { desc: '知识域与知识库管理:创建知识域、挂载课程资料,是 AI 顾问的知识基础。', need: '标准版' },
+  materials: { desc: '课程资料管理:上传 PDF 课程手册,自动解析、向量化与本体抽取,Bot 立即可基于新资料回答。', need: '标准版' },
+  ontology: { desc: '本体知识:班型/营期/费用等实体与规则的图谱化维护。', need: '标准版' },
+  sessions: { desc: '对话记录:查看会话明细(脱敏)、按时间筛选、质检评分。', need: '旗舰版' },
+  leads: { desc: '线索转化:报名意向工单跟进与状态管理。', need: '旗舰版' },
+  analytics: { desc: '运营分析:高频问题、未答问题、趋势与 LLM 洞察。', need: '旗舰版' },
+  usage: { desc: '用量统计:对话次数、活跃用户与近 14 日趋势图表。', need: '旗舰版' },
+}
+
+function LockPanel({ tabKey }: { tabKey: string }) {
+  const info = LOCK_DESC[tabKey] || { desc: '该功能需升级套餐后使用。', need: '标准版' }
+  return (
+    <div className="tadm-lock">
+      <h3>🔒 {info.need}功能</h3>
+      <p>{info.desc}</p>
+      <a href="#sub" onClick={e => {
+        e.preventDefault()
+        window.dispatchEvent(new CustomEvent('opc-goto-tab', { detail: 'sub' }))
+      }}>升级套餐解锁 →</a>
+    </div>
+  )
+}
+
 /* ---------- 两套 Tab:平台经营(超管) / 业务工作(租户) ---------- */
 
 const PLATFORM_TABS = [
@@ -1326,7 +1352,7 @@ export default function Portal() {
       .then(d => {
         setMe(d)
         if (d?.user?.tenant_id && d.user.role !== 'superadmin') {
-          setTab('docs')
+          setTab('agents')   // 租户工作台默认智能体设置(免费版即可用)
           api('/api/tenant/info').then(setTinfo).catch(() => {})
         } else {
           setTab('tenants')
@@ -1335,20 +1361,27 @@ export default function Portal() {
       .catch(() => { if (!localStorage.getItem(TOKEN_KEY)) setAuthed(false) })
   }, [authed])
 
-  // 租户工作台的 Tab 集(按套餐状态动态:未开通时聚焦套餐订阅)
+  // 租户工作台:智能体设置与套餐订阅始终可用;其余 Tab 可见,按套餐功能位解锁
+  const feats = tinfo?.subscription?.features || {}
+  const unlocked = (f: string) => !!feats[f]
   const tenantTabs = tinfo ? [
-    { key: 'docs', label: '知识域', desc: '知识域 · 知识库 · 文档', el: <DomainsTab /> },
-    { key: 'materials', label: '课程资料', desc: '上传课程手册 · 解析 · 索引刷新', el: <TenantDocsTab info={tinfo} onChanged={loadTinfo} /> },
-    { key: 'ontology', label: '本体知识', desc: '实体 · 规则 · 关系', el: <OntologyTab /> },
-    { key: 'sessions', label: '对话记录', desc: '脱敏 · 时间筛选 · 质检(旗舰版)', el: <TenantSessionsTab /> },
-    { key: 'leads', label: '线索转化', desc: '报名意向 · 留资工单(旗舰版)', el: <LeadsTab /> },
-    { key: 'usage', label: '用量统计', desc: '对话次数 · 活跃用户 · 趋势', el: <TenantStatsTab /> },
-    { key: 'sub', label: '套餐订阅', desc: '开通 / 升级 / 订单记录', el: <TenantSubTab info={tinfo} onChanged={loadTinfo} /> },
+    { key: 'agents', label: '智能体设置', desc: '欢迎语 · 留资 · 模型', el: <TenantAgentTab /> },
+    { key: 'docs', label: '知识域', desc: '知识域 · 知识库 · 文档',
+      el: unlocked('domains') ? <DomainsTab /> : <LockPanel tabKey="docs" /> },
+    { key: 'materials', label: '课程资料', desc: '上传课程手册 · 解析 · 索引刷新',
+      el: unlocked('rag_manage') ? <TenantDocsTab info={tinfo} onChanged={loadTinfo} /> : <LockPanel tabKey="materials" /> },
+    { key: 'ontology', label: '本体知识', desc: '实体 · 规则 · 关系',
+      el: unlocked('ontology') ? <OntologyTab /> : <LockPanel tabKey="ontology" /> },
+    { key: 'sessions', label: '对话记录', desc: '脱敏 · 时间筛选 · 质检',
+      el: unlocked('sessions') ? <TenantSessionsTab /> : <LockPanel tabKey="sessions" /> },
+    { key: 'leads', label: '线索转化', desc: '报名意向 · 留资工单',
+      el: unlocked('leads') ? <LeadsTab /> : <LockPanel tabKey="leads" /> },
+    { key: 'analytics', label: '运营分析', desc: '高频问题 · 未答 · 洞察',
+      el: unlocked('analytics') ? <AnalyticsTab /> : <LockPanel tabKey="analytics" /> },
+    { key: 'usage', label: '用量统计', desc: '对话次数 · 活跃用户 · 趋势',
+      el: unlocked('analytics') ? <TenantStatsTab /> : <LockPanel tabKey="usage" /> },
+    { key: 'sub', label: '套餐订阅', desc: '免费版 / 标准版 / 旗舰版', el: <TenantSubTab info={tinfo} onChanged={loadTinfo} /> },
   ] : []
-  // 租户工作台的「运营分析」并入旗舰版(与数据分析同源,收敛到本租户)
-  if (tinfo?.features?.analytics) {
-    tenantTabs.splice(5, 0, { key: 'analytics', label: '运营分析', desc: '高频问题 · 未答 · 洞察(旗舰版)', el: <AnalyticsTab /> })
-  }
 
   const tabs = isTenant ? tenantTabs : PLATFORM_TABS
   useEffect(() => {
@@ -1391,6 +1424,12 @@ export default function Portal() {
           <div className="quota-banner">
             <span>服务尚未开通:请选购套餐并完成支付,即可启用 AI 课程顾问与资料管理。</span>
             <a onClick={() => setTab('sub')} style={{ cursor: 'pointer' }}>去开通 →</a>
+          </div>
+        )}
+        {isTenant && tinfo?.subscription?.plan_code === 'free' && (
+          <div className="quota-banner" style={{ background: '#EFF6FF', borderColor: '#BFDBFE', color: '#1E40AF' }}>
+            <span>当前为免费版:仅智能体设置可用。升级标准版解锁知识域与课程资料,让 Bot 基于你的课程资料作答。</span>
+            <a onClick={() => setTab('sub')} style={{ cursor: 'pointer' }}>去升级 →</a>
           </div>
         )}
         <header className="p-pagehead">

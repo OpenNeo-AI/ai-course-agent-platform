@@ -136,13 +136,13 @@ def _require_active_sub(db, p: dict) -> None:
 
 
 def _require_feature(db, p: dict, feature: str, label: str) -> None:
-    """旗舰版功能门禁(标准版调用返回 402 引导升级)。"""
+    """套餐功能门禁:当前套餐未含该功能位时返回 402 引导升级。"""
     _require_active_sub(db, p)
     if p["super"]:
         return
     if not _tenant_features(db, p).get(feature):
         raise HTTPException(status_code=402,
-                            detail=f"「{label}」为旗舰版功能,请先升级套餐")
+                            detail=f"「{label}」需更高套餐解锁,请先升级")
 
 
 # ---------- 登录 ----------
@@ -233,6 +233,7 @@ async def create_domain(request: Request):
         raise HTTPException(status_code=400, detail="缺少知识域名称")
     import secrets
     with get_db() as db:
+        _require_feature(db, p, "domains", "知识域管理")
         code = f"domain-{secrets.token_hex(3)}"
         while db.execute("SELECT 1 FROM domains WHERE code=?", (code,)).fetchone():
             code = f"domain-{secrets.token_hex(3)}"
@@ -257,6 +258,7 @@ async def update_domain(dom_id: int, request: Request):
     args.append(dom_id)
     with get_db() as db:
         _check_domain(db, p, dom_id)
+        _require_feature(db, p, "domains", "知识域管理")
         cur = db.execute(f"UPDATE domains SET {', '.join(fields)} WHERE id=?", args)
         if not cur.rowcount:
             raise HTTPException(status_code=404, detail="知识域不存在")
@@ -271,6 +273,7 @@ def delete_domain(dom_id: int, request: Request):
         if not dom:
             raise HTTPException(status_code=404, detail="知识域不存在")
         _check_domain(db, p, dom_id)
+        _require_feature(db, p, "domains", "知识域管理")
         for kb in db.execute("SELECT id FROM kbs WHERE domain_id=?", (dom_id,)).fetchall():
             for d in db.execute("SELECT id FROM documents WHERE kb_id=?", (kb["id"],)).fetchall():
                 clear_document_knowledge(db, d["id"])
@@ -291,9 +294,9 @@ def get_kbs(request: Request, domain_id: int = 0):
     p = _principal(request)
     with get_db() as db:
         rows = list_kbs(db, domain_id or None)
-    if not p["super"]:
-        dom_ids = set(_tenant_domain_ids(db, p["tenant_id"]))
-        rows = [k for k in rows if k.get("domain_id") in dom_ids]
+        if not p["super"]:
+            dom_ids = set(_tenant_domain_ids(db, p["tenant_id"]))
+            rows = [k for k in rows if k.get("domain_id") in dom_ids]
     return rows
 
 
@@ -313,6 +316,7 @@ async def create_kb(request: Request):
         if not dom:
             raise HTTPException(status_code=404, detail="知识域不存在")
         _check_domain(db, p, domain_id)
+        _require_feature(db, p, "domains", "知识域管理")
         code = body.get("code", "").strip()
         if not code:
             code = f"kb-{secrets.token_hex(3)}"
@@ -351,6 +355,7 @@ async def update_kb(kb_id: int, request: Request):
     args.append(kb_id)
     with get_db() as db:
         _check_kb(db, p, kb_id)
+        _require_feature(db, p, "domains", "知识域管理")
         cur = db.execute(f"UPDATE kbs SET {', '.join(fields)} WHERE id=?", args)
         if not cur.rowcount:
             raise HTTPException(status_code=404, detail="知识库不存在")
@@ -362,6 +367,7 @@ def delete_kb(kb_id: int, request: Request):
     p = _principal(request)
     with get_db() as db:
         _check_kb(db, p, kb_id)
+        _require_feature(db, p, "domains", "知识域管理")
         docs = db.execute("SELECT id FROM documents WHERE kb_id=?", (kb_id,)).fetchall()
         for d in docs:
             clear_document_knowledge(db, d["id"])
@@ -392,9 +398,9 @@ def list_documents(request: Request, kb_id: int = 0):
     sql += " ORDER BY d.id"
     with get_db() as db:
         rows = [dict(r) for r in db.execute(sql, args).fetchall()]
-    if not p["super"]:
-        kb_ids = set(_tenant_kb_ids(db, p["tenant_id"]))
-        rows = [r for r in rows if r["kb_id"] in kb_ids]
+        if not p["super"]:
+            kb_ids = set(_tenant_kb_ids(db, p["tenant_id"]))
+            rows = [r for r in rows if r["kb_id"] in kb_ids]
     return rows
 
 

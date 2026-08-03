@@ -122,7 +122,8 @@ def run_turn_stream(session_id: str, text: str):
         with get_db() as db:
             state = sess.reset_session(db, session_id)
             sess.append_message(db, session_id, "user", stripped)
-            welcome = tools.tool_welcome(role)["text"]
+            welcome = ((tenancy.tenant_welcome(db, tenant_id) if tenant_id else None)
+                       or tools.tool_welcome(role)["text"])
             reply = f"{REPLY_RESET}\n\n{welcome}"
             sess.append_message(db, session_id, "assistant", reply)
         yield from _reply_events(reply, state, True)
@@ -346,4 +347,8 @@ def _summarize(name: str, result: dict) -> str:
 
 def new_session(role: str = "platform", tenant_id: int | None = None) -> dict:
     s = sess.create_session(role, tenant_id=tenant_id)
-    return {**s, "welcome": tools.tool_welcome(role)["text"]}
+    welcome = None
+    if tenant_id:
+        with get_db() as db:
+            welcome = tenancy.tenant_welcome(db, tenant_id)
+    return {**s, "welcome": welcome or tools.tool_welcome(role)["text"]}

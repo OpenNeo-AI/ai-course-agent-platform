@@ -8,14 +8,14 @@ import { LangSwitch, useI18n } from './i18n'
 type Plan = { code: string; name: string; price_monthly: number; chat_limit_month: number;
   features: { desc?: string; rag_manage?: boolean; dashboard?: boolean } }
 
-const FEATURE_ROWS: { label: string; std: string | boolean; flag: string | boolean }[] = [
-  { label: 'AI 对话次数', std: '不限', flag: '不限' },
-  { label: '知识域 / 知识库管理', std: true, flag: true },
-  { label: '课程资料上传(PDF 解析 · RAG)', std: true, flag: true },
-  { label: 'Agent Skill(课程详情/班型推荐)', std: true, flag: true },
-  { label: '本体图谱维护', std: true, flag: true },
-  { label: '对话记录(脱敏 · 时间筛选 · 质检)', std: false, flag: true },
-  { label: '线索跟进 / 数据分析', std: false, flag: true },
+const FEATURE_ROWS: { label: string; free: string | boolean; std: string | boolean; flag: string | boolean }[] = [
+  { label: 'AI 对话次数', free: '不限', std: '不限', flag: '不限' },
+  { label: '智能体设置(欢迎语/能力/模型)', free: true, std: true, flag: true },
+  { label: '知识域 / 课程资料管理(RAG)', free: false, std: true, flag: true },
+  { label: '本体知识维护', free: false, std: true, flag: true },
+  { label: 'Agent Skill(课程详情/班型推荐)', free: false, std: true, flag: true },
+  { label: '对话记录(脱敏 · 时间筛选 · 质检)', free: false, std: false, flag: true },
+  { label: '线索跟进 / 运营分析 / 用量统计', free: false, std: false, flag: true },
 ]
 
 function Mark({ v }: { v: string | boolean }) {
@@ -54,30 +54,35 @@ export default function Pricing() {
 
       <div className="pricing-cards">
         {plans.map(p => (
-          <div key={p.code} className={`plan-card${p.code === 'flagship' ? ' pro' : ''}`}>
+          <div key={p.code} className={`plan-card${p.code === 'flagship' ? ' pro' : ''}`}
+            style={{ width: 'min(290px, 100%)' }}>
             {p.code === 'flagship' && <span className="plan-flag">{t('pricing.recommended')}</span>}
             <h2>{p.name}</h2>
             <div className="plan-price">
               <em>¥{p.price_monthly}</em><span>{t('pricing.perMonth')}</span>
             </div>
             <p className="plan-desc">{p.features.desc}</p>
-            <button className="plan-cta" onClick={() => choose(p)}>
-              {me?.tenant_id ? '立即开通' : '注册并开通'}
+            <button className="plan-cta" onClick={() => choose(p)}
+              disabled={p.code === 'free' && !!me?.tenant_id}>
+              {p.code === 'free'
+                ? (me?.tenant_id ? '注册时自动开通' : '免费注册')
+                : (me?.tenant_id ? '立即开通' : '注册并开通')}
             </button>
           </div>
         ))}
       </div>
 
-      <div className="pricing-table-wrap">
+      <div className="pricing-table-wrap" style={{ maxWidth: 900 }}>
         <h3>{t('pricing.compare')}</h3>
         <table className="pricing-table">
           <thead>
-            <tr><th>{t('pricing.feature')}</th><th>标准版 Standard</th><th>旗舰版 Flagship</th></tr>
+            <tr><th>{t('pricing.feature')}</th><th>免费版</th><th>标准版</th><th>旗舰版</th></tr>
           </thead>
           <tbody>
             {FEATURE_ROWS.map(r => (
               <tr key={r.label}>
                 <td>{r.label}</td>
+                <td><Mark v={r.free} /></td>
                 <td><Mark v={r.std} /></td>
                 <td><Mark v={r.flag} /></td>
               </tr>

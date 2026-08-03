@@ -198,6 +198,73 @@ export function TenantStatsTab() {
   )
 }
 
+/* ---------- 智能体设置(免费版即可用:欢迎语/留资开关/模型) ---------- */
+export function TenantAgentTab() {
+  const [cfg, setCfg] = useState<any>(null)
+  const [options, setOptions] = useState<string[]>([])
+  const [defaultModel, setDefaultModel] = useState('')
+  const [botUrl, setBotUrl] = useState('')
+  const [msg, setMsg] = useState('')
+  const [err, setErr] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    api('/api/tenant/bot-config').then(d => {
+      setCfg(d.config)
+      setOptions(d.model_options || [])
+      setDefaultModel(d.default_model || '')
+      setBotUrl(d.bot_url || '')
+    }).catch(e => setErr(e.message))
+  }, [])
+
+  async function save() {
+    setBusy(true); setErr(''); setMsg('')
+    try {
+      await api('/api/tenant/bot-config', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cfg),
+      })
+      setMsg('已保存,新的会话立即生效')
+    } catch (e: any) { setErr(e.message || '保存失败') } finally { setBusy(false) }
+  }
+
+  if (!cfg) return <section className="tadm-card">{err || '加载中…'}</section>
+  return (
+    <section className="tadm-card">
+      <h3>智能体设置</h3>
+      <label className="auth-field" style={{ maxWidth: 640 }}>
+        <span>Bot 欢迎语(留空则使用平台默认欢迎语)</span>
+        <textarea value={cfg.welcome_text} rows={5} maxLength={800}
+          onChange={e => setCfg({ ...cfg, welcome_text: e.target.value })}
+          placeholder={'例如:你好!我是启明教育的 AI 课程顾问,可以解答课程安排、费用与推荐班型。'}
+          style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 10, fontSize: 13.5, lineHeight: 1.7, resize: 'vertical' }} />
+      </label>
+      <label className="auth-field" style={{ maxWidth: 640 }}>
+        <span>推理模型(留空使用平台默认{defaultModel ? `:${defaultModel}` : ''})</span>
+        <select value={cfg.model || ''}
+          onChange={e => setCfg({ ...cfg, model: e.target.value })}
+          style={{ width: '100%', padding: '9px 12px', border: '1px solid var(--line)', borderRadius: 10, fontSize: 13.5 }}>
+          <option value="">平台默认</option>
+          {options.map(m => <option key={m} value={m}>{m}</option>)}
+        </select>
+      </label>
+      <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13.5, marginBottom: 14 }}>
+        <input type="checkbox" checked={!!cfg.lead_capture}
+          onChange={e => setCfg({ ...cfg, lead_capture: e.target.checked })} />
+        开启留资转线索(用户表达报名意向时采集联系方式)
+      </label>
+      {msg && <div className="tadm-ok" style={{ marginBottom: 10 }}>{msg}</div>}
+      {err && <div className="auth-error" style={{ marginBottom: 10 }}>{err}</div>}
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+        <button className="plan-cta" style={{ width: 'auto', padding: '9px 22px' }}
+          disabled={busy} onClick={save}>{busy ? '保存中…' : '保存设置'}</button>
+        {botUrl && <a className="tadm-botlink" style={{ display: 'inline-block', textDecoration: 'none' }}
+          href={botUrl} target="_blank" rel="noreferrer">打开 Bot 对话验证 ↗</a>}
+      </div>
+    </section>
+  )
+}
+
 /* ---------- 套餐订阅(开通/升级 + 订单记录) ---------- */
 export function TenantSubTab({ info, onChanged }: { info: TenantInfo | null; onChanged: () => void }) {
   const [orders, setOrders] = useState<any[]>([])
@@ -226,18 +293,23 @@ export function TenantSubTab({ info, onChanged }: { info: TenantInfo | null; onC
         </div>
       </div>
       <div className="pricing-cards" style={{ margin: '16px 0 6px' }}>
-        {plans.map(p => (
-          <div key={p.code} className={`plan-card${p.code === 'flagship' ? ' pro' : ''}`}
-            style={{ width: 'min(300px, 100%)' }}>
-            {p.code === 'flagship' && <span className="plan-flag">全功能</span>}
-            <h2>{p.name}</h2>
-            <div className="plan-price"><em>¥{p.price_monthly}</em><span>/月</span></div>
-            <p className="plan-desc">{p.features?.desc}</p>
-            <button className="plan-cta" onClick={() => setPay(p)}>
-              {!active ? '开通' : (sub?.plan_code === p.code ? '续费' : '升级')}
-            </button>
-          </div>
-        ))}
+        {plans.map(p => {
+          const current = sub?.plan_code === p.code
+          return (
+            <div key={p.code} className={`plan-card${p.code === 'flagship' ? ' pro' : ''}`}
+              style={{ width: 'min(300px, 100%)' }}>
+              {p.code === 'flagship' && <span className="plan-flag">全功能</span>}
+              {current && <span className="plan-flag" style={{ background: 'var(--ok)' }}>当前</span>}
+              <h2>{p.name}</h2>
+              <div className="plan-price"><em>¥{p.price_monthly}</em><span>/月</span></div>
+              <p className="plan-desc">{p.features?.desc}</p>
+              <button className="plan-cta" disabled={current || p.code === 'free'}
+                onClick={() => setPay(p)}>
+                {current ? '当前套餐' : p.code === 'free' ? '注册时自动开通' : '升级开通'}
+              </button>
+            </div>
+          )
+        })}
       </div>
       <h4>订单记录</h4>
       <table className="tadm-table">

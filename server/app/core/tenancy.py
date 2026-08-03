@@ -8,6 +8,7 @@
 """
 from __future__ import annotations
 
+import json
 import re
 import secrets
 import sqlite3
@@ -62,9 +63,9 @@ def register_tenant(org_name: str, username: str, password: str, email: str = ""
                    "VALUES(?,?,?,?,?,?)",
                    (tid, username, email or "", auth.hash_password(password), "admin",
                     phone or ""))
-        # 两档套餐均为收费:注册生成「待开通」订阅,选购并支付后生效
+        # 注册即开通免费版(仅智能体设置可用);标准版/旗舰版付费升级
         db.execute("INSERT INTO subscriptions(tenant_id, plan_code, status) "
-                   "VALUES(?,?, 'unpaid')", (tid, "standard"))
+                   "VALUES(?,?, 'active')", (tid, "free"))
         db.execute("INSERT INTO domains(code, name, description, tenant_id) VALUES(?,?,?,?)",
                    (dom_code, f"{org_name}·课程知识域", "租户自有课程知识", tid))
         dom_id = db.execute("SELECT id FROM domains WHERE code=?", (dom_code,)).fetchone()["id"]
@@ -90,19 +91,35 @@ def get_tenant_by_slug(slug: str) -> dict | None:
 
 # ---------- 租户作用域(与 scope_for_role 同构) ----------
 
+def bot_config_of(db, tenant_id: int) -> dict:
+    row = db.execute("SELECT bot_config_json FROM tenants WHERE id=?",
+                     (tenant_id,)).fetchone()
+    try:
+        return json.loads((row["bot_config_json"] if row else "") or "{}")
+    except (ValueError, TypeError):
+        return {}
+
+
+def tenant_welcome(db, tenant_id: int) -> str | None:
+    """租户自定义欢迎语(智能体设置);未配置返回 None 走全局模板。"""
+    return (bot_config_of(db, tenant_id).get("welcome_text") or "").strip() or None
+
+
 def scope_for_tenant(tenant_id: int) -> dict:
     from .db import list_domains, list_kbs
     with get_db() as db:
         domains = [d for d in list_domains(db) if d.get("tenant_id") == tenant_id]
         dom_ids = {d["id"] for d in domains}
         kbs = [k for k in list_kbs(db) if k.get("domain_id") in dom_ids]
+        cfg = bot_config_of(db, tenant_id)
     return {"domains": domains,
             "domain_ids": sorted(dom_ids),
             "kbs": kbs, "kb_ids": [k["id"] for k in kbs],
             "domain_names": [d["name"] for d in domains],
             "identity": "tenant",
-            "model": None,
-            "capabilities": {"tenant_bot": True, "lead_capture": True}}
+            "model": cfg.get("model") or None,
+            "capabilities": {"tenant_bot": True,
+                             "lead_capture": bool(cfg.get("lead_capture", True))}}
 
 
 # ---------- 套餐与配额 ----------

@@ -12,7 +12,7 @@ import json
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 
-from ..core import auth, tenancy
+from ..core import auth, config, tenancy
 from ..core.db import get_db
 
 router = APIRouter(tags=["saas"])
@@ -394,6 +394,50 @@ def _tenant_kb_ids(db, tenant_id: int) -> list[int]:
         "SELECT k.id FROM kbs k JOIN domains d ON d.id=k.domain_id "
         "WHERE d.tenant_id=?", (tenant_id,)).fetchall()
     return [r["id"] for r in rows]
+
+
+# ---------- 智能体设置(免费版即可用:欢迎语/留资开关/模型) ----------
+
+@router.get("/api/tenant/bot-config")
+def get_bot_config(request: Request):
+    t, _ = _tenant_ctx(request)
+    with get_db() as db:
+        cfg = tenancy.bot_config_of(db, t["id"])
+    llm_cfg = config.llm_config()
+    models = llm_cfg.get("chat_models") or []
+    if llm_cfg.get("chat_model"):
+        models = [llm_cfg["chat_model"], *[m for m in models if m != llm_cfg["chat_model"]]]
+    return {"config": {"welcome_text": cfg.get("welcome_text", ""),
+                       "lead_capture": cfg.get("lead_capture", True),
+                       "model": cfg.get("model") or ""},
+            "model_options": models,
+            "default_model": llm_cfg.get("chat_model") or "",
+            "bot_url": f"/b/{t['slug']}"}
+
+
+@router.put("/api/tenant/bot-config")
+async def put_bot_config(request: Request):
+    """更新租户 Bot 设置;热生效(下一轮会话即采用)。"""
+    t, _ = _tenant_ctx(request)
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    body = body or {}
+    with get_db() as db:
+        cfg = tenancy.bot_config_of(db, t["id"])
+        if "welcome_text" in body:
+            wt = (body.get("welcome_text") or "").strip()
+            if len(wt) > 800:
+                raise HTTPException(status_code=400, detail="欢迎语不超过 800 字")
+            cfg["welcome_text"] = wt
+        if "lead_capture" in body:
+            cfg["lead_capture"] = bool(body["lead_capture"])
+        if "model" in body:
+            cfg["model"] = (body.get("model") or "").strip() or None
+        db.execute("UPDATE tenants SET bot_config_json=? WHERE id=?",
+                   (json.dumps(cfg, ensure_ascii=False), t["id"]))
+    return {"ok": True, "config": cfg}
 
 
 @router.get("/api/tenant/info")

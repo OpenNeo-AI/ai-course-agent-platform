@@ -57,6 +57,10 @@ class PaymentChannel:
         """主动向渠道查单:'paid' / 'pending' / 'failed'。"""
         return "pending"
 
+    def confirm(self, order: dict) -> bool:
+        """同步确认(仅 mock 渠道使用);真实渠道走 query/回调。"""
+        return False
+
     def parse_callback(self, body: bytes, content_type: str) -> dict:
         """回调解析+验签;返回 {out_trade_no, trade_no};失败抛 ValueError。"""
         raise ValueError("该渠道不支持回调")
@@ -75,6 +79,9 @@ class MockChannel(PaymentChannel):
 
     def query(self, order: dict) -> str:
         return "pending"
+
+    def confirm(self, order: dict) -> bool:
+        return True
 
 
 # ---------- 微信支付(Native 扫码,V2 MD5) ----------

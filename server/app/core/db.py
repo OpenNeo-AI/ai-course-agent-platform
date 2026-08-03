@@ -11,6 +11,7 @@ vec0 表在首次向量化拿到维度后延迟创建;sqlite-vec 不可用时向
 """
 from __future__ import annotations
 
+import json
 import logging
 import sqlite3
 from contextlib import contextmanager
@@ -190,6 +191,7 @@ CREATE TABLE IF NOT EXISTS tenants(
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   slug TEXT UNIQUE NOT NULL,            -- 对话入口标识 /b/<slug>
   name TEXT NOT NULL,                   -- 机构名称
+  bot_config_json TEXT DEFAULT '{}',    -- 智能体设置:{welcome_text, lead_capture, model}
   created_at TEXT DEFAULT (datetime('now','localtime'))
 );
 
@@ -345,17 +347,19 @@ def _ensure_domains_kbs(db: sqlite3.Connection) -> None:
 
 # ---------- SaaS 迁移与种子(幂等) ----------
 
-# 套餐定义(A级测试单要求 ≥2 套餐;均为收费,注册后需选购开通):
-#   标准版 —— 知识域智能体功能(知识域/资料管理 + RAG 问答 + 班型推荐 Skill)
-#   旗舰版 —— 全部功能(+本体图谱/对话记录/线索转化/运营分析)
+# 套餐定义:免费版(注册即开通,仅智能体设置) / 标准版(知识域智能体) / 旗舰版(全功能)
 SAAS_PLANS = [
+    ("free", "免费版", 0.0, -1,
+     '{"agent_settings": true, "domains": false, "rag_manage": false, "ontology": false,'
+     ' "sessions": false, "leads": false, "analytics": false, "skills": false,'
+     ' "desc": "体验智能体设置(Bot 欢迎语/能力);知识域与全部业务功能需升级解锁"}'),
     ("standard", "标准版", 59.0, -1,
-     '{"rag_manage": true, "ontology": true, "sessions": false, "leads": false,'
-     ' "analytics": false, "skills": true,'
+     '{"agent_settings": true, "domains": true, "rag_manage": true, "ontology": true,'
+     ' "sessions": false, "leads": false, "analytics": false, "skills": true,'
      ' "desc": "知识域智能体:知识域/课程资料管理、本体知识、RAG 问答、班型推荐"}'),
     ("flagship", "旗舰版", 199.0, -1,
-     '{"rag_manage": true, "ontology": true, "sessions": true, "leads": true,'
-     ' "analytics": true, "skills": true,'
+     '{"agent_settings": true, "domains": true, "rag_manage": true, "ontology": true,'
+     ' "sessions": true, "leads": true, "analytics": true, "skills": true,'
      ' "desc": "全部功能:标准版全部 + 对话记录 + 线索跟进 + 数据分析"}'),
 ]
 
@@ -378,6 +382,9 @@ def _migrate_saas(db: sqlite3.Connection) -> None:
         cols = {r[1] for r in db.execute(f"PRAGMA table_info({tbl})")}
         if "tenant_id" not in cols:
             db.execute(f"ALTER TABLE {tbl} ADD COLUMN tenant_id INTEGER REFERENCES tenants(id)")
+    tenant_cols = {r[1] for r in db.execute("PRAGMA table_info(tenants)")}
+    if "bot_config_json" not in tenant_cols:
+        db.execute("ALTER TABLE tenants ADD COLUMN bot_config_json TEXT DEFAULT '{}'")
     user_cols = {r[1] for r in db.execute("PRAGMA table_info(users)")}
     if "phone" not in user_cols:
         db.execute("ALTER TABLE users ADD COLUMN phone TEXT DEFAULT ''")
@@ -393,15 +400,24 @@ def _migrate_saas(db: sqlite3.Connection) -> None:
 def _migrate_saas_plans(db: sqlite3.Connection) -> None:
     """套餐体系重构迁移:旧 free/pro 订阅映射到 standard/flagship,清理旧套餐定义;
     并按 SAAS_PLANS 校正功能位(标准版纳入本体知识)。"""
+    # 历史一次性迁移(仅极旧库存有 pro 套餐):pro → flagship。
+    # 新版 free 为合法套餐(注册即开通),不得在此清理。
     codes = {r["code"] for r in db.execute("SELECT code FROM plans")}
-    if "free" in codes or "pro" in codes:
-        db.execute("UPDATE subscriptions SET plan_code='standard' WHERE plan_code='free'")
+    if "pro" in codes:
         db.execute("UPDATE subscriptions SET plan_code='flagship' WHERE plan_code='pro'")
-        db.execute("DELETE FROM plans WHERE code IN ('free','pro')")
-    # 功能位校正:存量 standard 行若未含本体功能,按最新定义重写(价格不覆盖)
-    row = db.execute("SELECT features_json FROM plans WHERE code='standard'").fetchone()
-    if row and '"ontology": false' in (row["features_json"] or ""):
-        for code, _n, _p, _l, features in SAAS_PLANS:
+        db.execute("DELETE FROM plans WHERE code='pro'")
+    # 功能位校正:存量套餐行 features_json 缺少新增功能位键(如 domains/agent_settings)
+    # 时按 SAAS_PLANS 最新定义重写(仅 features,不覆盖超管对名称/价格的在线编辑)
+    plan_features = {code: features for code, _n, _p, _l, features in SAAS_PLANS}
+    for code, features in plan_features.items():
+        row = db.execute("SELECT features_json FROM plans WHERE code=?", (code,)).fetchone()
+        if not row:
+            continue
+        try:
+            cur_keys = set(json.loads(row["features_json"] or "{}").keys())
+        except (ValueError, TypeError):
+            cur_keys = set()
+        if not set(json.loads(features).keys()) <= cur_keys:
             db.execute("UPDATE plans SET features_json=? WHERE code=?", (features, code))
     # status 列补充(旧行默认 active;新注册显式 unpaid)
     sub_cols = {r[1] for r in db.execute("PRAGMA table_info(subscriptions)")}
@@ -412,11 +428,12 @@ def _migrate_saas_plans(db: sqlite3.Connection) -> None:
 def _seed_saas(db: sqlite3.Connection) -> None:
     """种入套餐、平台超管与官方演示租户(幂等)。
     用户种子仅在 users 表为空时执行——pbkdf2 哈希较慢,不得在每次连接时重复计算。"""
+    # 先迁移清理旧 free/pro 套餐,再按 SAAS_PLANS 种子重建(避免旧 free 与新 free 冲突)
+    _migrate_saas_plans(db)
     for code, name, price, limit, features in SAAS_PLANS:
         # INSERT OR IGNORE:不覆盖超管在「套餐定价」中的在线编辑
         db.execute("INSERT OR IGNORE INTO plans(code, name, price_monthly, chat_limit_month, "
                    "features_json) VALUES(?,?,?,?,?)", (code, name, price, limit, features))
-    _migrate_saas_plans(db)
     if db.execute("SELECT COUNT(*) FROM users").fetchone()[0]:
         return
     from . import auth
