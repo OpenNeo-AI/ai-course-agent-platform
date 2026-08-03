@@ -1343,11 +1343,14 @@ export default function Portal() {
   const [authed, setAuthed] = useState(!!localStorage.getItem(TOKEN_KEY))
   const [me, setMe] = useState<any>(null)              // /api/auth/me 身份
   const [tinfo, setTinfo] = useState<TenantInfo | null>(null)
+  const [tinfoErr, setTinfoErr] = useState('')
   const [tab, setTab] = useState('')
   const isTenant = !!me?.user?.tenant_id && me.user.role !== 'superadmin'
 
   const loadTinfo = useCallback(() => {
-    api('/api/tenant/info').then(setTinfo).catch(() => {})
+    setTinfoErr('')
+    api('/api/tenant/info').then(setTinfo)
+      .catch(e => setTinfoErr(e.message === '401' ? '登录态已失效' : (e.message || '租户信息加载失败')))
   }, [])
 
   useEffect(() => {
@@ -1357,7 +1360,9 @@ export default function Portal() {
         setMe(d)
         if (d?.user?.tenant_id && d.user.role !== 'superadmin') {
           setTab('agents')   // 租户工作台默认智能体设置(免费版即可用)
-          api('/api/tenant/info').then(setTinfo).catch(() => {})
+          setTinfoErr('')
+          api('/api/tenant/info').then(setTinfo)
+            .catch(e => setTinfoErr(e.message === '401' ? '登录态已失效' : (e.message || '租户信息加载失败')))
         } else {
           setTab('tenants')
         }
@@ -1395,8 +1400,25 @@ export default function Portal() {
   }, [])
 
   if (!authed) return <Login onOk={() => setAuthed(true)} />
-  if (authed && !me) return <div className="portal"><main className="p-main" style={{ padding: 40 }}>加载中…</main></div>
+  // 身份/租户信息加载完成前渲染占位,避免 tabs 为空导致渲染崩溃白屏
+  if (isTenant && tinfoErr) {
+    return (
+      <div className="portal">
+        <main className="p-main" style={{ padding: 40 }}>
+          <div className="auth-error" style={{ maxWidth: 460 }}>{tinfoErr}</div>
+          <button className="plan-cta" style={{ width: 'auto', padding: '9px 22px', marginTop: 12 }}
+            onClick={() => { clearAuth(); setAuthed(false); setMe(null); setTinfo(null) }}>
+            重新登录
+          </button>
+        </main>
+      </div>
+    )
+  }
+  if (!me || (isTenant && !tinfo)) {
+    return <div className="portal"><main className="p-main" style={{ padding: 40 }}>加载中…</main></div>
+  }
   const active = tabs.find(t => t.key === tab) || tabs[0]
+  if (!active) return <div className="portal"><main className="p-main" style={{ padding: 40 }}>加载中…</main></div>
   const subActive = tinfo?.subscription?.status === 'active'
   return (
     <div className="portal">
