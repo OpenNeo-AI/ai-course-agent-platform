@@ -21,9 +21,10 @@ _TOKEN_DAYS = 7
 
 def _secret() -> str:
     s = config.env("JWT_SECRET") or ""
-    if s:
-        return s
-    return "opc-saas:" + config.portal_token()
+    if not s:
+        s = "opc-saas:" + config.portal_token()
+    # HMAC-SHA256 建议密钥 ≥32 字节:统一摘要派生
+    return hashlib.sha256(s.encode("utf-8")).hexdigest()
 
 
 def hash_password(password: str) -> str:
@@ -47,7 +48,7 @@ def issue_token(user: dict) -> str:
     """user: {id, username, role, tenant_id}"""
     now = datetime.now(timezone.utc)
     payload = {
-        "sub": user["id"],
+        "sub": str(user["id"]),          # pyjwt 要求 sub 为字符串
         "username": user["username"],
         "role": user["role"],
         "tenant_id": user.get("tenant_id"),
@@ -59,6 +60,8 @@ def issue_token(user: dict) -> str:
 
 def decode_token(token: str) -> dict | None:
     try:
-        return jwt.decode(token, _secret(), algorithms=[_ALGO])
+        payload = jwt.decode(token, _secret(), algorithms=[_ALGO])
+        payload["sub"] = int(payload["sub"])
+        return payload
     except Exception:  # noqa: BLE001
         return None

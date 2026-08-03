@@ -1155,3 +1155,96 @@ button { font-family: inherit; cursor: pointer; }
   margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line);
   font-size: 11.5px; color: var(--faint); text-align: center; line-height: 1.7;
 }
+
+/* ---------- 套餐页与支付弹窗 ---------- */
+.l-saas-links { display: flex; gap: 16px; margin-left: auto; }
+.l-saas-links a {
+  font-size: 12.5px; color: rgba(248, 250, 252, .82); text-decoration: none;
+  padding: 4px 2px; border-bottom: 1px solid transparent;
+}
+.l-saas-links a:hover { color: var(--gold-soft); border-bottom-color: var(--gold-soft); }
+
+.pricing-page {
+  min-height: 100dvh; padding: 40px 24px 72px;
+  background: linear-gradient(175deg, #0F172A 0%, #1B2942 34%, var(--bg) 34.2%);
+}
+.pricing-top { text-align: center; margin-bottom: 36px; }
+.pricing-top .auth-back { color: rgba(248,250,252,.7); display: inline-block; margin-bottom: 18px; }
+.pricing-top h1 { font-family: var(--serif); font-size: 32px; color: #F8FAFC; margin-bottom: 8px; }
+.pricing-top p { font-size: 13px; color: rgba(248, 250, 252, .62); }
+.pricing-cards { display: flex; gap: 22px; justify-content: center; flex-wrap: wrap; margin-bottom: 44px; }
+.plan-card {
+  width: min(330px, 100%); background: var(--paper); border-radius: 18px; padding: 28px;
+  box-shadow: var(--sh-md); position: relative; border: 1px solid transparent;
+}
+.plan-card.pro { border-color: rgba(202, 138, 4, .5); box-shadow: var(--sh-lg); }
+.plan-flag {
+  position: absolute; top: -12px; right: 22px; background: linear-gradient(135deg, var(--gold) 0%, var(--gold-deep) 100%);
+  color: #fff; font-size: 11.5px; font-weight: 700; letter-spacing: 2px;
+  padding: 4px 12px; border-radius: 999px;
+}
+.plan-card h2 { font-family: var(--serif); font-size: 21px; margin-bottom: 10px; }
+.plan-price { display: flex; align-items: baseline; gap: 4px; margin-bottom: 10px; }
+.plan-price em { font-family: var(--disp); font-style: normal; font-size: 40px; font-weight: 700; color: var(--ink); }
+.plan-price span { color: var(--mut); font-size: 13px; }
+.plan-desc { font-size: 13px; color: var(--mut); line-height: 1.7; min-height: 44px; margin-bottom: 18px; }
+.plan-cta {
+  width: 100%; padding: 11px; border-radius: 10px; font-size: 14px; font-weight: 600;
+  border: 1px solid var(--ink); background: transparent; color: var(--ink);
+}
+.plan-card.pro .plan-cta {
+  background: linear-gradient(135deg, var(--ink) 0%, var(--ink-2) 100%); color: #F8FAFC; border: none;
+}
+.plan-cta:hover { opacity: .88; }
+.pricing-table-wrap { width: min(760px, 100%); margin: 0 auto; }
+.pricing-table-wrap h3 { font-family: var(--serif); font-size: 19px; margin-bottom: 14px; text-align: center; }
+.pricing-table { width: 100%; border-collapse: collapse; background: var(--paper); border-radius: 14px; overflow: hidden; box-shadow: var(--sh-sm); }
+.pricing-table th, .pricing-table td { padding: 12px 18px; font-size: 13.5px; text-align: center; border-bottom: 1px solid var(--line-soft); }
+.pricing-table th { background: var(--ink); color: #E2E8F0; font-weight: 600; }
+.pricing-table td:first-child, .pricing-table th:first-child { text-align: left; }
+.pm-val { color: var(--ink); }
+.pm-yes { color: var(--ok); font-weight: 700; }
+.pm-no { color: var(--faint); }
+
+.pm-mask {
+  position: fixed; inset: 0; background: rgba(11, 21, 38, .55); backdrop-filter: blur(2px);
+  display: flex; align-items: center; justify-content: center; z-index: 80; padding: 20px;
+}
+.pm-modal {
+  width: min(430px, 100%); background: var(--paper); border-radius: 16px; padding: 26px 26px 22px;
+  box-shadow: var(--sh-lg);
+}
+.pm-modal h3 { font-family: var(--serif); font-size: 19px; margin-bottom: 16px; }
+.pm-order { border: 1px solid var(--line); border-radius: 12px; padding: 6px 14px; margin-bottom: 16px; }
+.pm-order > div { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px dashed var(--line-soft); font-size: 13.5px; }
+.pm-order > div:last-child { border-bottom: none; }
+.pm-order span { color: var(--mut); }
+.pm-amount { font-family: var(--disp); font-size: 18px; color: var(--gold-deep); }
+.pm-channels { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+.pm-channels label {
+  display: flex; gap: 10px; align-items: center; border: 1px solid var(--line); border-radius: 10px;
+  padding: 10px 12px; cursor: pointer; transition: border-color .15s;
+}
+.pm-channels label.on { border-color: var(--gold); background: rgba(202, 138, 4, .05); }
+.pm-channels label.disabled { opacity: .55; cursor: not-allowed; }
+.pm-channels b { display: block; font-size: 13.5px; }
+.pm-channels small { color: var(--mut); font-size: 11.5px; }
+.pm-actions { display: flex; gap: 10px; margin-top: 6px; }
+.pm-cancel { flex: 1; padding: 10px; border-radius: 10px; border: 1px solid var(--line); background: #fff; font-size: 13.5px; }
+.pm-pay { flex: 2; padding: 10px; border-radius: 10px; border: none; font-size: 13.5px; font-weight: 700;
+  background: linear-gradient(135deg, var(--gold) 0%, var(--gold-deep) 100%); color: #fff; }
+.pm-pay:hover { opacity: .92; }
+.pm-paying { text-align: center; padding: 26px 0; }
+.pm-paying p { margin-top: 14px; font-size: 14px; font-weight: 600; }
+.pm-paying small { color: var(--mut); font-size: 12px; }
+.pm-spinner {
+  width: 34px; height: 34px; border-radius: 50%; display: inline-block;
+  border: 3px solid var(--line); border-top-color: var(--gold); animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.pm-success { text-align: center; padding: 8px 0; }
+.pm-check {
+  width: 52px; height: 52px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(21, 128, 61, .12); color: var(--ok); font-size: 26px; font-weight: 700; margin-bottom: 12px;
+}
+.pm-success p { font-size: 13px; color: var(--mut); line-height: 1.7; margin-bottom: 16px; }

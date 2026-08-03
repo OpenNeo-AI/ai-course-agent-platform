@@ -125,3 +125,87 @@ def plans():
                     "chat_limit_month": r["chat_limit_month"],
                     "features": json.loads(r["features_json"] or "{}")})
     return {"plans": out}
+
+
+# ---------- 订阅 / 支付演示 / 用量 ----------
+
+def _tenant_of(user: dict) -> int:
+    if not user["tenant_id"]:
+        raise HTTPException(status_code=400, detail="平台账户无租户订阅")
+    return user["tenant_id"]
+
+
+@router.get("/api/billing/subscription")
+def subscription(request: Request):
+    user = jwt_user(request)
+    tid = _tenant_of(user)
+    with get_db() as db:
+        sub = tenancy.subscription_of(db, tid)
+        return {"subscription": {**sub,
+                                 "features": json.loads(sub.get("features_json") or "{}")},
+                "quota": tenancy.quota_state(db, tid)}
+
+
+@router.post("/api/billing/orders")
+async def create_order(request: Request):
+    """选套餐 → 创建待支付订单(演示环境默认 mock 渠道)。"""
+    from ..core import payments
+    user = jwt_user(request)
+    tid = _tenant_of(user)
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    body = body or {}
+    try:
+        order = payments.create_order(tid, body.get("plan_code", "pro"),
+                                      body.get("channel", "mock"))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"ok": True, "order": order}
+
+
+@router.post("/api/billing/orders/{order_id}/confirm")
+def confirm_order(order_id: int, request: Request):
+    """模拟支付成功回调:订单置 paid → 订阅升级 → 功能解锁。"""
+    from ..core import payments
+    user = jwt_user(request)
+    tid = _tenant_of(user)
+    with get_db() as db:
+        order = db.execute("SELECT * FROM payment_orders WHERE id=?", (order_id,)).fetchone()
+    if not order or order["tenant_id"] != tid:
+        raise HTTPException(status_code=404, detail="订单不存在")
+    try:
+        return {"ok": True, **payments.pay_success(order_id)}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/api/billing/orders")
+def list_orders(request: Request):
+    user = jwt_user(request)
+    tid = _tenant_of(user)
+    with get_db() as db:
+        rows = db.execute("SELECT * FROM payment_orders WHERE tenant_id=? ORDER BY id DESC",
+                          (tid,)).fetchall()
+    return {"orders": [dict(r) for r in rows]}
+
+
+@router.get("/api/usage")
+def usage(request: Request):
+    """当月用量与近 6 个月趋势(租户 Admin 用量页)。"""
+    user = jwt_user(request)
+    tid = _tenant_of(user)
+    from datetime import datetime, timedelta, timezone
+    cst = timezone(timedelta(hours=8))
+    now = datetime.now(cst)
+    months = [(now - timedelta(days=30 * i)).strftime("%Y-%m") for i in range(6)][::-1]
+    with get_db() as db:
+        quota = tenancy.quota_state(db, tid)
+        rows = db.execute("SELECT year_month, chat_count FROM usage_monthly "
+                          "WHERE tenant_id=? AND year_month IN ({})".format(
+                              ",".join("?" * len(months))),
+                          [tid, *months]).fetchall()
+    by_month = {r["year_month"]: r["chat_count"] for r in rows}
+    return {"quota": quota,
+            "trend": [{"month": m, "count": by_month.get(m, 0)} for m in months]}

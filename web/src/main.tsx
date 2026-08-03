@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Link, useParams } from 'react-router-dom'
 import Auth from './Auth'
 import Chat from './Chat'
 import Portal from './Portal'
+import Pricing from './Pricing'
 import './index.css'
 
 /* 租户专属对话入口 /b/:slug(会话按租户作用域与套餐配额运行) */
@@ -88,6 +89,11 @@ function Landing() {
             <path d="M7 17L17 7M17 7H9m8 0v8" />
           </svg>
         </a>
+        <nav className="l-saas-links" aria-label="SaaS 平台">
+          <Link to="/pricing">机构套餐</Link>
+          <Link to="/register">注册开通</Link>
+          <Link to="/login">登录</Link>
+        </nav>
         <span className="l-badge">AI 教育中心 · 课程咨询服务</span>
       </header>
 
@@ -157,7 +163,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/login" element={<Auth mode="login" />} />
         <Route path="/register" element={<Auth mode="register" />} />
         <Route path="/b/:slug" element={<TenantChat />} />
-        <Route path="/pricing" element={<div />} />
+        <Route path="/pricing" element={<Pricing />} />
         <Route path="/admin" element={<div />} />
       </Routes>
     </BrowserRouter>
