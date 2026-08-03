@@ -583,25 +583,87 @@ async def put_llm_config(request: Request):
 # ---------- 会话与消息 ----------
 
 @router.get("/sessions", dependencies=[Depends(_auth)])
-def list_sessions(limit: int = 50):
+def list_sessions(limit: int = 50, date_from: str = "", date_to: str = ""):
+    """会话列表,支持按更新时间范围筛选(date_from/date_to,YYYY-MM-DD)。"""
+    sql = ("SELECT s.id, s.role, s.tenant_id, s.state_json, s.created_at, s.updated_at, "
+           "(SELECT COUNT(*) FROM messages g WHERE g.session_id=s.id) AS msgs, "
+           "(SELECT t.name FROM tenants t WHERE t.id=s.tenant_id) AS tenant_name, "
+           "(SELECT qc.score FROM quality_checks qc WHERE qc.session_id=s.id "
+           "  ORDER BY qc.id DESC LIMIT 1) AS quality_score "
+           "FROM sessions s")
+    args: list = []
+    conds = []
+    if date_from:
+        conds.append("s.updated_at >= ?")
+        args.append(date_from + " 00:00:00")
+    if date_to:
+        conds.append("s.updated_at <= ?")
+        args.append(date_to + " 23:59:59")
+    if conds:
+        sql += " WHERE " + " AND ".join(conds)
+    sql += " ORDER BY s.updated_at DESC LIMIT ?"
+    args.append(limit)
     with get_db() as db:
-        rows = db.execute(
-            "SELECT s.id, s.role, s.state_json, s.created_at, s.updated_at, "
-            "(SELECT COUNT(*) FROM messages g WHERE g.session_id=s.id) AS msgs, "
-            "(SELECT qc.score FROM quality_checks qc WHERE qc.session_id=s.id "
-            "  ORDER BY qc.id DESC LIMIT 1) AS quality_score "
-            "FROM sessions s ORDER BY s.updated_at DESC LIMIT ?", (limit,)).fetchall()
+        rows = db.execute(sql, args).fetchall()
     return [{**dict(r), "state": json.loads(r["state_json"] or "{}")} for r in rows]
 
 
 @router.get("/sessions/{sid}/messages", dependencies=[Depends(_auth)])
 def session_messages(sid: str):
+    """消息明细:内容脱敏(手机号/邮箱/身份证号打码)。"""
+    from ..core.tenancy import mask_text
     with get_db() as db:
         rows = db.execute(
             "SELECT role, content, tool_calls_json, created_at FROM messages "
             "WHERE session_id=? ORDER BY id", (sid,)).fetchall()
-    return [{**dict(r),
+    return [{**dict(r), "content": mask_text(r["content"]),
              "tool_calls": json.loads(r["tool_calls_json"] or "null")} for r in rows]
+
+
+# ---------- 租户与平台看板(SaaS) ----------
+
+@router.get("/tenants", dependencies=[Depends(_auth)])
+def list_tenants():
+    """租户列表:套餐、用户数、会话数、当月用量。"""
+    with get_db() as db:
+        rows = db.execute(
+            "SELECT t.id, t.slug, t.name, t.created_at, "
+            "  (SELECT plan_code FROM subscriptions s WHERE s.tenant_id=t.id) AS plan_code, "
+            "  (SELECT COUNT(*) FROM users u WHERE u.tenant_id=t.id) AS users, "
+            "  (SELECT COUNT(*) FROM sessions ss WHERE ss.tenant_id=t.id) AS sessions, "
+            "  (SELECT COUNT(*) FROM messages m JOIN sessions ss ON ss.id=m.session_id "
+            "    WHERE ss.tenant_id=t.id AND m.role='user') AS chats, "
+            "  (SELECT IFNULL(SUM(chat_count),0) FROM usage_monthly um "
+            "    WHERE um.tenant_id=t.id) AS total_usage "
+            "FROM tenants t ORDER BY t.id").fetchall()
+    return [dict(r) for r in rows]
+
+
+@router.get("/dashboard", dependencies=[Depends(_auth)])
+def dashboard():
+    """平台级看板:租户数/用户数/对话数总量 + 近14日会话趋势 + 租户对话排行。"""
+    from datetime import datetime, timedelta, timezone
+    cst = timezone(timedelta(hours=8))
+    today = datetime.now(cst).date()
+    with get_db() as db:
+        totals = db.execute(
+            "SELECT (SELECT COUNT(*) FROM tenants) AS tenants, "
+            "       (SELECT COUNT(*) FROM users) AS users, "
+            "       (SELECT COUNT(*) FROM sessions) AS sessions, "
+            "       (SELECT COUNT(*) FROM messages WHERE role='user') AS chats").fetchone()
+        trend = []
+        for i in range(13, -1, -1):
+            d = (today - timedelta(days=i)).isoformat()
+            n = db.execute("SELECT COUNT(*) FROM sessions WHERE substr(created_at,1,10)=?",
+                           (d,)).fetchone()[0]
+            trend.append({"date": d, "count": n})
+        top = db.execute(
+            "SELECT t.name, COUNT(m.id) AS chats FROM tenants t "
+            "JOIN sessions ss ON ss.tenant_id=t.id "
+            "JOIN messages m ON m.session_id=ss.id AND m.role='user' "
+            "GROUP BY t.id ORDER BY chats DESC LIMIT 8").fetchall()
+    return {"totals": dict(totals), "trend": trend,
+            "top_tenants": [dict(r) for r in top]}
 
 
 # ---------- 数据分析(智能体运营分析) ----------

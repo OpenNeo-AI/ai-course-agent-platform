@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import OntologyTab from './OntologyTab'
 
-import { api, API, TOKEN_KEY } from './api'
+import { api, API, saveAuth, TOKEN_KEY } from './api'
 
 /* ---------- SVG 图标 ---------- */
 const Ic = ({ d }: { d: string }) => (
@@ -38,14 +38,30 @@ function Login({ onOk }: { onOk: () => void }) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [err, setErr] = useState('')
+  const nav = useNavigate()
   async function submit() {
     try {
-      const res = await fetch(API + '/api/portal/login', {
+      // 优先走 SaaS 用户体系(带角色分叉);失败回退存量 portal 账户登录
+      const res = await fetch(API + '/api/auth/login', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
       })
-      if (!res.ok) throw new Error('账户或密码错误')
-      const data = await res.json()
+      if (res.ok) {
+        const data = await res.json()
+        saveAuth(data.token, {
+          username: data.user?.username, role: data.user?.role,
+          tenant_id: data.user?.tenant_id,
+          tenant_slug: data.tenant?.slug, tenant_name: data.tenant?.name,
+        })
+        if (data.user?.role === 'superadmin') { onOk(); return }
+        nav('/admin'); return
+      }
+      const fb = await fetch(API + '/api/portal/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      })
+      if (!fb.ok) throw new Error('账户或密码错误')
+      const data = await fb.json()
       localStorage.setItem(TOKEN_KEY, data.token)
       onOk()
     } catch (e: any) { setErr(e.message || '登录失败') }
@@ -1056,6 +1072,14 @@ const TABS = [
 export default function Portal() {
   const [authed, setAuthed] = useState(!!localStorage.getItem(TOKEN_KEY))
   const [tab, setTab] = useState('docs')
+  const nav = useNavigate()
+  // 已登录但身份是租户管理员 → 跳转租户后台(平台工作台仅超管可见)
+  useEffect(() => {
+    if (!authed) return
+    api('/api/auth/me')
+      .then(d => { if (d?.user?.role && d.user.role !== 'superadmin') nav('/admin') })
+      .catch(() => {})
+  }, [authed])
   if (!authed) return <Login onOk={() => setAuthed(true)} />
   const active = TABS.find(t => t.key === tab)!
   return (

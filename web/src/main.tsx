@@ -5,6 +5,7 @@ import Auth from './Auth'
 import Chat from './Chat'
 import Portal from './Portal'
 import Pricing from './Pricing'
+import TenantAdmin from './TenantAdmin'
 import './index.css'
 
 /* 租户专属对话入口 /b/:slug(会话按租户作用域与套餐配额运行) */
@@ -164,7 +165,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/register" element={<Auth mode="register" />} />
         <Route path="/b/:slug" element={<TenantChat />} />
         <Route path="/pricing" element={<Pricing />} />
-        <Route path="/admin" element={<div />} />
+        <Route path="/admin" element={<TenantAdmin />} />
       </Routes>
     </BrowserRouter>
   </StrictMode>,

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 
 from ..core import auth, tenancy
 from ..core.db import get_db
@@ -95,7 +95,13 @@ async def login(request: Request):
 
 @router.get("/api/auth/me")
 def me(request: Request):
-    """当前登录用户 + 租户 + 订阅 + 当月配额(Portal/Admin 分叉依据)。"""
+    """当前登录用户 + 租户 + 订阅 + 当月配额(Portal/Admin 分叉依据)。
+    兼容静态 portal token(视为平台超管,支撑存量 Portal 登录)。"""
+    from ..core import config as core_config
+    tok = bearer_token(request)
+    if tok and tok == core_config.portal_token():
+        return {"user": {"username": "portal", "role": "superadmin", "tenant_id": None},
+                "tenant": None, "subscription": None, "quota": None}
     user = jwt_user(request)
     out = {"user": {"username": user["username"], "role": user["role"],
                     "tenant_id": user["tenant_id"]},
@@ -209,3 +215,171 @@ def usage(request: Request):
     by_month = {r["year_month"]: r["chat_count"] for r in rows}
     return {"quota": quota,
             "trend": [{"month": m, "count": by_month.get(m, 0)} for m in months]}
+
+
+# ---------- 租户 Admin ----------
+
+def _tenant_ctx(request: Request) -> tuple[dict, dict]:
+    """租户管理员上下文:(tenant, features);非租户管理员 403。"""
+    user = require_admin(request)
+    tid = _tenant_of(user)
+    with get_db() as db:
+        t = db.execute("SELECT * FROM tenants WHERE id=?", (tid,)).fetchone()
+        if not t:
+            raise HTTPException(status_code=404, detail="租户不存在")
+        features = json.loads(tenancy.subscription_of(db, tid).get("features_json") or "{}")
+    return dict(t), features
+
+
+def _tenant_kb_ids(db, tenant_id: int) -> list[int]:
+    rows = db.execute(
+        "SELECT k.id FROM kbs k JOIN domains d ON d.id=k.domain_id "
+        "WHERE d.tenant_id=?", (tenant_id,)).fetchall()
+    return [r["id"] for r in rows]
+
+
+@router.get("/api/tenant/info")
+def tenant_info(request: Request):
+    """租户概览:机构信息 + 订阅 + 配额 + Bot 入口 slug。"""
+    t, features = _tenant_ctx(request)
+    user = jwt_user(request)
+    with get_db() as db:
+        sub = tenancy.subscription_of(db, t["id"])
+        quota = tenancy.quota_state(db, t["id"])
+        kb_ids = _tenant_kb_ids(db, t["id"])
+        docs = 0
+        if kb_ids:
+            ph = ",".join("?" * len(kb_ids))
+            docs = db.execute(
+                f"SELECT COUNT(*) FROM documents d WHERE d.kb_id IN ({ph})",
+                kb_ids).fetchone()[0]
+    return {"tenant": t, "subscription": sub, "quota": quota,
+            "features": features, "documents": docs,
+            "bot_url": f"/b/{t['slug']}"}
+
+
+@router.get("/api/tenant/documents")
+def tenant_documents(request: Request):
+    """已挂载知识库文档列表(含知识块/实体计数)。"""
+    t, _ = _tenant_ctx(request)
+    with get_db() as db:
+        kb_ids = _tenant_kb_ids(db, t["id"])
+        if not kb_ids:
+            return []
+        ph = ",".join("?" * len(kb_ids))
+        rows = db.execute(
+            "SELECT d.id, d.kb_id, d.filename, d.title, d.status, d.uploaded_at, "
+            "(SELECT COUNT(*) FROM knowledge_chunks c WHERE c.doc_id=d.id) AS chunks, "
+            "(SELECT COUNT(*) FROM entities e WHERE e.doc_id=d.id) AS entities "
+            f"FROM documents d WHERE d.kb_id IN ({ph}) ORDER BY d.id", kb_ids).fetchall()
+    return [dict(r) for r in rows]
+
+
+@router.post("/api/tenant/documents")
+async def tenant_upload(request: Request, file: UploadFile = File(...), title: str = Form("")):
+    """上传课程资料(支持 PDF):解析 → 切块向量化 → 本体抽取,Bot 立即可基于新资料回答。
+    专业版功能:免费版返回 402 引导升级。同名文件自动重建(RAG 索引同步刷新)。"""
+    from ..core import config as core_config
+    from ..core.ingest.chunk import ingest_text
+    from ..core.ingest.parse import parse_upload
+    t, features = _tenant_ctx(request)
+    if not features.get("rag_manage"):
+        raise HTTPException(status_code=402,
+                            detail="课程资料管理为专业版功能,请先升级套餐")
+    with get_db() as db:
+        kb_ids = _tenant_kb_ids(db, t["id"])
+        if not kb_ids:
+            raise HTTPException(status_code=400, detail="租户知识库未初始化")
+        kb_id = kb_ids[0]
+    raw = await file.read()
+    try:
+        text = parse_upload(file.filename, raw)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    (core_config.UPLOAD_DIR / f"kb{kb_id}_{file.filename}").write_bytes(raw)
+    doc_title = title or (file.filename or "资料").rsplit(".", 1)[0]
+    with get_db() as db:
+        stats = ingest_text(db, kb_id, file.filename, doc_title, text)
+    return {"ok": True, "filename": file.filename, "stats": stats}
+
+
+@router.delete("/api/tenant/documents/{doc_id}")
+def tenant_delete_document(doc_id: int, request: Request):
+    """删除文档并同步清理其知识块/实体/规则(RAG 索引同步刷新)。"""
+    from ..core.ingest.chunk import clear_document_knowledge
+    t, features = _tenant_ctx(request)
+    if not features.get("rag_manage"):
+        raise HTTPException(status_code=402, detail="课程资料管理为专业版功能,请先升级套餐")
+    with get_db() as db:
+        kb_ids = _tenant_kb_ids(db, t["id"])
+        doc = db.execute("SELECT * FROM documents WHERE id=?", (doc_id,)).fetchone()
+        if not doc or doc["kb_id"] not in kb_ids:
+            raise HTTPException(status_code=404, detail="文档不存在或不属于本租户")
+        clear_document_knowledge(db, doc_id)
+        db.execute("DELETE FROM relations WHERE doc_id=?", (doc_id,))
+        db.execute("DELETE FROM entities WHERE doc_id=?", (doc_id,))
+        db.execute("DELETE FROM rules WHERE doc_id=?", (doc_id,))
+        db.execute("DELETE FROM documents WHERE id=?", (doc_id,))
+    return {"ok": True}
+
+
+@router.get("/api/tenant/sessions")
+def tenant_sessions(request: Request, date_from: str = "", date_to: str = "",
+                    limit: int = 100):
+    """本租户对话记录(按时间筛选);仅返回本租户会话。"""
+    t, _ = _tenant_ctx(request)
+    sql = ("SELECT s.id, s.created_at, s.updated_at, "
+           "(SELECT COUNT(*) FROM messages g WHERE g.session_id=s.id) AS msgs "
+           "FROM sessions s WHERE s.tenant_id=?")
+    args: list = [t["id"]]
+    if date_from:
+        sql += " AND s.updated_at >= ?"
+        args.append(date_from + " 00:00:00")
+    if date_to:
+        sql += " AND s.updated_at <= ?"
+        args.append(date_to + " 23:59:59")
+    sql += " ORDER BY s.updated_at DESC LIMIT ?"
+    args.append(limit)
+    with get_db() as db:
+        rows = db.execute(sql, args).fetchall()
+    return [dict(r) for r in rows]
+
+
+@router.get("/api/tenant/sessions/{sid}/messages")
+def tenant_session_messages(sid: str, request: Request):
+    """会话消息明细:脱敏(手机号/邮箱/身份证号打码),且仅限本租户会话。"""
+    t, _ = _tenant_ctx(request)
+    with get_db() as db:
+        s = db.execute("SELECT tenant_id FROM sessions WHERE id=?", (sid,)).fetchone()
+        if not s or s["tenant_id"] != t["id"]:
+            raise HTTPException(status_code=404, detail="会话不存在")
+        rows = db.execute(
+            "SELECT role, content, created_at FROM messages "
+            "WHERE session_id=? ORDER BY id", (sid,)).fetchall()
+    return [{"role": r["role"], "content": tenancy.mask_text(r["content"]),
+             "created_at": r["created_at"]} for r in rows]
+
+
+@router.get("/api/tenant/stats")
+def tenant_stats(request: Request):
+    """用量统计:总对话次数、活跃用户量(会话数)、近14日趋势。"""
+    from datetime import datetime, timedelta, timezone
+    t, _ = _tenant_ctx(request)
+    cst = timezone(timedelta(hours=8))
+    today = datetime.now(cst).date()
+    with get_db() as db:
+        totals = db.execute(
+            "SELECT (SELECT COUNT(*) FROM messages m JOIN sessions s ON s.id=m.session_id "
+            "        WHERE s.tenant_id=? AND m.role='user') AS chats, "
+            "       (SELECT COUNT(*) FROM sessions WHERE tenant_id=?) AS sessions",
+            (t["id"], t["id"])).fetchone()
+        trend = []
+        for i in range(13, -1, -1):
+            d = (today - timedelta(days=i)).isoformat()
+            n = db.execute(
+                "SELECT COUNT(*) FROM sessions WHERE tenant_id=? AND substr(created_at,1,10)=?",
+                (t["id"], d)).fetchone()[0]
+            trend.append({"date": d, "count": n})
+        quota = tenancy.quota_state(db, t["id"])
+    return {"chats": totals["chats"], "active_users": totals["sessions"],
+            "trend": trend, "quota": quota}

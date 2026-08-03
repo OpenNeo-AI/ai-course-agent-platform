@@ -1248,3 +1248,89 @@ button { font-family: inherit; cursor: pointer; }
   background: rgba(21, 128, 61, .12); color: var(--ok); font-size: 26px; font-weight: 700; margin-bottom: 12px;
 }
 .pm-success p { font-size: 13px; color: var(--mut); line-height: 1.7; margin-bottom: 16px; }
+
+/* ---------- 租户管理后台 /admin ---------- */
+.tadm { display: flex; min-height: 100dvh; background: var(--bg); }
+.tadm-side {
+  width: 216px; flex: none; background: var(--ink); color: #CBD5E1;
+  display: flex; flex-direction: column; padding: 20px 14px;
+}
+.tadm-brand { display: flex; gap: 10px; align-items: center; padding: 4px 8px 18px; border-bottom: 1px solid rgba(148, 163, 184, .16); }
+.tadm-brand img { width: 32px; height: 32px; border-radius: 8px; }
+.tadm-brand b { display: block; font-size: 13.5px; color: #F1F5F9; }
+.tadm-brand small { font-size: 10.5px; color: var(--faint); letter-spacing: 1px; }
+.tadm-side nav { display: flex; flex-direction: column; gap: 4px; margin-top: 16px; flex: 1; }
+.tadm-side nav button {
+  text-align: left; padding: 10px 12px; border: none; border-radius: 9px;
+  background: transparent; color: #B6C2D4; font-size: 13.5px;
+}
+.tadm-side nav button:hover { background: rgba(148, 163, 184, .12); }
+.tadm-side nav button.on { background: rgba(202, 138, 4, .18); color: var(--gold-soft); font-weight: 600; }
+.tadm-side-foot { display: flex; flex-direction: column; gap: 8px; }
+.tadm-botlink { font-size: 12.5px; color: var(--gold-soft); text-decoration: none; padding: 8px 12px; border: 1px dashed rgba(202, 138, 4, .4); border-radius: 9px; text-align: center; }
+.tadm-logout { padding: 8px; border: none; border-radius: 9px; background: rgba(148, 163, 184, .12); color: #B6C2D4; font-size: 12.5px; }
+.tadm-main { flex: 1; padding: 26px 30px; max-width: 1060px; }
+.tadm-head { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+.tadm-head h1 { font-family: var(--serif); font-size: 23px; }
+.plan-pill { font-size: 12px; padding: 4px 12px; border-radius: 999px; background: rgba(202, 138, 4, .12); color: var(--gold-deep); border: 1px solid rgba(202, 138, 4, .3); }
+.plan-pill.pro { background: rgba(21, 128, 61, .1); color: var(--ok); border-color: rgba(21, 128, 61, .3); }
+.tadm-card { background: var(--paper); border-radius: 14px; box-shadow: var(--sh-sm); padding: 22px; margin-bottom: 18px; }
+.tadm-card h3 { font-family: var(--serif); font-size: 17px; margin-bottom: 14px; }
+.tadm-card h4 { font-size: 13.5px; color: var(--slate); margin: 18px 0 10px; }
+.tadm-lock { background: var(--paper); border-radius: 14px; box-shadow: var(--sh-sm); padding: 40px; text-align: center; }
+.tadm-lock h3 { font-size: 18px; margin-bottom: 10px; }
+.tadm-lock p { font-size: 13px; color: var(--mut); line-height: 1.8; margin-bottom: 16px; }
+.tadm-lock a { color: var(--gold-deep); font-weight: 700; text-decoration: none; }
+.tadm-docs-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.tadm-docs-head h3 { margin: 0; }
+.tadm-upload .plan-cta { width: auto; padding: 9px 18px; font-size: 13px; }
+.tadm-ok { font-size: 12.5px; color: var(--ok); background: rgba(21, 128, 61, .08); border: 1px solid rgba(21, 128, 61, .25); border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; }
+.tadm-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tadm-table th, .tadm-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--line-soft); }
+.tadm-table th { color: var(--mut); font-size: 12px; font-weight: 600; background: #FAFBFC; }
+.tadm-table td small { display: block; color: var(--faint); font-size: 11px; }
+.tadm-table .st-ingested, .tadm-table .st-paid { color: var(--ok); }
+.tadm-table .st-failed { color: var(--bad); }
+.tadm-del { border: 1px solid var(--line); background: #fff; border-radius: 7px; padding: 4px 10px; font-size: 12px; color: var(--bad); }
+.tadm-del:hover { border-color: var(--bad); }
+.tadm-empty { color: var(--faint); text-align: center; padding: 22px 0; font-size: 12.5px; }
+.tadm-filter { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+.tadm-filter h3 { margin: 0; }
+.tadm-range { display: flex; gap: 8px; align-items: center; font-size: 12.5px; color: var(--mut); }
+.tadm-range input { border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font-size: 12.5px; }
+.tadm-range button { border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 6px 10px; font-size: 12px; }
+.tadm-split { display: flex; gap: 14px; margin-top: 14px; min-height: 340px; }
+.tadm-sess-list { width: 270px; flex: none; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; max-height: 430px; }
+.tadm-sess-list button {
+  text-align: left; border: 1px solid var(--line); background: #fff; border-radius: 10px;
+  padding: 9px 12px; display: flex; flex-direction: column; gap: 2px;
+}
+.tadm-sess-list button b { font-size: 12.5px; font-family: var(--disp); }
+.tadm-sess-list button small { color: var(--mut); font-size: 11px; }
+.tadm-sess-list button.on { border-color: var(--gold); background: rgba(202, 138, 4, .06); }
+.tadm-msgs { flex: 1; border: 1px solid var(--line-soft); border-radius: 10px; padding: 14px; overflow-y: auto; max-height: 430px; background: #FAFBFC; }
+.tadm-msg { margin-bottom: 10px; }
+.tadm-msg-role { font-size: 11px; font-weight: 700; color: var(--faint); letter-spacing: 1px; }
+.tadm-msg.user .tadm-msg-role { color: var(--gold-deep); }
+.tadm-msg p { font-size: 13px; line-height: 1.7; background: #fff; border: 1px solid var(--line-soft); border-radius: 8px; padding: 8px 10px; margin-top: 3px; white-space: pre-wrap; }
+.tadm-stat-row { display: flex; gap: 14px; flex-wrap: wrap; }
+.tadm-stat { flex: 1; min-width: 150px; background: #FAFBFC; border: 1px solid var(--line-soft); border-radius: 12px; padding: 16px; text-align: center; }
+.tadm-stat em { display: block; font-family: var(--disp); font-style: normal; font-size: 28px; font-weight: 700; color: var(--ink); }
+.tadm-stat span { font-size: 12px; color: var(--mut); }
+.tadm-trend { display: flex; gap: 6px; align-items: flex-end; height: 130px; padding: 10px 4px 0; }
+.tadm-trend-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
+.tadm-trend-col i { width: 62%; background: linear-gradient(180deg, var(--gold-soft) 0%, var(--gold) 100%); border-radius: 4px 4px 0 0; min-height: 2px; display: block; }
+.tadm-trend-col small { font-size: 9.5px; color: var(--faint); }
+.tadm-sub { display: flex; align-items: center; gap: 26px; flex-wrap: wrap; background: #FAFBFC; border: 1px solid var(--line-soft); border-radius: 12px; padding: 18px; margin-bottom: 8px; }
+.tadm-plan-name { font-family: var(--serif); font-size: 18px; display: block; }
+.tadm-sub small { color: var(--mut); font-size: 12px; }
+.tadm-progress { flex: 1; min-width: 200px; }
+.tadm-progress-bar { height: 8px; border-radius: 99px; background: var(--line-soft); overflow: hidden; }
+.tadm-progress-bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--gold-soft), var(--gold)); border-radius: 99px; }
+@media (max-width: 900px) {
+  .tadm { flex-direction: column; }
+  .tadm-side { width: 100%; flex-direction: row; align-items: center; flex-wrap: wrap; }
+  .tadm-side nav { flex-direction: row; margin: 0; }
+  .tadm-split { flex-direction: column; }
+  .tadm-sess-list { width: 100%; max-height: 190px; }
+}
