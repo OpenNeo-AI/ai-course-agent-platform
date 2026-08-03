@@ -198,117 +198,158 @@ export function TenantStatsTab() {
   )
 }
 
-/* ---------- 智能体设置(免费版即可用:知识域挂载/能力开关/提示词/模型) ---------- */
+/* ---------- 智能体设置(与平台 AgentsTab 同构:模型/能力/知识域对接/提示词) ---------- */
 const AGENT_CAPS = [
   { key: 'lead_capture', label: '留资转线索', desc: '用户表达报名意向时采集联系方式,转线索跟进' },
   { key: 'quality_check', label: '对话质检', desc: '对该智能体的会话进行质检评分' },
 ]
 
-export function TenantAgentTab() {
+export function TenantAgentTab({ info }: { info: TenantInfo | null }) {
   const [cfg, setCfg] = useState<any>(null)
   const [options, setOptions] = useState<string[]>([])
   const [defaultModel, setDefaultModel] = useState('')
+  const [botUrl, setBotUrl] = useState('')
   const [domains, setDomains] = useState<any[]>([])
+  const [prompt, setPrompt] = useState('')
+  const [welcome, setWelcome] = useState('')
   const [msg, setMsg] = useState('')
-  const [err, setErr] = useState('')
-  const [busy, setBusy] = useState(false)
 
-  useEffect(() => {
+  const loadAll = useCallback(() => {
     api('/api/tenant/bot-config').then(d => {
       setCfg(d.config)
+      setPrompt(d.config?.prompt_text || '')
+      setWelcome(d.config?.welcome_text || '')
       setOptions(d.model_options || [])
       setDefaultModel(d.default_model || '')
-    }).catch(e => setErr(e.message))
+      setBotUrl(d.bot_url || '')
+    }).catch(() => {})
     api('/api/portal/domains').then(setDomains).catch(() => {})
   }, [])
+  useEffect(() => { loadAll() }, [loadAll])
 
-  function flash(t: string) { setMsg(t); setTimeout(() => setMsg(''), 3500) }
+  const flash = (t: string) => { setMsg(t); setTimeout(() => setMsg(''), 3000) }
 
-  async function save(patch: Record<string, unknown>, note: string) {
-    setBusy(true); setErr('')
-    try {
-      const r = await api('/api/tenant/bot-config', {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(patch),
-      })
-      setCfg((c: any) => ({ ...c, ...r.config }))
-      flash(note)
-    } catch (e: any) { setErr(e.message || '保存失败') } finally { setBusy(false) }
+  async function put(patch: Record<string, unknown>) {
+    const r = await api('/api/tenant/bot-config', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    })
+    setCfg((c: any) => ({ ...c, ...r.config }))
+    return r.config
   }
 
-  if (!cfg) return <section className="tadm-card">{err || '加载中…'}</section>
+  async function setModel(model: string) {
+    await put({ model })
+    flash(model ? `对话模型已切换为 ${model}` : '已恢复平台默认模型')
+  }
+  async function toggleCap(key: string) {
+    await put({ [key]: !cfg[key] })
+    flash('能力配置已保存 · 即时生效')
+  }
+  async function toggleDomain(id: number) {
+    const cur: number[] = cfg.domains || []
+    const next = cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id]
+    await put({ domains: next })
+    flash('知识域对接已保存 · 即时生效')
+  }
+  async function savePrompt() {
+    await put({ prompt_text: prompt })
+    flash('系统提示词已保存 · 新会话即时生效')
+  }
+  async function saveWelcome() {
+    await put({ welcome_text: welcome })
+    flash('欢迎语已保存 · 新会话即时生效')
+  }
+
+  if (!cfg) return <div className="p-empty">加载中…</div>
   const bound: number[] = cfg.domains || []
   return (
-    <section className="tadm-card">
-      <h3>智能体设置</h3>
-      {msg && <div className="tadm-ok" style={{ marginBottom: 10 }}>{msg}</div>}
-      {err && <div className="auth-error" style={{ marginBottom: 10 }}>{err}</div>}
-
-      <h4 style={{ marginTop: 4 }}>知识域挂载</h4>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 6 }}>
-        {domains.map(d => (
-          <label key={d.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 13.5 }}>
-            <input type="checkbox" style={{ marginTop: 3 }} checked={bound.includes(d.id)}
-              onChange={e => {
-                const next = e.target.checked ? [...bound, d.id] : bound.filter((x: number) => x !== d.id)
-                setCfg({ ...cfg, domains: next })
-              }} />
-            <span><b>{d.name}</b>
-              <small style={{ color: 'var(--mut)', marginLeft: 8 }}>
-                {d.kbs ?? 0} 个知识库 · {d.entities ?? 0} 实体 · {d.rules ?? 0} 规则
-              </small></span>
-          </label>
-        ))}
-        {!domains.length && <div className="tadm-empty">暂无知识域,请先在「知识域」中创建并上传资料</div>}
-      </div>
-      <p style={{ fontSize: 12, color: 'var(--faint)', marginBottom: 14 }}>
-        不勾选任何知识域 = 挂载本租户全部知识域;勾选后 Bot 仅在所选知识域内检索与推荐。
-      </p>
-
-      <h4>扩展能力</h4>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
-        {AGENT_CAPS.map(c => (
-          <label key={c.key} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 13.5 }}>
-            <input type="checkbox" style={{ marginTop: 3 }} checked={!!cfg[c.key]}
-              onChange={e => setCfg({ ...cfg, [c.key]: e.target.checked })} />
-            <span><b>{c.label}</b>
-              <small style={{ color: 'var(--mut)', marginLeft: 8 }}>{c.desc}</small></span>
-          </label>
-        ))}
+    <div className="p-docgrid">
+      <div className="p-kblist">
+        <div className="p-kb on">
+          <b>{info?.tenant?.name || '本机构'} · AI 课程顾问</b>
+          <small>租户专属 Bot,作用域限本租户知识域</small>
+          <span className="meta">
+            <span className="p-mono">{botUrl || '/b/…'}</span>
+            <span className="p-count">{bound.length || domains.length} 知识域</span>
+          </span>
+        </div>
       </div>
 
-      <label className="auth-field" style={{ maxWidth: 720 }}>
-        <span>系统提示词(留空使用平台默认模板:角色设定与红线约束)</span>
-        <textarea value={cfg.prompt_text || ''} rows={7} maxLength={4000}
-          onChange={e => setCfg({ ...cfg, prompt_text: e.target.value })}
-          placeholder={'例如:你是启明教育的资深课程顾问,面向成人学员,语气专业亲和;优先推荐周末班…'}
-          style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 10, fontSize: 13, lineHeight: 1.7, resize: 'vertical', fontFamily: 'inherit' }} />
-      </label>
-      <label className="auth-field" style={{ maxWidth: 720 }}>
-        <span>Bot 欢迎语(留空使用平台默认欢迎语)</span>
-        <textarea value={cfg.welcome_text} rows={4} maxLength={800}
-          onChange={e => setCfg({ ...cfg, welcome_text: e.target.value })}
-          placeholder={'例如:你好!我是启明教育的 AI 课程顾问,可以解答课程安排、费用与推荐班型。'}
-          style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 10, fontSize: 13, lineHeight: 1.7, resize: 'vertical', fontFamily: 'inherit' }} />
-      </label>
-      <label className="auth-field" style={{ maxWidth: 720 }}>
-        <span>推理模型(留空使用平台默认{defaultModel ? `:${defaultModel}` : ''})</span>
-        <select value={cfg.model || ''}
-          onChange={e => setCfg({ ...cfg, model: e.target.value })}
-          style={{ width: '100%', padding: '9px 12px', border: '1px solid var(--line)', borderRadius: 10, fontSize: 13.5 }}>
-          <option value="">平台默认</option>
-          {options.map(m => <option key={m} value={m}>{m}</option>)}
-        </select>
-      </label>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
+        <div className="p-card">
+          <h3>推理模型</h3>
+          <p className="p-scope-hint">
+            为该智能体选择对话模型;不选则跟随平台默认模型。切换即时生效,仅影响本智能体的对话生成。
+          </p>
+          <div className="p-modelpick">
+            <select value={cfg.model || ''} onChange={e => setModel(e.target.value)}>
+              <option value="">平台默认模型{defaultModel ? `(${defaultModel})` : ''}</option>
+              {options.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+            {msg && <span className="p-ok">{msg}</span>}
+          </div>
+        </div>
 
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-        <button className="plan-cta" style={{ width: 'auto', padding: '9px 22px' }}
-          disabled={busy}
-          onClick={() => save(cfg, '配置已保存 · 新会话即时生效')}>
-          {busy ? '保存中…' : '保存全部设置'}
-        </button>
+        <div className="p-card">
+          <h3>能力配置</h3>
+          <p className="p-scope-hint">按智能体启用的扩展能力(留资转线索 / 对话质检),保存后即时生效。</p>
+          <div className="p-caps">
+            {AGENT_CAPS.map(c => {
+              const on = !!cfg[c.key]
+              return (
+                <label key={c.key} className={`p-cap ${on ? 'on' : ''}`}
+                  onClick={() => toggleCap(c.key)}>
+                  <span className={`p-switch ${on ? 'on' : ''}`}><i /></span>
+                  <span className="p-cap-tx"><b>{c.label}</b><small>{c.desc}</small></span>
+                </label>
+              )
+            })}
+          </div>
+        </div>
+
+        <div className="p-card">
+          <h3>知识域对接</h3>
+          <p className="p-scope-hint">
+            勾选本 Bot 可引用的知识域。<b>未勾选知识域的内容不参与检索、推荐与计算</b>;
+            不勾选任何项 = 挂载本租户全部知识域;勾选变更立即保存并生效。
+          </p>
+          <div className="p-checks">
+            {domains.map(d => (
+              <label key={d.id} className={bound.includes(d.id) ? 'on' : ''}>
+                <input type="checkbox" checked={bound.includes(d.id)}
+                  onChange={() => toggleDomain(d.id)} />
+                <span><b>{d.name}</b><small>{d.description || d.code}</small></span>
+              </label>
+            ))}
+            {!domains.length && <div className="p-empty">暂无知识域,请先在「知识域」中创建并上传资料</div>}
+          </div>
+        </div>
+
+        <div className="p-card">
+          <h3>系统提示词</h3>
+          <p className="p-scope-hint">
+            定义该智能体的身份、服务流程与回答风格;留空则使用平台默认模板(角色设定与红线约束)。保存后新会话即时生效。
+          </p>
+          <textarea className="p-scope-editor" rows={16} value={prompt} maxLength={4000}
+            onChange={e => setPrompt(e.target.value)} />
+          <div className="p-toolbar" style={{ marginTop: 12 }}>
+            <button onClick={savePrompt}>保存提示词</button>
+            {msg && <span className="p-ok">{msg}</span>}
+          </div>
+        </div>
+
+        <div className="p-card">
+          <h3>欢迎语</h3>
+          <p className="p-scope-hint">新会话第一条消息;留空则使用平台默认欢迎语。保存后新会话即时生效。</p>
+          <textarea className="p-scope-editor" rows={9} value={welcome} maxLength={800}
+            onChange={e => setWelcome(e.target.value)} />
+          <div className="p-toolbar" style={{ marginTop: 12 }}>
+            <button onClick={saveWelcome}>保存欢迎语</button>
+          </div>
+        </div>
       </div>
-    </section>
+    </div>
   )
 }
 

@@ -1317,7 +1317,7 @@ export default function Portal() {
   const feats = tinfo?.features || tinfo?.subscription?.features || {}
   const unlocked = (f: string) => !!feats[f]
   const tenantTabs = tinfo ? [
-    { key: 'agents', label: '智能体设置', desc: '欢迎语 · 留资 · 模型', el: <TenantAgentTab /> },
+    { key: 'agents', label: '智能体设置', desc: '模型 · 能力 · 知识域 · 提示词', el: <TenantAgentTab info={tinfo} /> },
     { key: 'docs', label: '知识域', desc: '知识域 · 知识库 · 课程资料',
       el: unlocked('domains') ? <DomainsTab /> : <LockPanel tabKey="docs" /> },
     { key: 'ontology', label: '本体知识', desc: '实体 · 规则 · 关系',
