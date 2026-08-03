@@ -53,16 +53,20 @@ def register_tenant(org_name: str, username: str, password: str, email: str = ""
         db.execute("INSERT INTO users(tenant_id, username, email, password_hash, role) "
                    "VALUES(?,?,?,?,?)",
                    (tid, username, email or "", auth.hash_password(password), "admin"))
-        db.execute("INSERT INTO subscriptions(tenant_id, plan_code) VALUES(?,?)", (tid, "free"))
+        # 两档套餐均为收费:注册生成「待开通」订阅,选购并支付后生效
+        db.execute("INSERT INTO subscriptions(tenant_id, plan_code, status) "
+                   "VALUES(?,?, 'unpaid')", (tid, "standard"))
         db.execute("INSERT INTO domains(code, name, description, tenant_id) VALUES(?,?,?,?)",
                    (dom_code, f"{org_name}·课程知识域", "租户自有课程知识", tid))
         dom_id = db.execute("SELECT id FROM domains WHERE code=?", (dom_code,)).fetchone()["id"]
         db.execute("INSERT INTO kbs(code, name, description, domain_id) VALUES(?,?,?,?)",
                    (kb_code, f"{org_name}·课程知识库", "租户自有知识库", dom_id))
         kb_id = db.execute("SELECT id FROM kbs WHERE code=?", (kb_code,)).fetchone()["id"]
-        # 入门指南:保证免费版开通即可对话(内容为平台自身说明,不涉及课程事实)
+        # 入门指南:开通后即可对话(内容为平台自身说明,不涉及课程事实)。
+        # do_extract=False:跳过 LLM 抽取,避免注册事务长时间持锁。
         try:
-            ingest_text(db, kb_id, "平台使用指南.txt", STARTER_DOC_TITLE, STARTER_DOC_TEXT)
+            ingest_text(db, kb_id, "平台使用指南.txt", STARTER_DOC_TITLE,
+                        STARTER_DOC_TEXT, do_extract=False)
         except Exception as e:  # noqa: BLE001
             db.execute("UPDATE kbs SET description=? WHERE id=?",
                        (f"租户自有知识库(入门资料摄入失败:{type(e).__name__})", kb_id))
@@ -96,13 +100,19 @@ def scope_for_tenant(tenant_id: int) -> dict:
 
 def subscription_of(db: sqlite3.Connection, tenant_id: int) -> dict:
     row = db.execute(
-        "SELECT s.plan_code, p.name AS plan_name, p.chat_limit_month, p.features_json "
+        "SELECT s.plan_code, s.status, p.name AS plan_name, p.chat_limit_month, "
+        "p.features_json "
         "FROM subscriptions s JOIN plans p ON p.code=s.plan_code "
         "WHERE s.tenant_id=?", (tenant_id,)).fetchone()
     if not row:
-        return {"plan_code": "free", "plan_name": "免费版", "chat_limit_month": 50,
-                "features_json": "{}"}
+        return {"plan_code": "standard", "status": "unpaid", "plan_name": "标准版",
+                "chat_limit_month": -1, "features_json": "{}"}
     return dict(row)
+
+
+def is_active(db: sqlite3.Connection, tenant_id: int) -> bool:
+    """订阅是否生效(已支付开通)。"""
+    return subscription_of(db, tenant_id).get("status") == "active"
 
 
 def usage_of(db: sqlite3.Connection, tenant_id: int, ym: str | None = None) -> int:

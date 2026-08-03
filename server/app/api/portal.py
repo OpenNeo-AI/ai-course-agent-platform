@@ -20,19 +20,129 @@ from ..core.ontology.graph import build_graph, derive_all, derive_links, object_
 router = APIRouter(prefix="/api/portal", tags=["portal"])
 
 
-def _auth(request: Request) -> None:
-    """双认:静态 portal token(兼容存量) 或 平台超管 JWT(SaaS 用户体系)。"""
+def _principal(request: Request) -> dict:
+    """身份解析:超管(静态 portal token / superadmin 账户)或租户管理员。
+    返回 {super: bool, tenant_id: int|None, username: str}。
+    统一工作台的作用域基础:租户仅见/仅能操作本租户的知识域与会话。"""
     from ..core import auth as core_auth
     authh = request.headers.get("authorization", "")
     token = authh[7:].strip() if authh.lower().startswith("bearer ") else ""
     if not token:
-        raise HTTPException(status_code=401, detail="未授权:令牌错误或缺失")
+        raise HTTPException(status_code=401, detail="未授权:令牌缺失")
     if token == config.portal_token():
-        return
+        return {"super": True, "tenant_id": None, "username": "portal"}
     payload = core_auth.decode_token(token)
-    if payload and payload.get("role") == "superadmin":
+    if not payload:
+        raise HTTPException(status_code=401, detail="未授权:令牌无效或已过期")
+    with get_db() as db:
+        row = db.execute("SELECT * FROM users WHERE id=?", (payload.get("sub"),)).fetchone()
+    if not row:
+        raise HTTPException(status_code=401, detail="未授权:用户不存在")
+    if row["role"] == "superadmin":
+        return {"super": True, "tenant_id": None, "username": row["username"]}
+    if not row["tenant_id"]:
+        raise HTTPException(status_code=403, detail="用户未归属租户")
+    return {"super": False, "tenant_id": row["tenant_id"], "username": row["username"]}
+
+
+def _auth(request: Request) -> None:
+    _principal(request)
+
+
+def _require_super(request: Request) -> dict:
+    p = _principal(request)
+    if not p["super"]:
+        raise HTTPException(status_code=403, detail="需要平台超管权限")
+    return p
+
+
+# ---------- 租户作用域辅助 ----------
+
+def _tenant_domain_ids(db, tenant_id: int) -> list[int]:
+    return [r["id"] for r in db.execute(
+        "SELECT id FROM domains WHERE tenant_id=?", (tenant_id,))]
+
+
+def _tenant_kb_ids(db, tenant_id: int) -> list[int]:
+    return [r["id"] for r in db.execute(
+        "SELECT k.id FROM kbs k JOIN domains d ON d.id=k.domain_id WHERE d.tenant_id=?",
+        (tenant_id,))]
+
+
+def _check_domain(db, p: dict, dom_id: int) -> None:
+    if p["super"]:
         return
-    raise HTTPException(status_code=401, detail="未授权:令牌错误或缺失")
+    row = db.execute("SELECT tenant_id FROM domains WHERE id=?", (dom_id,)).fetchone()
+    if not row or row["tenant_id"] != p["tenant_id"]:
+        raise HTTPException(status_code=403, detail="无权操作该知识域")
+
+
+def _check_kb(db, p: dict, kb_id: int) -> None:
+    if p["super"]:
+        return
+    row = db.execute(
+        "SELECT d.tenant_id AS t FROM kbs k JOIN domains d ON d.id=k.domain_id WHERE k.id=?",
+        (kb_id,)).fetchone()
+    if not row or row["t"] != p["tenant_id"]:
+        raise HTTPException(status_code=403, detail="无权操作该知识库")
+
+
+def _check_session_owner(db, p: dict, sid: str) -> None:
+    row = db.execute("SELECT tenant_id FROM sessions WHERE id=?", (sid,)).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="会话不存在")
+    if not p["super"] and row["tenant_id"] != p["tenant_id"]:
+        raise HTTPException(status_code=403, detail="无权查看该会话")
+
+
+def _check_entity_owner(db, p: dict, eid: int) -> None:
+    if p["super"]:
+        return
+    row = db.execute(
+        "SELECT dom.tenant_id AS t FROM entities e JOIN documents d ON d.id=e.doc_id "
+        "JOIN kbs k ON k.id=d.kb_id JOIN domains dom ON dom.id=k.domain_id WHERE e.id=?",
+        (eid,)).fetchone()
+    if not row or row["t"] != p["tenant_id"]:
+        raise HTTPException(status_code=403, detail="无权操作该对象")
+
+
+def _check_rule_owner(db, p: dict, rid: int) -> None:
+    if p["super"]:
+        return
+    row = db.execute(
+        "SELECT dom.tenant_id AS t FROM rules r JOIN documents d ON d.id=r.doc_id "
+        "JOIN kbs k ON k.id=d.kb_id JOIN domains dom ON dom.id=k.domain_id WHERE r.id=?",
+        (rid,)).fetchone()
+    if not row or row["t"] != p["tenant_id"]:
+        raise HTTPException(status_code=403, detail="无权操作该规则")
+
+
+def _tenant_features(db, p: dict) -> dict:
+    """租户当前套餐功能位(超管返回空 dict)。"""
+    if p["super"]:
+        return {}
+    from ..core.tenancy import subscription_of
+    return json.loads(subscription_of(db, p["tenant_id"]).get("features_json") or "{}")
+
+
+def _require_active_sub(db, p: dict) -> None:
+    """租户须已开通订阅(支付生效)才可使用业务功能。"""
+    if p["super"]:
+        return
+    from ..core.tenancy import is_active
+    if not is_active(db, p["tenant_id"]):
+        raise HTTPException(status_code=402,
+                            detail="服务未开通:请先在工作台「套餐订阅」中选购套餐并完成支付")
+
+
+def _require_feature(db, p: dict, feature: str, label: str) -> None:
+    """旗舰版功能门禁(标准版调用返回 402 引导升级)。"""
+    _require_active_sub(db, p)
+    if p["super"]:
+        return
+    if not _tenant_features(db, p).get(feature):
+        raise HTTPException(status_code=402,
+                            detail=f"「{label}」为旗舰版功能,请先升级套餐")
 
 
 # ---------- 登录 ----------
@@ -59,14 +169,16 @@ async def login(request: Request):
 # ---------- 智能体对接配置(agents.yaml) ----------
 
 @router.get("/agents", dependencies=[Depends(_auth)])
-def get_agents():
+def get_agents(request: Request):
+    _require_super(request)
     return config.agents_config()
 
 
 @router.put("/agents", dependencies=[Depends(_auth)])
 async def put_agents(request: Request):
-    """按角色合并更新对接配置并重写 agents.yaml(热加载生效)。
+    """按角色合并更新对接配置并重写 agents.yaml(热加载生效)。平台超管。
     请求体:{"student": {"identity": "student", "domains": ["domain-a"]}, ...}"""
+    _require_super(request)
     body = await request.json() or {}
     cfg = config.agents_config()
     for role, val in body.items():
@@ -103,13 +215,18 @@ async def put_agents(request: Request):
 # ---------- 知识域管理 ----------
 
 @router.get("/domains", dependencies=[Depends(_auth)])
-def get_domains():
+def get_domains(request: Request):
+    p = _principal(request)
     with get_db() as db:
-        return list_domains(db)
+        rows = list_domains(db)
+    if not p["super"]:
+        rows = [d for d in rows if d.get("tenant_id") == p["tenant_id"]]
+    return rows
 
 
 @router.post("/domains", dependencies=[Depends(_auth)])
 async def create_domain(request: Request):
+    p = _principal(request)
     body = await request.json() or {}
     name = body.get("name", "").strip()
     if not name:
@@ -120,13 +237,14 @@ async def create_domain(request: Request):
         while db.execute("SELECT 1 FROM domains WHERE code=?", (code,)).fetchone():
             code = f"domain-{secrets.token_hex(3)}"
         cur = db.execute(
-            "INSERT INTO domains(code, name, description) VALUES(?,?,?)",
-            (code, name, body.get("description", "")))
+            "INSERT INTO domains(code, name, description, tenant_id) VALUES(?,?,?,?)",
+            (code, name, body.get("description", ""), p["tenant_id"]))
     return {"ok": True, "id": cur.lastrowid, "code": code}
 
 
 @router.put("/domains/{dom_id}", dependencies=[Depends(_auth)])
 async def update_domain(dom_id: int, request: Request):
+    p = _principal(request)
     body = await request.json() or {}
     fields, args = [], []
     for k in ("name", "description"):
@@ -138,6 +256,7 @@ async def update_domain(dom_id: int, request: Request):
         raise HTTPException(status_code=400, detail="无可更新字段")
     args.append(dom_id)
     with get_db() as db:
+        _check_domain(db, p, dom_id)
         cur = db.execute(f"UPDATE domains SET {', '.join(fields)} WHERE id=?", args)
         if not cur.rowcount:
             raise HTTPException(status_code=404, detail="知识域不存在")
@@ -145,11 +264,13 @@ async def update_domain(dom_id: int, request: Request):
 
 
 @router.delete("/domains/{dom_id}", dependencies=[Depends(_auth)])
-def delete_domain(dom_id: int):
+def delete_domain(dom_id: int, request: Request):
+    p = _principal(request)
     with get_db() as db:
         dom = db.execute("SELECT * FROM domains WHERE id=?", (dom_id,)).fetchone()
         if not dom:
             raise HTTPException(status_code=404, detail="知识域不存在")
+        _check_domain(db, p, dom_id)
         for kb in db.execute("SELECT id FROM kbs WHERE domain_id=?", (dom_id,)).fetchall():
             for d in db.execute("SELECT id FROM documents WHERE kb_id=?", (kb["id"],)).fetchall():
                 clear_document_knowledge(db, d["id"])
@@ -166,13 +287,19 @@ def delete_domain(dom_id: int):
 # ---------- 知识库管理 ----------
 
 @router.get("/kbs", dependencies=[Depends(_auth)])
-def get_kbs(domain_id: int = 0):
+def get_kbs(request: Request, domain_id: int = 0):
+    p = _principal(request)
     with get_db() as db:
-        return list_kbs(db, domain_id or None)
+        rows = list_kbs(db, domain_id or None)
+    if not p["super"]:
+        dom_ids = set(_tenant_domain_ids(db, p["tenant_id"]))
+        rows = [k for k in rows if k.get("domain_id") in dom_ids]
+    return rows
 
 
 @router.post("/kbs", dependencies=[Depends(_auth)])
 async def create_kb(request: Request):
+    p = _principal(request)
     body = await request.json() or {}
     name = body.get("name", "").strip()
     if not name:
@@ -185,6 +312,7 @@ async def create_kb(request: Request):
         dom = db.execute("SELECT * FROM domains WHERE id=?", (domain_id,)).fetchone()
         if not dom:
             raise HTTPException(status_code=404, detail="知识域不存在")
+        _check_domain(db, p, domain_id)
         code = body.get("code", "").strip()
         if not code:
             code = f"kb-{secrets.token_hex(3)}"
@@ -201,6 +329,7 @@ async def create_kb(request: Request):
 
 @router.put("/kbs/{kb_id}", dependencies=[Depends(_auth)])
 async def update_kb(kb_id: int, request: Request):
+    p = _principal(request)
     body = await request.json() or {}
     fields, args = [], []
     for k in ("name", "description"):
@@ -211,6 +340,8 @@ async def update_kb(kb_id: int, request: Request):
         with get_db() as db0:
             dom = db0.execute("SELECT * FROM domains WHERE id=?",
                               (body["domain_id"],)).fetchone()
+            if dom:
+                _check_domain(db0, p, body["domain_id"])
         if not dom:
             raise HTTPException(status_code=404, detail="目标知识域不存在")
         fields.append("domain_id=?")
@@ -219,6 +350,7 @@ async def update_kb(kb_id: int, request: Request):
         raise HTTPException(status_code=400, detail="无可更新字段")
     args.append(kb_id)
     with get_db() as db:
+        _check_kb(db, p, kb_id)
         cur = db.execute(f"UPDATE kbs SET {', '.join(fields)} WHERE id=?", args)
         if not cur.rowcount:
             raise HTTPException(status_code=404, detail="知识库不存在")
@@ -226,8 +358,10 @@ async def update_kb(kb_id: int, request: Request):
 
 
 @router.delete("/kbs/{kb_id}", dependencies=[Depends(_auth)])
-def delete_kb(kb_id: int):
+def delete_kb(kb_id: int, request: Request):
+    p = _principal(request)
     with get_db() as db:
+        _check_kb(db, p, kb_id)
         docs = db.execute("SELECT id FROM documents WHERE kb_id=?", (kb_id,)).fetchall()
         for d in docs:
             clear_document_knowledge(db, d["id"])
@@ -244,7 +378,8 @@ def delete_kb(kb_id: int):
 # ---------- 文档管理 ----------
 
 @router.get("/documents", dependencies=[Depends(_auth)])
-def list_documents(kb_id: int = 0):
+def list_documents(request: Request, kb_id: int = 0):
+    p = _principal(request)
     sql = ("SELECT d.id, k.name AS kb_name, d.kb_id, "
            "d.filename, d.title, d.status, d.uploaded_at, "
            "(SELECT COUNT(*) FROM knowledge_chunks c WHERE c.doc_id=d.id) AS chunks, "
@@ -256,19 +391,30 @@ def list_documents(kb_id: int = 0):
         args.append(kb_id)
     sql += " ORDER BY d.id"
     with get_db() as db:
-        return [dict(r) for r in db.execute(sql, args).fetchall()]
+        rows = [dict(r) for r in db.execute(sql, args).fetchall()]
+    if not p["super"]:
+        kb_ids = set(_tenant_kb_ids(db, p["tenant_id"]))
+        rows = [r for r in rows if r["kb_id"] in kb_ids]
+    return rows
 
 
 @router.post("/documents", dependencies=[Depends(_auth)])
-async def upload_document(file: UploadFile = File(...), kb_id: int = Form(...),
-                          title: str = Form("")):
+async def upload_document(request: Request, file: UploadFile = File(...),
+                          kb_id: int = Form(...), title: str = Form("")):
     """上传知识文档(.txt/.docx/.doc/.pdf)→ 解析 → 切块向量化 → ontology 抽取。
-    归属知识库由 kb_id 指定(文档经 知识库→知识域 归属);同名文件自动重建。"""
+    归属知识库由 kb_id 指定(文档经 知识库→知识域 归属);同名文件自动重建。
+    租户上传受专业版 rag_manage 门禁(免费版 402 引导升级)。"""
     from ..core.ingest.parse import parse_upload
+    p = _principal(request)
     with get_db() as db:
         kb = db.execute("SELECT * FROM kbs WHERE id=?", (kb_id,)).fetchone()
-    if not kb:
-        raise HTTPException(status_code=404, detail="知识库不存在")
+        if not kb:
+            raise HTTPException(status_code=404, detail="知识库不存在")
+        _check_kb(db, p, kb_id)
+        _require_active_sub(db, p)
+        if not p["super"] and not _tenant_features(db, p).get("rag_manage"):
+            raise HTTPException(status_code=402,
+                                detail="课程资料管理需要订阅套餐,请先开通")
     raw = await file.read()
     try:
         text = parse_upload(file.filename, raw)
@@ -282,8 +428,21 @@ async def upload_document(file: UploadFile = File(...), kb_id: int = Form(...),
 
 
 @router.delete("/documents/{doc_id}", dependencies=[Depends(_auth)])
-def delete_document(doc_id: int):
+def delete_document(doc_id: int, request: Request):
+    p = _principal(request)
     with get_db() as db:
+        row = db.execute(
+            "SELECT dom.tenant_id AS t FROM documents d JOIN kbs k ON k.id=d.kb_id "
+            "JOIN domains dom ON dom.id=k.domain_id WHERE d.id=?", (doc_id,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="文档不存在")
+        if not p["super"]:
+            if row["t"] != p["tenant_id"]:
+                raise HTTPException(status_code=403, detail="无权操作该文档")
+            _require_active_sub(db, p)
+            if not _tenant_features(db, p).get("rag_manage"):
+                raise HTTPException(status_code=402,
+                                    detail="课程资料管理需要订阅套餐,请先开通")
         clear_document_knowledge(db, doc_id)
         db.execute("DELETE FROM relations WHERE doc_id=?", (doc_id,))
         db.execute("DELETE FROM entities WHERE doc_id=?", (doc_id,))
@@ -295,13 +454,18 @@ def delete_document(doc_id: int):
 # ---------- 本体浏览与维护 ----------
 
 @router.get("/entities", dependencies=[Depends(_auth)])
-def list_entities(domain: str = "", type: str = "", status: str = ""):
+def list_entities(request: Request, domain: str = "", type: str = "", status: str = ""):
+    p = _principal(request)
     with get_db() as db:
+        _require_feature(db, p, "ontology", "本体图谱")
         sql = ("SELECT e.id, dm.code AS domain_code, dm.name AS domain_name, "
                "e.type, e.name, e.attrs_json, e.chapter, e.status, e.raw_excerpt, d.filename "
                "FROM entities e JOIN documents d ON d.id=e.doc_id "
                "JOIN kbs k ON k.id=d.kb_id JOIN domains dm ON dm.id=k.domain_id WHERE 1=1")
         args: list = []
+        if not p["super"]:
+            sql += " AND dm.tenant_id=?"
+            args.append(p["tenant_id"])
         if domain:
             sql += " AND dm.code=?"
             args.append(domain)
@@ -317,13 +481,18 @@ def list_entities(domain: str = "", type: str = "", status: str = ""):
 
 
 @router.get("/rules", dependencies=[Depends(_auth)])
-def list_rules(domain: str = "", kind: str = ""):
+def list_rules(request: Request, domain: str = "", kind: str = ""):
+    p = _principal(request)
     with get_db() as db:
+        _require_feature(db, p, "ontology", "本体图谱")
         sql = ("SELECT r.id, dm.code AS domain_code, dm.name AS domain_name, "
                "r.kind, r.scope_json, r.params_json, r.chapter, r.status, r.raw_excerpt, d.filename "
                "FROM rules r JOIN documents d ON d.id=r.doc_id "
                "JOIN kbs k ON k.id=d.kb_id JOIN domains dm ON dm.id=k.domain_id WHERE 1=1")
         args: list = []
+        if not p["super"]:
+            sql += " AND dm.tenant_id=?"
+            args.append(p["tenant_id"])
         if domain:
             sql += " AND dm.code=?"
             args.append(domain)
@@ -338,13 +507,19 @@ def list_rules(domain: str = "", kind: str = ""):
 
 
 @router.get("/relations", dependencies=[Depends(_auth)])
-def list_relations(domain: str = ""):
+def list_relations(request: Request, domain: str = ""):
+    p = _principal(request)
+    with get_db() as db0:
+        _require_feature(db0, p, "ontology", "本体图谱")
     sql = ("SELECT rel.id, dm.code AS domain_code, s.name AS src, rel.rel, t.name AS dst, rel.chapter "
            "FROM relations rel "
            "JOIN entities s ON s.id=rel.src_id JOIN entities t ON t.id=rel.dst_id "
            "JOIN documents d ON d.id=s.doc_id JOIN kbs k ON k.id=d.kb_id "
            "JOIN domains dm ON dm.id=k.domain_id WHERE 1=1")
     args: list = []
+    if not p["super"]:
+        sql += " AND dm.tenant_id=?"
+        args.append(p["tenant_id"])
     if domain:
         sql += " AND dm.code=?"
         args.append(domain)
@@ -354,8 +529,10 @@ def list_relations(domain: str = ""):
 
 
 @router.post("/entities/{eid}/confirm", dependencies=[Depends(_auth)])
-def confirm_entity(eid: int):
+def confirm_entity(eid: int, request: Request):
+    p = _principal(request)
     with get_db() as db:
+        _check_entity_owner(db, p, eid)
         cur = db.execute("UPDATE entities SET status='confirmed' WHERE id=?", (eid,))
         if not cur.rowcount:
             raise HTTPException(status_code=404, detail="实体不存在")
@@ -366,6 +543,7 @@ def confirm_entity(eid: int):
 
 @router.put("/entities/{eid}", dependencies=[Depends(_auth)])
 async def update_entity(eid: int, request: Request):
+    p = _principal(request)
     body = await request.json()
     attrs = (body or {}).get("attrs")
     name = (body or {}).get("name")
@@ -375,6 +553,7 @@ async def update_entity(eid: int, request: Request):
         row = db.execute("SELECT id FROM entities WHERE id=?", (eid,)).fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="实体不存在")
+        _check_entity_owner(db, p, eid)
         if name:
             db.execute("UPDATE entities SET name=?, attrs_json=?, status='edited' WHERE id=?",
                        (name, json.dumps(attrs, ensure_ascii=False), eid))
@@ -387,11 +566,13 @@ async def update_entity(eid: int, request: Request):
 
 @router.put("/rules/{rid}", dependencies=[Depends(_auth)])
 async def update_rule(rid: int, request: Request):
+    p = _principal(request)
     body = await request.json()
     params = (body or {}).get("params")
     if params is None:
         raise HTTPException(status_code=400, detail="缺少 params")
     with get_db() as db:
+        _check_rule_owner(db, p, rid)
         cur = db.execute("UPDATE rules SET params_json=?, status='edited' WHERE id=?",
                          (json.dumps(params, ensure_ascii=False), rid))
         if not cur.rowcount:
@@ -408,19 +589,42 @@ def get_ontology_schema():
 
 
 @router.get("/ontology/graph", dependencies=[Depends(_auth)])
-def ontology_graph(domain: str = "", types: str = "", q: str = ""):
+def ontology_graph(request: Request, domain: str = "", types: str = "", q: str = ""):
+    p = _principal(request)
+    type_list = [t for t in types.split(",") if t] if types else None
     with get_db() as db:
-        return build_graph(db, domain or None,
-                           [t for t in types.split(",") if t] if types else None,
-                           q or None)
+        _require_feature(db, p, "ontology", "本体图谱")
+        if p["super"]:
+            return build_graph(db, domain or None, type_list, q or None)
+        codes = [r["code"] for r in db.execute(
+            "SELECT code FROM domains WHERE tenant_id=?", (p["tenant_id"],))]
+        if domain and domain not in codes:
+            raise HTTPException(status_code=403, detail="无权查看该知识域图谱")
+        if domain:
+            return build_graph(db, domain, type_list, q or None)
+        # 未指定知识域:合并本租户全部知识域
+        merged = {"nodes": {}, "edges": [], "stats": {}}
+        for c in codes:
+            g = build_graph(db, c, type_list, q or None)
+            merged["nodes"].update(g.get("nodes") or {})
+            merged["edges"].extend(g.get("edges") or [])
+            for k, v in (g.get("stats") or {}).items():
+                merged["stats"][k] = merged["stats"].get(k, 0) + v if isinstance(v, int) else v
+        return merged
 
 
 @router.get("/ontology/objects/{node_id}", dependencies=[Depends(_auth)])
-def ontology_object(node_id: str):
+def ontology_object(node_id: str, request: Request):
+    p = _principal(request)
     with get_db() as db:
+        _require_feature(db, p, "ontology", "本体图谱")
         obj = object_detail(db, node_id)
-    if not obj:
-        raise HTTPException(status_code=404, detail="对象不存在")
+        if not obj:
+            raise HTTPException(status_code=404, detail="对象不存在")
+        if not p["super"]:
+            dom_id = _node_domain(db, node_id)
+            if dom_id:
+                _check_domain(db, p, dom_id)
     return obj
 
 
@@ -448,6 +652,7 @@ def _node_domain(db, node_id: str) -> int | None:
 @router.post("/ontology/links", dependencies=[Depends(_auth)])
 async def add_link(request: Request):
     """人工创建类型化链接(rel 必须是 Schema 中的链接类型代码)。"""
+    p = _principal(request)
     body = await request.json() or {}
     src, dst, rel = body.get("src_node", ""), body.get("dst_node", ""), body.get("rel", "")
     if not (src and dst and rel):
@@ -457,10 +662,13 @@ async def add_link(request: Request):
         raise HTTPException(status_code=400,
                             detail=f"未知链接类型 {rel},可选:{'、'.join(link_types)}")
     with get_db() as db:
+        _require_feature(db, p, "ontology", "本体图谱")
         for nid in (src, dst):
             if object_detail(db, nid) is None:
                 raise HTTPException(status_code=404, detail=f"节点不存在: {nid}")
         dom_id = _node_domain(db, src) or _node_domain(db, dst)
+        if dom_id:
+            _check_domain(db, p, dom_id)
         cur = db.execute(
             "INSERT INTO edges(src_node, dst_node, rel, origin, domain_id, note) "
             "VALUES(?,?,?, 'manual',?,?)",
@@ -470,13 +678,17 @@ async def add_link(request: Request):
 
 
 @router.delete("/ontology/links/{edge_id}", dependencies=[Depends(_auth)])
-def delete_link(edge_id: str):
+def delete_link(edge_id: str, request: Request):
+    p = _principal(request)
     with get_db() as db:
+        _require_feature(db, p, "ontology", "本体图谱")
         if edge_id.startswith("edg") and edge_id[3:].isdigit():
-            row = db.execute("SELECT src_node, rel, dst_node FROM edges WHERE id=?",
+            row = db.execute("SELECT src_node, rel, dst_node, domain_id FROM edges WHERE id=?",
                              (int(edge_id[3:]),)).fetchone()
             if not row:
                 raise HTTPException(status_code=404, detail="链接不存在")
+            if row["domain_id"]:
+                _check_domain(db, p, row["domain_id"])
             db.execute("DELETE FROM edges WHERE id=?", (int(edge_id[3:]),))
             log_action(db, "remove_link", f"{row['src_node']} —{row['rel']}→ {row['dst_node']}", edge_id)
         elif edge_id.startswith("rel") and edge_id[3:].isdigit():
@@ -484,6 +696,7 @@ def delete_link(edge_id: str):
                              (int(edge_id[3:]),)).fetchone()
             if not row:
                 raise HTTPException(status_code=404, detail="链接不存在")
+            _check_entity_owner(db, p, row["src_id"])
             db.execute("DELETE FROM relations WHERE id=?", (int(edge_id[3:]),))
             log_action(db, "remove_link", f"e{row['src_id']} —{row['rel']}→ e{row['dst_id']}",
                        edge_id + "(抽取链接,重新抽取会恢复)")
@@ -493,16 +706,23 @@ def delete_link(edge_id: str):
 
 
 @router.post("/ontology/derive", dependencies=[Depends(_auth)])
-def rederive():
-    """重算全部派生链接(归属/溯源/前置/变体/规则)。"""
+def rederive(request: Request):
+    """重算派生链接(归属/溯源/前置/变体/规则);租户仅重算本租户知识域。"""
+    p = _principal(request)
     with get_db() as db:
-        counts = derive_all(db)
+        _require_feature(db, p, "ontology", "本体图谱")
+        if p["super"]:
+            counts = derive_all(db)
+        else:
+            counts = {did: derive_links(db, did)
+                      for did in _tenant_domain_ids(db, p["tenant_id"])}
         log_action(db, "derive_links", json.dumps(counts, ensure_ascii=False))
     return {"ok": True, "counts": counts}
 
 
 @router.get("/actions", dependencies=[Depends(_auth)])
-def list_actions(limit: int = 30):
+def list_actions(request: Request, limit: int = 30):
+    _require_super(request)
     with get_db() as db:
         rows = db.execute("SELECT * FROM actions_log ORDER BY id DESC LIMIT ?",
                           (limit,)).fetchall()
@@ -519,7 +739,8 @@ def _config_path(name: str) -> Path:
 
 
 @router.get("/config", dependencies=[Depends(_auth)])
-def list_config_files():
+def list_config_files(request: Request):
+    _require_super(request)
     files = []
     for p in sorted(config.CONFIG_DIR.rglob("*")):
         if p.is_file() and p.suffix in (".yaml", ".md", ".json"):
@@ -528,7 +749,8 @@ def list_config_files():
 
 
 @router.get("/config/{name:path}", dependencies=[Depends(_auth)])
-def read_config_file(name: str):
+def read_config_file(name: str, request: Request):
+    _require_super(request)
     p = _config_path(name)
     if not p.is_file():
         raise HTTPException(status_code=404, detail="文件不存在")
@@ -537,6 +759,7 @@ def read_config_file(name: str):
 
 @router.put("/config/{name:path}", dependencies=[Depends(_auth)])
 async def write_config_file(name: str, request: Request):
+    _require_super(request)
     body = await request.json()
     content = (body or {}).get("content")
     if content is None:
@@ -556,15 +779,17 @@ _LLM_EDITABLE = ("base_url", "api_key", "chat_model", "chat_models",
 
 
 @router.get("/llm", dependencies=[Depends(_auth)])
-def get_llm_config():
-    """读取生效的 LLM 配置(默认值 + 环境变量 + llm.yaml 合并后,仅返回可编辑字段)。"""
+def get_llm_config(request: Request):
+    """读取生效的 LLM 配置(平台超管)。"""
+    _require_super(request)
     cfg = config.llm_config()
     return {k: cfg.get(k) for k in _LLM_EDITABLE}
 
 
 @router.put("/llm", dependencies=[Depends(_auth)])
 async def put_llm_config(request: Request):
-    """更新 llm.yaml(仅白名单字段;热加载即时生效)。密钥仍只走环境变量。"""
+    """更新 llm.yaml(平台超管;白名单字段,热加载即时生效)。密钥仍只走环境变量。"""
+    _require_super(request)
     body = await request.json() or {}
     patch = {k: body[k] for k in _LLM_EDITABLE if k in body}
     if not patch:
@@ -583,8 +808,11 @@ async def put_llm_config(request: Request):
 # ---------- 会话与消息 ----------
 
 @router.get("/sessions", dependencies=[Depends(_auth)])
-def list_sessions(limit: int = 50, date_from: str = "", date_to: str = ""):
-    """会话列表,支持按更新时间范围筛选(date_from/date_to,YYYY-MM-DD)。"""
+def list_sessions(request: Request, limit: int = 50, date_from: str = "", date_to: str = ""):
+    """会话列表,支持按更新时间范围筛选(date_from/date_to,YYYY-MM-DD)。租户仅见本租户会话。"""
+    p = _principal(request)
+    with get_db() as db0:
+        _require_feature(db0, p, "sessions", "对话记录")
     sql = ("SELECT s.id, s.role, s.tenant_id, s.state_json, s.created_at, s.updated_at, "
            "(SELECT COUNT(*) FROM messages g WHERE g.session_id=s.id) AS msgs, "
            "(SELECT t.name FROM tenants t WHERE t.id=s.tenant_id) AS tenant_name, "
@@ -593,6 +821,9 @@ def list_sessions(limit: int = 50, date_from: str = "", date_to: str = ""):
            "FROM sessions s")
     args: list = []
     conds = []
+    if not p["super"]:
+        conds.append("s.tenant_id=?")
+        args.append(p["tenant_id"])
     if date_from:
         conds.append("s.updated_at >= ?")
         args.append(date_from + " 00:00:00")
@@ -609,10 +840,13 @@ def list_sessions(limit: int = 50, date_from: str = "", date_to: str = ""):
 
 
 @router.get("/sessions/{sid}/messages", dependencies=[Depends(_auth)])
-def session_messages(sid: str):
-    """消息明细:内容脱敏(手机号/邮箱/身份证号打码)。"""
+def session_messages(sid: str, request: Request):
+    """消息明细:内容脱敏(手机号/邮箱/身份证号打码);租户仅可见本租户会话。"""
     from ..core.tenancy import mask_text
+    p = _principal(request)
     with get_db() as db:
+        _require_feature(db, p, "sessions", "对话记录")
+        _check_session_owner(db, p, sid)
         rows = db.execute(
             "SELECT role, content, tool_calls_json, created_at FROM messages "
             "WHERE session_id=? ORDER BY id", (sid,)).fetchall()
@@ -623,8 +857,9 @@ def session_messages(sid: str):
 # ---------- 租户与平台看板(SaaS) ----------
 
 @router.get("/tenants", dependencies=[Depends(_auth)])
-def list_tenants():
-    """租户列表:套餐、用户数、会话数、当月用量。"""
+def list_tenants(request: Request):
+    """租户列表:套餐、用户数、会话数、当月用量(平台超管经营视图)。"""
+    _require_super(request)
     with get_db() as db:
         rows = db.execute(
             "SELECT t.id, t.slug, t.name, t.created_at, "
@@ -640,8 +875,9 @@ def list_tenants():
 
 
 @router.get("/dashboard", dependencies=[Depends(_auth)])
-def dashboard():
+def dashboard(request: Request):
     """平台级看板:租户数/用户数/对话数总量 + 近14日会话趋势 + 租户对话排行。"""
+    _require_super(request)
     from datetime import datetime, timedelta, timezone
     cst = timezone(timedelta(hours=8))
     today = datetime.now(cst).date()
@@ -672,12 +908,27 @@ _UNANSWERED_MARKS = ("无法确认", "不在我的参考", "不在本通道", "�
 
 
 @router.get("/analytics", dependencies=[Depends(_auth)])
-def get_analytics(role: str = ""):
-    """智能体运营指标:概览/各智能体/趋势/高频问题/未答问题/推荐分布。可按智能体筛选。"""
+def get_analytics(request: Request, role: str = ""):
+    """运营指标端点:超管看全量(可按智能体筛选),租户收敛到本租户会话。"""
+    p = _principal(request)
+    if p["super"]:
+        return _analytics_data(role)
+    with get_db() as db0:
+        _require_feature(db0, p, "analytics", "运营分析")
+    return _analytics_data("", tenant_id=p["tenant_id"])
+
+
+def _analytics_data(role: str = "", tenant_id: int | None = None):
+    """智能体运营指标:概览/各智能体/趋势/高频问题/未答问题/推荐分布。
+    可按智能体筛选;tenant_id 指定时收敛到该租户会话。"""
     with get_db() as db:
         rc = [role] if role else []
         srf = "WHERE s.role=?" if role else ""
         mrf = "AND s.role=?" if role else ""
+        if tenant_id:
+            srf = "WHERE s.tenant_id=?" + (" AND s.role=?" if role else "")
+            mrf = "AND s.tenant_id=?" + (" AND s.role=?" if role else "")
+            rc = [tenant_id, role] if role else [tenant_id]
         total_sessions = db.execute(f"SELECT COUNT(*) FROM sessions s {srf}", rc).fetchone()[0]
         total_questions = db.execute(
             "SELECT COUNT(*) FROM messages m JOIN sessions s ON s.id=m.session_id "
@@ -731,7 +982,8 @@ def get_analytics(role: str = ""):
 
 
 @router.get("/analytics/insight", dependencies=[Depends(_auth)])
-def get_insight(role: str = ""):
+def get_insight(request: Request, role: str = ""):
+    _require_super(request)
     scope = role or "all"
     with get_db() as db:
         row = db.execute(
@@ -742,10 +994,11 @@ def get_insight(role: str = ""):
 
 @router.post("/analytics/insight", dependencies=[Depends(_auth)])
 async def gen_insight(request: Request):
-    """把运营指标喂给 LLM 生成运营洞察并落库。"""
+    """把运营指标喂给 LLM 生成运营洞察并落库(平台超管)。"""
+    _require_super(request)
     body = await request.json() or {}
     role = body.get("role", "")
-    data = get_analytics(role)
+    data = _analytics_data(role)
     prompt = config.get_prompt("insight") or "基于运营统计数据给出简洁可执行的运营洞察。"
     try:
         content = (llm.chat([
@@ -765,39 +1018,55 @@ async def gen_insight(request: Request):
 # ---------- 对话质检 ----------
 
 @router.get("/quality", dependencies=[Depends(_auth)])
-def list_quality(session_id: str = "", role: str = ""):
+def list_quality(request: Request, session_id: str = "", role: str = ""):
+    p = _principal(request)
     with get_db() as db:
-        sql = ("SELECT id, session_id, agent_role, score, accuracy, compliance, experience, "
-               "issues_json, comment, created_at FROM quality_checks WHERE 1=1")
+        _require_feature(db, p, "sessions", "对话记录")
+        sql = ("SELECT qc.id, qc.session_id, qc.agent_role, qc.score, qc.accuracy, "
+               "qc.compliance, qc.experience, qc.issues_json, qc.comment, qc.created_at "
+               "FROM quality_checks qc JOIN sessions s ON s.id=qc.session_id WHERE 1=1")
         args: list = []
+        if not p["super"]:
+            sql += " AND s.tenant_id=?"
+            args.append(p["tenant_id"])
         if session_id:
-            sql += " AND session_id=?"
+            sql += " AND qc.session_id=?"
             args.append(session_id)
         if role:
-            sql += " AND agent_role=?"
+            sql += " AND qc.agent_role=?"
             args.append(role)
-        sql += " ORDER BY id DESC LIMIT 200"
+        sql += " ORDER BY qc.id DESC LIMIT 200"
         rows = db.execute(sql, args).fetchall()
     return [{**dict(r), "issues": json.loads(r["issues_json"] or "[]")} for r in rows]
 
 
 @router.post("/quality/{session_id}", dependencies=[Depends(_auth)])
-def quality_one(session_id: str):
+def quality_one(session_id: str, request: Request):
+    p = _principal(request)
     with get_db() as db:
+        _require_feature(db, p, "sessions", "对话记录")
+        _check_session_owner(db, p, session_id)
         return quality.check_session(db, session_id)
 
 
 @router.post("/quality/batch", dependencies=[Depends(_auth)])
 async def quality_batch(request: Request):
-    """批量质检未质检的会话(默认最近 10 个有用户提问的会话)。"""
+    """批量质检未质检的会话(默认最近 10 个有用户提问的会话);租户仅检本租户会话。"""
+    p = _principal(request)
     body = await request.json() or {}
     limit = int(body.get("limit", 10))
     with get_db() as db:
-        rows = db.execute(
-            "SELECT s.id FROM sessions s WHERE s.id NOT IN "
-            "(SELECT session_id FROM quality_checks) "
-            "AND EXISTS (SELECT 1 FROM messages m WHERE m.session_id=s.id AND m.role='user') "
-            "ORDER BY s.updated_at DESC LIMIT ?", (limit,)).fetchall()
+        _require_feature(db, p, "sessions", "对话记录")
+        sql = ("SELECT s.id FROM sessions s WHERE s.id NOT IN "
+               "(SELECT session_id FROM quality_checks) "
+               "AND EXISTS (SELECT 1 FROM messages m WHERE m.session_id=s.id AND m.role='user') ")
+        args: list = []
+        if not p["super"]:
+            sql += " AND s.tenant_id=?"
+            args.append(p["tenant_id"])
+        sql += " ORDER BY s.updated_at DESC LIMIT ?"
+        args.append(limit)
+        rows = db.execute(sql, args).fetchall()
         sids = [r["id"] for r in rows]
     results = []
     for sid in sids:
@@ -812,23 +1081,31 @@ _LEAD_STATUS = ("pending", "followed", "converted", "invalid")
 
 
 @router.get("/leads", dependencies=[Depends(_auth)])
-def list_leads(status: str = "", role: str = ""):
+def list_leads(request: Request, status: str = "", role: str = ""):
+    p = _principal(request)
     with get_db() as db:
-        sql = "SELECT * FROM leads WHERE 1=1"
+        _require_feature(db, p, "leads", "线索转化")
+        sql = ("SELECT l.* FROM leads l JOIN sessions s ON s.id=l.session_id WHERE 1=1")
         args: list = []
+        if not p["super"]:
+            sql += " AND s.tenant_id=?"
+            args.append(p["tenant_id"])
         if status:
-            sql += " AND status=?"
+            sql += " AND l.status=?"
             args.append(status)
         if role:
-            sql += " AND agent_role=?"
+            sql += " AND l.agent_role=?"
             args.append(role)
-        sql += " ORDER BY id DESC LIMIT 200"
+        sql += " ORDER BY l.id DESC LIMIT 200"
         rows = db.execute(sql, args).fetchall()
     return [dict(r) for r in rows]
 
 
 @router.patch("/leads/{lead_id}", dependencies=[Depends(_auth)])
 async def update_lead(lead_id: int, request: Request):
+    p = _principal(request)
+    with get_db() as db0:
+        _require_feature(db0, p, "leads", "线索转化")
     body = await request.json() or {}
     sets: list[str] = []
     args: list = []
@@ -847,6 +1124,12 @@ async def update_lead(lead_id: int, request: Request):
         raise HTTPException(status_code=400, detail="无可更新字段")
     args.append(lead_id)
     with get_db() as db:
+        if not p["super"]:
+            own = db.execute(
+                "SELECT 1 FROM leads l JOIN sessions s ON s.id=l.session_id "
+                "WHERE l.id=? AND s.tenant_id=?", (lead_id, p["tenant_id"])).fetchone()
+            if not own:
+                raise HTTPException(status_code=404, detail="工单不存在")
         cur = db.execute(f"UPDATE leads SET {', '.join(sets)} WHERE id=?", args)
         if not cur.rowcount:
             raise HTTPException(status_code=404, detail="工单不存在")
@@ -862,7 +1145,8 @@ def _gen_channel_token() -> str:
 
 
 @router.get("/channels", dependencies=[Depends(_auth)])
-def list_channels():
+def list_channels(request: Request):
+    _require_super(request)
     with get_db() as db:
         rows = db.execute(
             "SELECT id, name, token, disabled, created_at, last_used_at "
@@ -872,6 +1156,7 @@ def list_channels():
 
 @router.post("/channels", dependencies=[Depends(_auth)])
 async def create_channel(request: Request):
+    _require_super(request)
     body = await request.json() or {}
     name = (body.get("name") or "").strip()
     if not name:
@@ -891,6 +1176,7 @@ async def create_channel(request: Request):
 
 @router.patch("/channels/{channel_id}", dependencies=[Depends(_auth)])
 async def update_channel(channel_id: int, request: Request):
+    _require_super(request)
     body = await request.json() or {}
     sets: list[str] = []
     args: list = []
@@ -913,9 +1199,65 @@ async def update_channel(channel_id: int, request: Request):
 
 
 @router.delete("/channels/{channel_id}", dependencies=[Depends(_auth)])
-def delete_channel(channel_id: int):
+def delete_channel(channel_id: int, request: Request):
+    _require_super(request)
     with get_db() as db:
         cur = db.execute("DELETE FROM channel_tokens WHERE id=?", (channel_id,))
         if not cur.rowcount:
             raise HTTPException(status_code=404, detail="渠道不存在")
     return {"ok": True}
+
+
+# ---------- 平台经营:套餐定价 / 订单管理(超管) ----------
+
+@router.get("/plans", dependencies=[Depends(_auth)])
+def admin_list_plans(request: Request):
+    """套餐列表(含当前订阅租户数),供「套餐定价」页维护。"""
+    _require_super(request)
+    with get_db() as db:
+        rows = db.execute(
+            "SELECT p.*, (SELECT COUNT(*) FROM subscriptions s "
+            " WHERE s.plan_code=p.code AND s.status='active') AS active_subs "
+            "FROM plans p ORDER BY p.price_monthly").fetchall()
+    return [{**dict(r), "features": json.loads(r["features_json"] or "{}")} for r in rows]
+
+
+@router.put("/plans/{code}", dependencies=[Depends(_auth)])
+async def admin_update_plan(code: str, request: Request):
+    """维护套餐展示名与价格(演示定价可在线调整)。"""
+    _require_super(request)
+    body = await request.json() or {}
+    fields, args = [], []
+    if "name" in body and (body["name"] or "").strip():
+        fields.append("name=?")
+        args.append(body["name"].strip())
+    if "price_monthly" in body:
+        try:
+            price = float(body["price_monthly"])
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="价格需为数字")
+        if price < 0:
+            raise HTTPException(status_code=400, detail="价格不能为负")
+        fields.append("price_monthly=?")
+        args.append(price)
+    if not fields:
+        raise HTTPException(status_code=400, detail="无可更新字段")
+    args.append(code)
+    with get_db() as db:
+        cur = db.execute(f"UPDATE plans SET {', '.join(fields)} WHERE code=?", args)
+        if not cur.rowcount:
+            raise HTTPException(status_code=404, detail="套餐不存在")
+        log_action(db, "edit_plan", code, json.dumps(body, ensure_ascii=False)[:120])
+    return {"ok": True}
+
+
+@router.get("/orders", dependencies=[Depends(_auth)])
+def admin_list_orders(request: Request, limit: int = 200):
+    """全部订单(含租户名称),供「订单管理」页核对支付流水。"""
+    _require_super(request)
+    with get_db() as db:
+        rows = db.execute(
+            "SELECT o.*, t.name AS tenant_name, t.slug AS tenant_slug "
+            "FROM payment_orders o JOIN tenants t ON t.id=o.tenant_id "
+            "ORDER BY o.id DESC LIMIT ?", (limit,)).fetchall()
+    return [dict(r) for r in rows]

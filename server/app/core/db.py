@@ -334,13 +334,18 @@ def _ensure_domains_kbs(db: sqlite3.Connection) -> None:
 
 # ---------- SaaS 迁移与种子(幂等) ----------
 
+# 套餐定义(A级测试单要求 ≥2 套餐;均为收费,注册后需选购开通):
+#   标准版 —— 知识域智能体功能(知识域/资料管理 + RAG 问答 + 班型推荐 Skill)
+#   旗舰版 —— 全部功能(+本体图谱/对话记录/线索转化/运营分析)
 SAAS_PLANS = [
-    ("free", "免费版", 0.0, 50,
-     '{"rag_manage": false, "dashboard": false, "skills": true,'
-     ' "desc": "每月 50 次 AI 对话,体验 RAG 问答与班型推荐"}'),
-    ("pro", "专业版", 99.0, -1,
-     '{"rag_manage": true, "dashboard": true, "skills": true,'
-     ' "desc": "无限对话 + RAG 知识库管理 + 课程资料管理 + 数据看板"}'),
+    ("standard", "标准版", 59.0, -1,
+     '{"rag_manage": true, "ontology": true, "sessions": false, "leads": false,'
+     ' "analytics": false, "skills": true,'
+     ' "desc": "知识域智能体:知识域/课程资料管理、本体知识、RAG 问答、班型推荐"}'),
+    ("flagship", "旗舰版", 199.0, -1,
+     '{"rag_manage": true, "ontology": true, "sessions": true, "leads": true,'
+     ' "analytics": true, "skills": true,'
+     ' "desc": "全部功能:标准版全部 + 对话记录 + 线索跟进 + 数据分析"}'),
 ]
 
 STARTER_DOC_TITLE = "平台使用指南"
@@ -363,12 +368,33 @@ def _migrate_saas(db: sqlite3.Connection) -> None:
             db.execute(f"ALTER TABLE {tbl} ADD COLUMN tenant_id INTEGER REFERENCES tenants(id)")
 
 
+def _migrate_saas_plans(db: sqlite3.Connection) -> None:
+    """套餐体系重构迁移:旧 free/pro 订阅映射到 standard/flagship,清理旧套餐定义;
+    并按 SAAS_PLANS 校正功能位(标准版纳入本体知识)。"""
+    codes = {r["code"] for r in db.execute("SELECT code FROM plans")}
+    if "free" in codes or "pro" in codes:
+        db.execute("UPDATE subscriptions SET plan_code='standard' WHERE plan_code='free'")
+        db.execute("UPDATE subscriptions SET plan_code='flagship' WHERE plan_code='pro'")
+        db.execute("DELETE FROM plans WHERE code IN ('free','pro')")
+    # 功能位校正:存量 standard 行若未含本体功能,按最新定义重写(价格不覆盖)
+    row = db.execute("SELECT features_json FROM plans WHERE code='standard'").fetchone()
+    if row and '"ontology": false' in (row["features_json"] or ""):
+        for code, _n, _p, _l, features in SAAS_PLANS:
+            db.execute("UPDATE plans SET features_json=? WHERE code=?", (features, code))
+    # status 列补充(旧行默认 active;新注册显式 unpaid)
+    sub_cols = {r[1] for r in db.execute("PRAGMA table_info(subscriptions)")}
+    if "status" not in sub_cols:
+        db.execute("ALTER TABLE subscriptions ADD COLUMN status TEXT DEFAULT 'active'")
+
+
 def _seed_saas(db: sqlite3.Connection) -> None:
     """种入套餐、平台超管与官方演示租户(幂等)。
     用户种子仅在 users 表为空时执行——pbkdf2 哈希较慢,不得在每次连接时重复计算。"""
     for code, name, price, limit, features in SAAS_PLANS:
+        # INSERT OR IGNORE:不覆盖超管在「套餐定价」中的在线编辑
         db.execute("INSERT OR IGNORE INTO plans(code, name, price_monthly, chat_limit_month, "
                    "features_json) VALUES(?,?,?,?,?)", (code, name, price, limit, features))
+    _migrate_saas_plans(db)
     if db.execute("SELECT COUNT(*) FROM users").fetchone()[0]:
         return
     from . import auth
@@ -377,7 +403,7 @@ def _seed_saas(db: sqlite3.Connection) -> None:
     acc = accounts[0]
     db.execute("INSERT OR IGNORE INTO users(username, password_hash, role) VALUES(?,?,?)",
                (acc["username"], auth.hash_password(acc["password"]), "superadmin"))
-    # 官方演示租户(专业版,供评审直接体验 Admin 全功能)
+    # 官方演示租户(旗舰版已开通,供评审直接体验全功能工作台)
     db.execute("INSERT OR IGNORE INTO tenants(slug, name) VALUES(?,?)",
                ("demo", "演示教育机构(官方)"))
     row = db.execute("SELECT id FROM tenants WHERE slug='demo'").fetchone()
@@ -385,8 +411,8 @@ def _seed_saas(db: sqlite3.Connection) -> None:
     db.execute("INSERT OR IGNORE INTO users(tenant_id, username, password_hash, role) "
                "VALUES(?,?,?,?)",
                (demo_id, "demo-org", auth.hash_password("demo1234"), "admin"))
-    db.execute("INSERT OR IGNORE INTO subscriptions(tenant_id, plan_code) VALUES(?,?)",
-               (demo_id, "pro"))
+    db.execute("INSERT OR IGNORE INTO subscriptions(tenant_id, plan_code, status) "
+               "VALUES(?,?, 'active')", (demo_id, "flagship"))
     db.execute("INSERT OR IGNORE INTO domains(code, name, description, tenant_id) VALUES(?,?,?,?)",
                ("dom-tdemo0", "演示课程知识域", "演示租户的课程知识(官方)", demo_id))
     dom_id = db.execute("SELECT id FROM domains WHERE code='dom-tdemo0'").fetchone()["id"]

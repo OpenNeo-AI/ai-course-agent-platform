@@ -21,7 +21,7 @@ const DICT: Record<string, { zh: string; en: string }> = {
   // 登录/注册
   'auth.loginTitle': { zh: '登录', en: 'Sign In' },
   'auth.registerTitle': { zh: '开通机构账号', en: 'Create Organization Account' },
-  'auth.registerSub': { zh: '注册即开通:专属知识库 + 免费版每月 50 次 AI 对话', en: 'Instant setup: dedicated knowledge base + 50 free AI chats per month' },
+  'auth.registerSub': { zh: '注册即建专属知识库与 Bot 入口,选购套餐(标准版/旗舰版)后即可启用', en: 'Register to get your own knowledge base & bot; choose a plan to activate' },
   'auth.loginSub': { zh: '机构管理员或平台管理员登录', en: 'For organization or platform administrators' },
   'auth.orgName': { zh: '机构名称', en: 'Organization Name' },
   'auth.username': { zh: '用户名', en: 'Username' },

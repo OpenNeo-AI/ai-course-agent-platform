@@ -33,7 +33,7 @@ export default function Auth({ mode }: { mode: 'login' | 'register' }) {
         username: d.user?.username, role: d.user?.role, tenant_id: d.user?.tenant_id,
         tenant_slug: d.tenant?.slug, tenant_name: d.tenant?.name,
       })
-      nav(d.user?.role === 'superadmin' ? '/portal' : '/admin')
+      nav('/portal')   // 统一管理工作台:按身份自动装配
     } catch (e: any) {
       setError(e.message || '操作失败,请重试')
     } finally {

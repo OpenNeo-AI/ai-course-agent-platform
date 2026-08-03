@@ -60,6 +60,8 @@ REPLY_RESET = "会话已重置。"
 REPLY_MODEL_ERROR = "模型服务暂时不可用,请稍后重试。"
 REPLY_QUOTA_EXCEEDED = ("本月的免费对话额度已用完。升级到专业版可享无限对话、"
                         "知识库管理与数据看板,请前往套餐页升级。")
+REPLY_SUB_REQUIRED = ("本机构的 AI 课程顾问服务尚未开通或订阅已到期。"
+                      "请联系机构管理员登录管理工作台,选购套餐并完成支付后即可使用。")
 
 
 def _system_prompt(role: str, state: dict, scope: dict) -> str:
@@ -126,9 +128,17 @@ def run_turn_stream(session_id: str, text: str):
         yield from _reply_events(reply, state, True)
         return
 
-    # 租户配额门禁(官方三通道 tenant_id 为 NULL,不受影响);通过后计数一次对话
+    # 租户门禁(官方三通道 tenant_id 为 NULL,不受影响):
+    # ① 订阅须已开通(两档套餐均收费);② 配额检查(当前套餐均不限次,机制保留)
     if tenant_id:
         with get_db() as db:
+            if not tenancy.is_active(db, tenant_id):
+                sess.append_message(db, session_id, "user", stripped)
+                sess.append_message(db, session_id, "assistant", REPLY_SUB_REQUIRED)
+                yield from _reply_events(REPLY_SUB_REQUIRED, state, False,
+                                         subscription_required=True,
+                                         quota=tenancy.quota_state(db, tenant_id))
+                return
             if not tenancy.quota_check(db, tenant_id):
                 quota = tenancy.quota_state(db, tenant_id)
                 sess.append_message(db, session_id, "user", stripped)

@@ -132,9 +132,11 @@ async def create_session(request: Request):
         from .core.db import get_db
         with get_db() as db:
             quota = tenancy.quota_state(db, tenant["id"])
+            sub = tenancy.subscription_of(db, tenant["id"])
         out["tenant"] = {"slug": tenant["slug"], "name": tenant["name"]}
         out["plan"] = {"code": quota["plan_code"], "name": quota["plan_name"]}
         out["quota"] = quota
+        out["subscription_status"] = sub.get("status")
         return out
     role = body.get("role", "platform")
     if role not in ("student", "teacher", "platform"):
@@ -204,7 +206,9 @@ async def chat(request: Request):
                                                "reset": ev.get("reset"), "cite": ev.get("cite"),
                                                "cite_raw": ev.get("cite_raw"),
                                                "quota": ev.get("quota"),
-                                               "quota_exceeded": ev.get("quota_exceeded")},
+                                               "quota_exceeded": ev.get("quota_exceeded"),
+                                               "subscription_required":
+                                                   ev.get("subscription_required")},
                                               ensure_ascii=False)}
                 elif t == "error":
                     yield {"event": "error",

@@ -1,119 +1,65 @@
-/* 租户管理后台 /admin:课程资料管理(专业版)、对话记录(脱敏+时间筛选)、
-   用量统计、套餐订阅。平台超管访问时重定向 /portal。 */
+/* 租户工作台功能模块(由 Portal 统一工作台按身份装配):
+   课程资料 / 对话记录(脱敏+时间筛选) / 用量统计 / 套餐订阅。
+   端点统一走 /api/portal/*(后端按身份自动收敛到本租户)。
+   /admin 旧入口重定向至 /portal。 */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { api, clearAuth, currentUser } from './api'
+import { Navigate } from 'react-router-dom'
+import { api } from './api'
 import PaymentModal from './PaymentModal'
-import { LangSwitch, useI18n } from './i18n'
 
-type Doc = { id: number; filename: string; title: string; status: string; chunks: number;
-  entities: number; uploaded_at: string }
-type Session = { id: string; created_at: string; updated_at: string; msgs: number }
-type Info = { tenant: { id: number; slug: string; name: string }; subscription: any;
+export type Doc = { id: number; filename: string; title: string; status: string; chunks: number;
+  entities: number; uploaded_at: string; kb_id: number }
+export type TSession = { id: string; created_at: string; updated_at: string; msgs: number }
+export type TenantInfo = { tenant: { id: number; slug: string; name: string }; subscription: any;
   quota: any; features: any; documents: number; bot_url: string }
 
-const TABS = [
-  { key: 'docs', i18n: 'admin.docs' },
-  { key: 'sessions', i18n: 'admin.sessions' },
-  { key: 'stats', i18n: 'admin.stats' },
-  { key: 'subscription', i18n: 'admin.subscription' },
-] as const
-
 export default function TenantAdmin() {
-  const nav = useNavigate()
-  const me = currentUser()
-  const { t } = useI18n()
-  const [tab, setTab] = useState<string>('docs')
-  const [info, setInfo] = useState<Info | null>(null)
-  const [err, setErr] = useState('')
-
-  useEffect(() => {
-    if (!me || !me.tenant_id) { nav('/login'); return }
-    if (me.role === 'superadmin') { nav('/portal'); return }
-    api('/api/tenant/info').then(setInfo).catch(e => setErr(String(e.message)))
-  }, [])
-
-  const refresh = useCallback(() => {
-    api('/api/tenant/info').then(setInfo).catch(() => {})
-  }, [])
-
-  if (!me || !me.tenant_id) return null
-  return (
-    <div className="tadm">
-      <aside className="tadm-side">
-        <div className="tadm-brand">
-          <img src="/logo.png" alt="" />
-          <div><b>AI 教育顾问</b><small>SaaS 管理后台</small></div>
-        </div>
-        <nav>
-          {TABS.map(x => (
-            <button key={x.key} className={tab === x.key ? 'on' : ''}
-              onClick={() => setTab(x.key)}>{t(x.i18n)}</button>
-          ))}
-        </nav>
-        <div className="tadm-side-foot">
-          {info && <Link className="tadm-botlink" to={info.bot_url}>{t('admin.openBot')}</Link>}
-          <button className="tadm-logout" onClick={() => { clearAuth(); nav('/') }}>{t('common.logout')}</button>
-        </div>
-      </aside>
-
-      <main className="tadm-main">
-        <header className="tadm-head">
-          <h1>{info?.tenant?.name || '加载中…'}</h1>
-          {info && (
-            <span className={`plan-pill ${info.subscription?.plan_code}`}>
-              {info.subscription?.plan_name}
-              {!info.quota?.unlimited && ` · 本月剩余 ${info.quota?.remaining} 次`}
-            </span>
-          )}
-          <span style={{ marginLeft: 'auto' }}><LangSwitch /></span>
-        </header>
-        {err && <div className="auth-error">{err}</div>}
-        {tab === 'docs' && <DocsTab info={info} onChanged={refresh} />}
-        {tab === 'sessions' && <SessionsTab />}
-        {tab === 'stats' && <StatsTab />}
-        {tab === 'subscription' && <SubTab info={info} onChanged={refresh} />}
-      </main>
-    </div>
-  )
+  return <Navigate to="/portal" replace />
 }
 
-/* ---------- 课程资料管理 ---------- */
-function DocsTab({ info, onChanged }: { info: Info | null; onChanged: () => void }) {
+/* ---------- 课程资料管理(标准版起含;未开通显示开通引导) ---------- */
+export function TenantDocsTab({ info, onChanged }: { info: TenantInfo | null; onChanged: () => void }) {
   const [docs, setDocs] = useState<Doc[]>([])
+  const [kbId, setKbId] = useState<number>(0)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
 
   const load = useCallback(() => {
-    api('/api/tenant/documents').then(setDocs).catch(() => {})
+    api('/api/portal/kbs').then(ks => { if (ks.length) setKbId(ks[0].id) }).catch(() => {})
+    api('/api/portal/documents').then(setDocs).catch(() => {})
   }, [])
   useEffect(load, [load])
 
-  if (info && !info.features?.rag_manage) {
+  const active = info?.subscription?.status === 'active'
+  if (info && !active) {
     return (
       <div className="tadm-lock">
-        <h3>🔒 课程资料管理为专业版功能</h3>
-        <p>升级专业版后可上传 PDF 课程手册,系统自动解析并向量化,Bot 立即可基于新资料回答。</p>
-        <Link to="/pricing">查看套餐并升级 →</Link>
+        <h3>🔒 服务未开通</h3>
+        <p>注册后需选购套餐并完成支付,即可上传课程资料并启用 AI 课程顾问。</p>
+        <a href="#sub" onClick={e => { e.preventDefault(); window.dispatchEvent(new CustomEvent('opc-goto-tab', { detail: 'sub' })) }}>
+          前往「套餐订阅」开通 →</a>
       </div>
     )
   }
 
   async function upload(f: File) {
+    if (!kbId) { setErr('尚未创建知识库,请先在「知识域」中创建'); return }
     setBusy(true); setErr(''); setMsg('')
     try {
       const fd = new FormData()
       fd.append('file', f)
+      fd.append('kb_id', String(kbId))
       const token = localStorage.getItem('opc_portal_token') || ''
-      const res = await fetch('/api/tenant/documents', {
+      const res = await fetch('/api/portal/documents', {
         method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd,
       })
       const d = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(d.detail || `上传失败(${res.status})`)
       const s = d.stats || {}
-      setMsg(`上传成功:切块 ${s.chunks ?? 0} · 实体 ${s.entities ?? 0} · 规则 ${s.rules ?? 0},Bot 已可基于新资料回答`)
+      const ex = s.extract || {}
+      setMsg(`上传成功:切块 ${s.chunks ?? 0} · 实体 ${ex.entities ?? 0} · 规则 ${ex.rules ?? 0},Bot 已可基于新资料回答`)
       load(); onChanged()
     } catch (e: any) {
       setErr(e.message || '上传失败')
@@ -126,7 +72,7 @@ function DocsTab({ info, onChanged }: { info: Info | null; onChanged: () => void
   async function del(id: number) {
     if (!confirm('删除该文档?其知识块与索引将同步清理。')) return
     try {
-      await api(`/api/tenant/documents/${id}`, { method: 'DELETE' })
+      await api(`/api/portal/documents/${id}`, { method: 'DELETE' })
       load(); onChanged()
     } catch (e: any) { setErr(e.message) }
   }
@@ -166,8 +112,8 @@ function DocsTab({ info, onChanged }: { info: Info | null; onChanged: () => void
 }
 
 /* ---------- 对话记录(脱敏 + 时间筛选) ---------- */
-function SessionsTab() {
-  const [list, setList] = useState<Session[]>([])
+export function TenantSessionsTab() {
+  const [list, setList] = useState<TSession[]>([])
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [sel, setSel] = useState<string>('')
@@ -177,13 +123,13 @@ function SessionsTab() {
     const q = new URLSearchParams()
     if (from) q.set('date_from', from)
     if (to) q.set('date_to', to)
-    api('/api/tenant/sessions?' + q.toString()).then(setList).catch(() => {})
+    api('/api/portal/sessions?' + q.toString()).then(setList).catch(() => {})
   }, [from, to])
   useEffect(load, [load])
 
   useEffect(() => {
     if (!sel) return
-    api(`/api/tenant/sessions/${sel}/messages`).then(setMsgs).catch(() => {})
+    api(`/api/portal/sessions/${sel}/messages`).then(setMsgs).catch(() => {})
   }, [sel])
 
   return (
@@ -222,21 +168,21 @@ function SessionsTab() {
 }
 
 /* ---------- 用量统计 ---------- */
-function StatsTab() {
+export function TenantStatsTab() {
   const [stats, setStats] = useState<any>(null)
   useEffect(() => { api('/api/tenant/stats').then(setStats).catch(() => {}) }, [])
   if (!stats) return <section className="tadm-card">加载中…</section>
   const max = Math.max(1, ...stats.trend.map((t: any) => t.count))
   return (
     <section className="tadm-card">
-      <h3>平台用量</h3>
+      <h3>用量统计</h3>
       <div className="tadm-stat-row">
         <div className="tadm-stat"><em>{stats.chats}</em><span>总对话次数</span></div>
         <div className="tadm-stat"><em>{stats.active_users}</em><span>活跃用户量(会话)</span></div>
-        <div className="tadm-stat"><em>{stats.quota.used}</em><span>本月已用</span></div>
+        <div className="tadm-stat"><em>{stats.quota.used}</em><span>本月对话</span></div>
         <div className="tadm-stat">
           <em>{stats.quota.unlimited ? '∞' : stats.quota.remaining}</em>
-          <span>{stats.quota.unlimited ? '专业版不限次' : '本月剩余'}</span>
+          <span>{stats.quota.unlimited ? '套餐不限次' : '本月剩余'}</span>
         </div>
       </div>
       <h4>近 14 日会话趋势</h4>
@@ -252,33 +198,46 @@ function StatsTab() {
   )
 }
 
-/* ---------- 套餐订阅 ---------- */
-function SubTab({ info, onChanged }: { info: Info | null; onChanged: () => void }) {
+/* ---------- 套餐订阅(开通/升级 + 订单记录) ---------- */
+export function TenantSubTab({ info, onChanged }: { info: TenantInfo | null; onChanged: () => void }) {
   const [orders, setOrders] = useState<any[]>([])
-  const [pay, setPay] = useState(false)
-  useEffect(() => { api('/api/billing/orders').then(d => setOrders(d.orders || [])).catch(() => {}) }, [])
-  const q = info?.quota
-  const pct = q && !q.unlimited && q.limit > 0 ? Math.min(100, (q.used / q.limit) * 100) : 0
+  const [plans, setPlans] = useState<any[]>([])
+  const [pay, setPay] = useState<any>(null)
+  useEffect(() => {
+    api('/api/billing/orders').then(d => setOrders(d.orders || [])).catch(() => {})
+    api('/api/plans').then(d => setPlans(d.plans || [])).catch(() => {})
+  }, [])
+  const sub = info?.subscription
+  const active = sub?.status === 'active'
   return (
     <section className="tadm-card">
       <h3>当前订阅</h3>
       <div className="tadm-sub">
         <div>
-          <b className="tadm-plan-name">{info?.subscription?.plan_name || '—'}</b>
-          <small>{info?.subscription?.plan_code === 'pro'
-            ? '无限对话 · 知识库管理 · 数据看板'
-            : '每月 50 次对话'}</small>
+          <b className="tadm-plan-name">
+            {sub?.plan_name || '—'}
+            <span className={`plan-pill ${active ? 'pro' : ''}`} style={{ marginLeft: 10 }}>
+              {active ? '已开通' : '待支付开通'}
+            </span>
+          </b>
+          <small>{sub?.plan_code === 'flagship'
+            ? '全部功能:知识域智能体 + 本体图谱 + 对话记录 + 线索转化 + 运营分析'
+            : '知识域智能体:知识域与资料管理 + RAG 问答 + 班型推荐'}</small>
         </div>
-        {q && !q.unlimited && (
-          <div className="tadm-progress">
-            <div className="tadm-progress-bar"><i style={{ width: `${pct}%` }} /></div>
-            <small>本月 {q.used}/{q.limit} 次</small>
+      </div>
+      <div className="pricing-cards" style={{ margin: '16px 0 6px' }}>
+        {plans.map(p => (
+          <div key={p.code} className={`plan-card${p.code === 'flagship' ? ' pro' : ''}`}
+            style={{ width: 'min(300px, 100%)' }}>
+            {p.code === 'flagship' && <span className="plan-flag">全功能</span>}
+            <h2>{p.name}</h2>
+            <div className="plan-price"><em>¥{p.price_monthly}</em><span>/月</span></div>
+            <p className="plan-desc">{p.features?.desc}</p>
+            <button className="plan-cta" onClick={() => setPay(p)}>
+              {!active ? '开通' : (sub?.plan_code === p.code ? '续费' : '升级')}
+            </button>
           </div>
-        )}
-        {info?.subscription?.plan_code !== 'pro' && (
-          <button className="plan-cta" style={{ width: 'auto', padding: '9px 22px' }}
-            onClick={() => setPay(true)}>升级专业版 ¥99/月</button>
-        )}
+        ))}
       </div>
       <h4>订单记录</h4>
       <table className="tadm-table">
@@ -297,9 +256,9 @@ function SubTab({ info, onChanged }: { info: Info | null; onChanged: () => void 
         </tbody>
       </table>
       {pay && (
-        <PaymentModal plan={{ code: 'pro', name: '专业版', price_monthly: 99 }}
-          onClose={() => setPay(false)}
-          onDone={() => { setPay(false); onChanged() }} />
+        <PaymentModal plan={{ code: pay.code, name: pay.name, price_monthly: pay.price_monthly }}
+          onClose={() => setPay(null)}
+          onDone={() => { setPay(null); onChanged(); window.location.reload() }} />
       )}
     </section>
   )

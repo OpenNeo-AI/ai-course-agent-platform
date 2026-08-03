@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import OntologyTab from './OntologyTab'
 
-import { api, API, saveAuth, TOKEN_KEY } from './api'
+import { api, API, clearAuth, saveAuth, TOKEN_KEY } from './api'
+import {
+  TenantDocsTab, TenantSessionsTab, TenantStatsTab, TenantSubTab, type TenantInfo,
+} from './TenantAdmin'
 
 /* ---------- SVG 图标 ---------- */
 const Ic = ({ d }: { d: string }) => (
@@ -20,6 +23,12 @@ const NAV_ICONS: Record<string, ReactNode> = {
   system: <Ic d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />,
   sessions: <Ic d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z" />,
   board: <Ic d="M3 3v18h18 M8 16v-5 M12 16V8 M16 16v-8 M7 4h10" />,
+  tenants: <Ic d="M3 21h18 M5 21V7l7-4 7 4v14 M9 9h1 M9 13h1 M14 9h1 M14 13h1" />,
+  plans: <Ic d="M12 1v22 M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />,
+  orders: <Ic d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z M14 2v6h6 M9 13h6 M9 17h6" />,
+  materials: <Ic d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z M14 2v6h6 M12 18v-6 M9 15l3 3 3-3" />,
+  usage: <Ic d="M3 3v18h18 M8 16v-5 M12 16V8 M16 16v-8" />,
+  sub: <Ic d="M2 12h4l3-9 4 18 3-9h6" />,
 }
 
 const AGENTS = [
@@ -39,7 +48,6 @@ function Login({ onOk }: { onOk: () => void }) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [err, setErr] = useState('')
-  const nav = useNavigate()
   async function submit() {
     try {
       // 优先走 SaaS 用户体系(带角色分叉);失败回退存量 portal 账户登录
@@ -54,8 +62,7 @@ function Login({ onOk }: { onOk: () => void }) {
           tenant_id: data.user?.tenant_id,
           tenant_slug: data.tenant?.slug, tenant_name: data.tenant?.name,
         })
-        if (data.user?.role === 'superadmin') { onOk(); return }
-        nav('/admin'); return
+        onOk(); return   // 统一工作台:超管与租户管理员都在 /portal 内按身份装配
       }
       const fb = await fetch(API + '/api/portal/login', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -321,7 +328,7 @@ function DomainsTab() {
 }
 
 /* ---------- 智能体设置 ---------- */
-function AgentsTab() {
+export function AgentsTab() {
   const [sel, setSel] = useState('student')
   const [agents, setAgents] = useState<any>({})
   const [domains, setDomains] = useState<any[]>([])
@@ -782,7 +789,7 @@ function LlmConfigCard() {
 }
 
 /* ---------- 会话查看 ---------- */
-function SessionsTab() {
+export function SessionsTab() {
   const [sessions, setSessions] = useState<any[]>([])
   const [sid, setSid] = useState('')
   const [msgs, setMsgs] = useState<any[]>([])
@@ -1163,52 +1170,229 @@ function BoardTab() {
   )
 }
 
-const TABS = [
-  { key: 'docs', label: '知识域', desc: '知识域 · 知识库 · 文档', el: <DomainsTab /> },
-  { key: 'ontology', label: '本体知识', desc: '实体 · 规则 · 关系', el: <OntologyTab /> },
-  { key: 'agents', label: '智能体设置', desc: '对接 · 模型 · 能力 · 提示词 · MCP', el: <AgentsTab /> },
+/* ---------- 平台经营:租户管理 / 套餐定价 / 订单管理 ---------- */
+
+function TenantsTab() {
+  const [rows, setRows] = useState<any[]>([])
+  const load = useCallback(() => { api('/api/portal/tenants').then(setRows).catch(() => {}) }, [])
+  useEffect(load, [load])
+  return (
+    <table className="board-table">
+      <thead><tr><th>ID</th><th>机构</th><th>标识</th><th>套餐</th><th>用户</th><th>会话</th><th>对话数</th><th>累计用量</th><th>开通时间</th></tr></thead>
+      <tbody>
+        {rows.map(x => (
+          <tr key={x.id}>
+            <td>{x.id}</td>
+            <td><b>{x.name}</b></td>
+            <td className="p-mono">{x.slug}</td>
+            <td>{x.plan_code === 'flagship' ? '旗舰版' : x.plan_code === 'standard' ? '标准版' : (x.plan_code || '—')}</td>
+            <td>{x.users}</td><td>{x.sessions}</td><td>{x.chats}</td><td>{x.total_usage}</td>
+            <td>{x.created_at}</td>
+          </tr>
+        ))}
+        {!rows.length && <tr><td colSpan={9} className="tadm-empty">暂无租户</td></tr>}
+      </tbody>
+    </table>
+  )
+}
+
+function PlansTab() {
+  const [rows, setRows] = useState<any[]>([])
+  const [msg, setMsg] = useState('')
+  const load = useCallback(() => { api('/api/portal/plans').then(setRows).catch(() => {}) }, [])
+  useEffect(load, [load])
+  async function save(code: string, patch: Record<string, unknown>) {
+    setMsg('')
+    try {
+      await api(`/api/portal/plans/${code}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      })
+      setMsg('已保存')
+      load()
+    } catch (e: any) { setMsg(e.message || '保存失败') }
+  }
+  return (
+    <div>
+      {msg && <div className="tadm-ok" style={{ marginBottom: 10 }}>{msg}</div>}
+      <table className="board-table">
+        <thead><tr><th>套餐</th><th>月价(¥)</th><th>对话限额</th><th>开通租户数</th><th>功能</th><th /></tr></thead>
+        <tbody>
+          {rows.map(p => (
+            <PlanRow key={p.code} plan={p} onSave={save} />
+          ))}
+        </tbody>
+      </table>
+      <p style={{ marginTop: 12, fontSize: 12, color: 'var(--mut)' }}>
+        定价为演示数据,可在线调整;功能范围由套餐定义决定(标准版=知识域智能体,旗舰版=全部功能)。
+      </p>
+    </div>
+  )
+}
+
+function PlanRow({ plan, onSave }: { plan: any; onSave: (code: string, patch: Record<string, unknown>) => void }) {
+  const [name, setName] = useState(plan.name)
+  const [price, setPrice] = useState(String(plan.price_monthly))
+  const feats = Object.entries(plan.features || {})
+    .filter(([k, v]) => v === true && k !== 'skills')
+    .map(([k]) => ({ rag_manage: '资料管理', ontology: '本体图谱', sessions: '对话记录', leads: '线索转化', analytics: '运营分析' }[k] || k))
+  return (
+    <tr>
+      <td>
+        <input value={name} onChange={e => setName(e.target.value)}
+          style={{ width: 100, padding: '5px 8px', border: '1px solid var(--line)', borderRadius: 7, fontWeight: 700 }} />
+        <small className="p-mono"> {plan.code}</small>
+      </td>
+      <td style={{ width: 130 }}>
+        <input value={price} onChange={e => setPrice(e.target.value)}
+          style={{ width: 90, padding: '5px 8px', border: '1px solid var(--line)', borderRadius: 7 }} />
+      </td>
+      <td>{plan.chat_limit_month < 0 ? '不限' : plan.chat_limit_month}</td>
+      <td>{plan.active_subs}</td>
+      <td style={{ fontSize: 12 }}>{feats.join(' · ')}</td>
+      <td>
+        <button className="tadm-del" style={{ color: 'var(--ink)' }}
+          onClick={() => onSave(plan.code, { name, price_monthly: Number(price) })}>保存</button>
+      </td>
+    </tr>
+  )
+}
+
+function OrdersTab() {
+  const [rows, setRows] = useState<any[]>([])
+  const [status, setStatus] = useState('')
+  const load = useCallback(() => { api('/api/portal/orders').then(setRows).catch(() => {}) }, [])
+  useEffect(load, [load])
+  const shown = status ? rows.filter(r => r.status === status) : rows
+  return (
+    <div>
+      <div className="tadm-filter" style={{ marginBottom: 12 }}>
+        <h3 style={{ margin: 0 }}>支付订单({shown.length})</h3>
+        <div className="tadm-range">
+          <select value={status} onChange={e => setStatus(e.target.value)}
+            style={{ padding: '6px 10px', border: '1px solid var(--line)', borderRadius: 8 }}>
+            <option value="">全部状态</option>
+            <option value="paid">已支付</option>
+            <option value="pending">待支付</option>
+            <option value="failed">失败</option>
+          </select>
+        </div>
+      </div>
+      <table className="board-table">
+        <thead><tr><th>订单号</th><th>租户</th><th>套餐</th><th>渠道</th><th>金额</th><th>状态</th><th>创建时间</th><th>支付时间</th></tr></thead>
+        <tbody>
+          {shown.map(o => (
+            <tr key={o.id}>
+              <td>{o.id}</td>
+              <td><b>{o.tenant_name}</b><small className="p-mono"> /b/{o.tenant_slug}</small></td>
+              <td>{o.plan_code}</td><td>{o.channel}</td>
+              <td>¥{Number(o.amount).toFixed(2)}</td>
+              <td><span className={`st-${o.status === 'paid' ? 'ingested' : 'failed'}`}>
+                {o.status === 'paid' ? '已支付' : o.status === 'pending' ? '待支付' : '失败'}</span></td>
+              <td>{o.created_at}</td><td>{o.paid_at || '—'}</td>
+            </tr>
+          ))}
+          {!shown.length && <tr><td colSpan={8} className="tadm-empty">暂无订单</td></tr>}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+/* ---------- 两套 Tab:平台经营(超管) / 业务工作(租户) ---------- */
+
+const PLATFORM_TABS = [
+  { key: 'tenants', label: '租户管理', desc: '机构租户 · 套餐 · 用量概览', el: <TenantsTab /> },
+  { key: 'plans', label: '套餐定价', desc: '标准版 / 旗舰版 · 价格维护', el: <PlansTab /> },
+  { key: 'orders', label: '订单管理', desc: '支付流水 · 状态核对', el: <OrdersTab /> },
   { key: 'board', label: '租户看板', desc: '租户级对话数 · 用户数 · 趋势图表', el: <BoardTab /> },
-  { key: 'analytics', label: '数据分析', desc: '运营指标 · 质检 · 洞察', el: <AnalyticsTab /> },
-  { key: 'leads', label: '线索转化', desc: '报名意向 · 留资工单', el: <LeadsTab /> },
-  { key: 'sessions', label: '会话记录', desc: '状态 · 消息追溯 · 质检', el: <SessionsTab /> },
-  { key: 'system', label: '系统设置', desc: '模型服务 · API Key · 全局参数', el: <SystemTab /> },
+  { key: 'system', label: '系统设置', desc: '模型服务 · API Key · 渠道 · 全局参数', el: <SystemTab /> },
 ]
 
 export default function Portal() {
   const [authed, setAuthed] = useState(!!localStorage.getItem(TOKEN_KEY))
-  const [tab, setTab] = useState('docs')
-  const nav = useNavigate()
-  // 已登录但身份是租户管理员 → 跳转租户后台(平台工作台仅超管可见)
+  const [me, setMe] = useState<any>(null)              // /api/auth/me 身份
+  const [tinfo, setTinfo] = useState<TenantInfo | null>(null)
+  const [tab, setTab] = useState('')
+  const isTenant = !!me?.user?.tenant_id && me.user.role !== 'superadmin'
+
+  const loadTinfo = useCallback(() => {
+    api('/api/tenant/info').then(setTinfo).catch(() => {})
+  }, [])
+
   useEffect(() => {
     if (!authed) return
     api('/api/auth/me')
-      .then(d => { if (d?.user?.role && d.user.role !== 'superadmin') nav('/admin') })
-      .catch(() => {})
+      .then(d => {
+        setMe(d)
+        if (d?.user?.tenant_id && d.user.role !== 'superadmin') {
+          setTab('docs')
+          api('/api/tenant/info').then(setTinfo).catch(() => {})
+        } else {
+          setTab('tenants')
+        }
+      })
+      .catch(() => { if (!localStorage.getItem(TOKEN_KEY)) setAuthed(false) })
   }, [authed])
+
+  // 租户工作台的 Tab 集(按套餐状态动态:未开通时聚焦套餐订阅)
+  const tenantTabs = tinfo ? [
+    { key: 'docs', label: '知识域', desc: '知识域 · 知识库 · 文档', el: <DomainsTab /> },
+    { key: 'materials', label: '课程资料', desc: '上传课程手册 · 解析 · 索引刷新', el: <TenantDocsTab info={tinfo} onChanged={loadTinfo} /> },
+    { key: 'ontology', label: '本体知识', desc: '实体 · 规则 · 关系', el: <OntologyTab /> },
+    { key: 'sessions', label: '对话记录', desc: '脱敏 · 时间筛选 · 质检(旗舰版)', el: <TenantSessionsTab /> },
+    { key: 'leads', label: '线索转化', desc: '报名意向 · 留资工单(旗舰版)', el: <LeadsTab /> },
+    { key: 'usage', label: '用量统计', desc: '对话次数 · 活跃用户 · 趋势', el: <TenantStatsTab /> },
+    { key: 'sub', label: '套餐订阅', desc: '开通 / 升级 / 订单记录', el: <TenantSubTab info={tinfo} onChanged={loadTinfo} /> },
+  ] : []
+  // 租户工作台的「运营分析」并入旗舰版(与数据分析同源,收敛到本租户)
+  if (tinfo?.features?.analytics) {
+    tenantTabs.splice(5, 0, { key: 'analytics', label: '运营分析', desc: '高频问题 · 未答 · 洞察(旗舰版)', el: <AnalyticsTab /> })
+  }
+
+  const tabs = isTenant ? tenantTabs : PLATFORM_TABS
+  useEffect(() => {
+    const h = (e: Event) => setTab((e as CustomEvent).detail)
+    window.addEventListener('opc-goto-tab', h)
+    return () => window.removeEventListener('opc-goto-tab', h)
+  }, [])
+
   if (!authed) return <Login onOk={() => setAuthed(true)} />
-  const active = TABS.find(t => t.key === tab)!
+  if (authed && !me) return <div className="portal"><main className="p-main" style={{ padding: 40 }}>加载中…</main></div>
+  const active = tabs.find(t => t.key === tab) || tabs[0]
+  const subActive = tinfo?.subscription?.status === 'active'
   return (
     <div className="portal">
       <aside className="p-side">
         <div className="p-brand">
           <img className="p-logo" src="/logo.png" alt="AI 课程顾问" />
-          <div><b>管理工作台</b><small>AI 课程顾问 · 运营后台</small></div>
+          <div>
+            <b>{isTenant ? (tinfo?.tenant?.name || '机构工作台') : 'SaaS 运营工作台'}</b>
+            <small>{isTenant ? 'AI 教育顾问 · 机构业务后台' : 'AI 教育顾问 · 平台经营'}</small>
+          </div>
         </div>
         <nav className="p-nav" aria-label="管理功能">
-          {TABS.map(t => (
-            <button key={t.key} className={t.key === tab ? 'on' : ''} onClick={() => setTab(t.key)}>
+          {tabs.map(t => (
+            <button key={t.key} className={t.key === active.key ? 'on' : ''} onClick={() => setTab(t.key)}>
               <span className="ic">{NAV_ICONS[t.key]}</span>
               <span className="tx"><b>{t.label}</b><small>{t.desc}</small></span>
             </button>
           ))}
         </nav>
         <div className="p-side-foot">
+          {isTenant && tinfo && <Link to={tinfo.bot_url}>↗ 打开 Bot 对话</Link>}
           <Link to="/">↗ 返回前台</Link>
-          <button onClick={() => { localStorage.removeItem(TOKEN_KEY); setAuthed(false) }}>退出登录</button>
+          <button onClick={() => { clearAuth(); setAuthed(false); setMe(null) }}>退出登录</button>
         </div>
       </aside>
 
       <main className="p-main">
+        {isTenant && !subActive && (
+          <div className="quota-banner">
+            <span>服务尚未开通:请选购套餐并完成支付,即可启用 AI 课程顾问与资料管理。</span>
+            <a onClick={() => setTab('sub')} style={{ cursor: 'pointer' }}>去开通 →</a>
+          </div>
+        )}
         <header className="p-pagehead">
           <h2>{active.label}</h2>
           <p>{active.desc}</p>

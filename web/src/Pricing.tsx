@@ -8,13 +8,14 @@ import { LangSwitch, useI18n } from './i18n'
 type Plan = { code: string; name: string; price_monthly: number; chat_limit_month: number;
   features: { desc?: string; rag_manage?: boolean; dashboard?: boolean } }
 
-const FEATURE_ROWS: { label: string; free: string | boolean; pro: string | boolean }[] = [
-  { label: 'AI 对话次数', free: '50 次 / 月', pro: '无限' },
-  { label: 'RAG 知识库问答(带引用)', free: true, pro: true },
-  { label: 'Agent Skill(课程详情/班型推荐)', free: true, pro: true },
-  { label: '课程资料上传与管理', free: false, pro: true },
-  { label: '数据看板(用量图表)', free: false, pro: true },
-  { label: '对话记录与质检', free: true, pro: true },
+const FEATURE_ROWS: { label: string; std: string | boolean; flag: string | boolean }[] = [
+  { label: 'AI 对话次数', std: '不限', flag: '不限' },
+  { label: '知识域 / 知识库管理', std: true, flag: true },
+  { label: '课程资料上传(PDF 解析 · RAG)', std: true, flag: true },
+  { label: 'Agent Skill(课程详情/班型推荐)', std: true, flag: true },
+  { label: '本体图谱维护', std: true, flag: true },
+  { label: '对话记录(脱敏 · 时间筛选 · 质检)', std: false, flag: true },
+  { label: '线索跟进 / 数据分析', std: false, flag: true },
 ]
 
 function Mark({ v }: { v: string | boolean }) {
@@ -36,8 +37,9 @@ export default function Pricing() {
   }, [])
 
   function choose(plan: Plan) {
-    if (plan.code === 'free') { nav('/register'); return }
-    if (!me || me.role === 'superadmin' || !me.tenant_id) { nav('/login'); return }
+    // 两档均为收费套餐:未注册先注册(注册后在工作台开通),已登录租户直接支付
+    if (!me || !me.tenant_id) { nav('/register'); return }
+    if (me.role === 'superadmin') { nav('/portal'); return }
     setPayPlan(plan)
   }
 
@@ -52,15 +54,15 @@ export default function Pricing() {
 
       <div className="pricing-cards">
         {plans.map(p => (
-          <div key={p.code} className={`plan-card${p.code === 'pro' ? ' pro' : ''}`}>
-            {p.code === 'pro' && <span className="plan-flag">{t('pricing.recommended')}</span>}
+          <div key={p.code} className={`plan-card${p.code === 'flagship' ? ' pro' : ''}`}>
+            {p.code === 'flagship' && <span className="plan-flag">{t('pricing.recommended')}</span>}
             <h2>{p.name}</h2>
             <div className="plan-price">
               <em>¥{p.price_monthly}</em><span>{t('pricing.perMonth')}</span>
             </div>
             <p className="plan-desc">{p.features.desc}</p>
             <button className="plan-cta" onClick={() => choose(p)}>
-              {t(p.code === 'free' ? 'pricing.freeCta' : 'pricing.proCta')}
+              {me?.tenant_id ? '立即开通' : '注册并开通'}
             </button>
           </div>
         ))}
@@ -70,14 +72,14 @@ export default function Pricing() {
         <h3>{t('pricing.compare')}</h3>
         <table className="pricing-table">
           <thead>
-            <tr><th>{t('pricing.feature')}</th><th>免费版 Free</th><th>专业版 Pro</th></tr>
+            <tr><th>{t('pricing.feature')}</th><th>标准版 Standard</th><th>旗舰版 Flagship</th></tr>
           </thead>
           <tbody>
             {FEATURE_ROWS.map(r => (
               <tr key={r.label}>
                 <td>{r.label}</td>
-                <td><Mark v={r.free} /></td>
-                <td><Mark v={r.pro} /></td>
+                <td><Mark v={r.std} /></td>
+                <td><Mark v={r.flag} /></td>
               </tr>
             ))}
           </tbody>

@@ -294,9 +294,13 @@ async def tenant_upload(request: Request, file: UploadFile = File(...), title: s
     from ..core.ingest.chunk import ingest_text
     from ..core.ingest.parse import parse_upload
     t, features = _tenant_ctx(request)
+    with get_db() as db0:
+        if not tenancy.is_active(db0, t["id"]):
+            raise HTTPException(status_code=402,
+                                detail="服务未开通:请先选购套餐并完成支付")
     if not features.get("rag_manage"):
         raise HTTPException(status_code=402,
-                            detail="课程资料管理为专业版功能,请先升级套餐")
+                            detail="课程资料管理需要订阅套餐,请先开通")
     with get_db() as db:
         kb_ids = _tenant_kb_ids(db, t["id"])
         if not kb_ids:
@@ -319,8 +323,12 @@ def tenant_delete_document(doc_id: int, request: Request):
     """删除文档并同步清理其知识块/实体/规则(RAG 索引同步刷新)。"""
     from ..core.ingest.chunk import clear_document_knowledge
     t, features = _tenant_ctx(request)
+    with get_db() as db0:
+        if not tenancy.is_active(db0, t["id"]):
+            raise HTTPException(status_code=402,
+                                detail="服务未开通:请先选购套餐并完成支付")
     if not features.get("rag_manage"):
-        raise HTTPException(status_code=402, detail="课程资料管理为专业版功能,请先升级套餐")
+        raise HTTPException(status_code=402, detail="课程资料管理需要订阅套餐,请先开通")
     with get_db() as db:
         kb_ids = _tenant_kb_ids(db, t["id"])
         doc = db.execute("SELECT * FROM documents WHERE id=?", (doc_id,)).fetchone()
