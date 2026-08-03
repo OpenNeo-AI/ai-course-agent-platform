@@ -9,13 +9,17 @@ const API = (import.meta.env.VITE_API_BASE as string | undefined) || ''
 type CiteItem = { source: string; chapter: string; excerpt?: string }
 type Msg = { role: 'user' | 'assistant'; text: string; cite?: CiteItem[] }
 
-// 「出自《…》·章节;《…》章节」引用串的解析与剥离。
+// 「出自《…》·章节」引用串的解析与剥离。
 // 引用不总在行首(模型可能写在行内或裹 **/引用块),故不做行锚定,全局匹配。
-const CITE_RE = /[ \t>*_—–-]*出自[^\n]*/g
+// 必须包含《 避免误删对话中的"引用""来源"等普通词汇
+const CITE_RE = /[ \t>*_—–-]*出自[^\n]*《[^\n]*/g
+const CITE_RE_ALT = /[ \t>*_—–-]*(?:引用|来源|参考)[：:]\s*[^\n]*《[^\n]*/g
 
 function parseCiteLine(line: string): CiteItem[] {
-  const body = line.replace(/^[ \t>*_—–-]*出自[：:]?\s*/, '')
-  return body.split(/[;;]\s*/).map(part => {
+  // 剥离前缀：出自 / 引用: / 来源: / 参考: 及周围的 markdown 标记
+  const body = line.replace(/^[ \t>*_—–-]*(?:出自|引用|来源|参考)[：:]?\s*/, '')
+  // 支持 ;；、 三种分隔符（模型可能用顿号分隔多章节）
+  return body.split(/[;;；、]\s*/).map(part => {
     const p = part.trim().replace(/[*_]+$/g, '')
     if (!p) return null
     const m = p.match(/^(《[^》]+》)\s*[·．.•]?\s*(.*)$/)
@@ -26,7 +30,8 @@ function parseCiteLine(line: string): CiteItem[] {
 
 function extractCite(text: string): { text: string; parsed: CiteItem[] } {
   const parsed: CiteItem[] = []
-  const cleaned = text.replace(CITE_RE, m => { parsed.push(...parseCiteLine(m)); return '' })
+  let cleaned = text.replace(CITE_RE, m => { parsed.push(...parseCiteLine(m)); return '' })
+  cleaned = cleaned.replace(CITE_RE_ALT, m => { parsed.push(...parseCiteLine(m)); return '' })
   return { text: cleaned, parsed }
 }
 
@@ -103,12 +108,14 @@ export default function Chat({ role, title, accent, suggestions }: {
     setMessages(m => [...m, { role: 'user', text }, { role: 'assistant', text: '' }])
     let reply = ''
     let rafPending = false
+    let finished = false  // 防竞态：done 后禁止 rAF 覆盖 cite
     // 真流式下 token 逐个到达,合并为每帧一次更新,避免高频 setState 与 markdown 重解析卡顿
     const scheduleFlush = () => {
-      if (rafPending) return
+      if (rafPending || finished) return
       rafPending = true
       requestAnimationFrame(() => {
         rafPending = false
+        if (finished) return  // done 已定稿，不再覆盖
         setMessages(m => {
           const copy = [...m]
           copy[copy.length - 1] = { role: 'assistant', text: reply }
@@ -143,6 +150,7 @@ export default function Chat({ role, title, accent, suggestions }: {
         } else if (eventName === 'error') {
           setError(payload.error || '服务异常,请稍后重试。')
         } else if (eventName === 'done') {
+          finished = true  // 禁止后续 rAF 覆盖已定稿的 cite
           if (payload.reset) setShowMenu(true)
           // 定稿:无论后端是否下发结构化 cite,都剥掉正文里的「出自」原始串,保证不残留;
           // 引用统一以卡片呈现(后端 cite 优先、带原文摘录,缺失时用解析结果兜底),保证不丢失。

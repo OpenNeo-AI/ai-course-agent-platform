@@ -25,3 +25,6 @@ web/dist/
 
 # Editor artifacts
 .trae-html-share-packages/
+
+# Office 临时锁文件
+~$*

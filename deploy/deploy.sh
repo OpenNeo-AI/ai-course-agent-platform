@@ -13,6 +13,30 @@ SSH="ssh -i $KEY -o StrictHostKeyChecking=accept-new"
 
 chmod 600 "$KEY"
 
+# ---- 部署前验证 ----
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+# 1) 前端 dist 存在且包含出处卡片核心代码
+DIST_JS=("$REPO_ROOT"/web/dist/assets/index-*.js)
+if [ ! -f "${DIST_JS[0]}" ] || ! grep -q "引用出处" "${DIST_JS[0]}" 2>/dev/null; then
+  echo "❌ 前端未构建或缺少出处卡片代码。请先执行: cd web && npm run build"
+  echo "   然后确认 dist/assets/index-*.js 包含「引用出处」。"
+  exit 1
+fi
+echo "✓ 前端构建验证通过(CiteCard 代码存在)"
+
+# 2) 验收用例(若 server/.venv 存在且 Python 可用)
+if [ -x "$REPO_ROOT/server/.venv/Scripts/python" ] || [ -x "$REPO_ROOT/server/.venv/bin/python" ]; then
+  PY=""
+  for p in "$REPO_ROOT/server/.venv/Scripts/python" "$REPO_ROOT/server/.venv/bin/python"; do
+    [ -x "$p" ] && PY="$p" && break
+  done
+  if [ -n "$PY" ] && [ -f "$REPO_ROOT/tests/run_acceptance.py" ]; then
+    echo "→ 运行验收用例..."
+    "$PY" "$REPO_ROOT/tests/run_acceptance.py" || echo "[warn] 验收用例未全部通过,继续部署"
+  fi
+fi
+
 # 远端目录准备(首次)
 $SSH "$USER_NAME@$HOST" "sudo mkdir -p $REMOTE && sudo chown \$USER:\$USER $REMOTE && mkdir -p $REMOTE/server/data"
 

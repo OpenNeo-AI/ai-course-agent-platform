@@ -166,8 +166,12 @@ def format_context(result: dict) -> str:
 
 
 def key_excerpt(text: str, lo: int = 20, hi: int = 30) -> str:
-    """截取 20–30 字的关键原文语句(优先在句读处断句)。"""
+    """截取 20–30 字的关键原文语句(优先在句读处断句,清理末尾分隔符)。"""
     t = " ".join((text or "").split())
+    # 清理常见字段分隔符与空白
+    t = t.strip().rstrip(" |;；，、")
+    if not t:
+        return ""
     if len(t) <= hi:
         return t
     head = t[:hi]

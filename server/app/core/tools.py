@@ -124,28 +124,43 @@ def product_brief(db, domain_id: int, product: dict) -> dict:
 
 
 def _entity_cite_item(db, product: dict) -> dict | None:
-    """单个班型/产品实体的出处条目:来源文档《标题》·章节。"""
+    """单个班型/产品实体的出处条目:来源文档《标题》·章节 + 关键原文。"""
     pid = product.get("id")
     if not pid:
         return None
     row = db.execute(
-        "SELECT d.title, d.filename FROM entities e JOIN documents d ON d.id=e.doc_id "
-        "WHERE e.id=?", (pid,)).fetchone()
+        "SELECT d.title, d.filename, e.raw_excerpt FROM entities e "
+        "JOIN documents d ON d.id=e.doc_id WHERE e.id=?", (pid,)).fetchone()
     src = ("《%s》" % (row["title"] or row["filename"])) if row else ""
     ch = product.get("chapter") or ""
     if not (src or ch):
         return None
-    return {"source": src, "chapter": ch}
+    excerpt = search.key_excerpt(row["raw_excerpt"] or "") if row else ""
+    excerpt = excerpt.rstrip(" |") if excerpt else ""
+    return {"source": src, "chapter": ch, "excerpt": excerpt}
 
 
 def _recommend_cite(db, candidates: list[dict]) -> list[dict]:
-    """推荐结果的出处条目:各推荐班型来自的文档《标题》·章节,去重。"""
+    """推荐结果的出处条目:各推荐班型来自的文档《标题》·章节,去重。
+    实体级引用缺失时,回退到知识域规则级引用(_source_cite)。"""
     items, seen = [], set()
     for c in candidates:
         item = _entity_cite_item(db, c.get("product") or {})
         if item and (item["source"], item["chapter"]) not in seen:
             seen.add((item["source"], item["chapter"]))
             items.append(item)
+    # 实体引用缺失时,回退到规则级引用
+    if not items:
+        for c in candidates:
+            dom_id = c.get("_domain_id")
+            if dom_id:
+                for ci in _source_cite(db, dom_id):
+                    key = (ci["source"], ci["chapter"])
+                    if key not in seen:
+                        seen.add(key)
+                        items.append(ci)
+                if items:
+                    break
     return items
 
 
@@ -211,6 +226,7 @@ def tool_recommend(city: str | None = None, date_start: str | None = None,
                 continue
             for c in res.get("candidates", []):
                 c.setdefault("domain", _domain_name(db, dom_id))
+                c.setdefault("_domain_id", dom_id)  # 供 _recommend_cite 回退使用
                 candidates.append(c)
             for n in res.get("need", []):
                 if n not in need:
@@ -235,7 +251,7 @@ def tool_ask(question: str, product_hint: str | None = None,
     if not result["chunks"] and not result["facts"]:
         return {"answer": f"抱歉,我在{scope_desc}中没有找到与这个问题相关的资料,无法确认。"
                           f"如需帮助,{HUMAN_FALLBACK}。",
-                "citations": [], "path_stats": result["path_stats"]}
+                "citations": [], "cite": [], "path_stats": result["path_stats"]}
     system = config.get_prompt("answer") or (
         "你是AI课程顾问的知识问答生成器。仅依据提供的参考资料作答,严禁编造;"
         "结构化事实中的数值必须原样采用;资料不足时明确回复无法确认;语言自然简洁。")

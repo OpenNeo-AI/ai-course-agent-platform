@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import time
 from datetime import date
 
@@ -14,6 +15,37 @@ from ..core import config, llm, tools
 from ..core.db import get_db
 from ..core.scope import apply_scope_ask, scope_for_role
 from . import session as sess
+
+# 前端 extractCite 的后端等价实现:作为终极兜底，确保 done 事件永不为 cite:null
+_CITE_RE = re.compile(r'[ \t>*_—–-]*出自[^\n]*')
+_CITE_BODY_RE = re.compile(r'^[ \t>*_—–-]*出自[：:]?\s*')
+_CITE_ITEM_RE = re.compile(r'^(《[^》]+》)\s*[·．.•]?\s*(.*)$')
+
+
+def _parse_citations_from_text(text: str) -> list[dict]:
+    """从回复文本中解析引用条目，与前端 extractCite+parseCiteLine 行为一致。
+    作为工具未返回 cite 时的终极兜底。
+    """
+    items: list[dict] = []
+    seen: set[tuple[str, str]] = set()
+    for match in _CITE_RE.finditer(text):
+        body = _CITE_BODY_RE.sub('', match.group())
+        # 同时支持 ;；、 三种分隔符
+        for part in re.split(r'[;;；、]\s*', body):
+            p = part.strip().rstrip('*_')
+            if not p:
+                continue
+            m = _CITE_ITEM_RE.match(p)
+            if m:
+                source = m.group(1)
+                chapter = m.group(2).strip().rstrip('*_')
+            else:
+                source = p
+                chapter = ''
+            if source and (source, chapter) not in seen:
+                seen.add((source, chapter))
+                items.append({"source": source, "chapter": chapter})
+    return items
 
 log = logging.getLogger(__name__)
 
@@ -98,7 +130,8 @@ def run_turn_stream(session_id: str, text: str):
     tool_events: list[dict] = []
     last_citation = ""
     last_source_note = ""
-    last_cite: list[dict] | None = None
+    _cite_items: list[dict] = []      # 合并所有工具的 cite 条目
+    _cite_seen: set[tuple[str, str]] = set()
     recommended_names: list[str] = []
     reply_buf = ""            # 已流向用户的全部内容(用于兜底判断与持久化)
     got_final_turn = False
@@ -179,8 +212,12 @@ def run_turn_stream(session_id: str, text: str):
                     last_citation = result["citation"]
                 if result.get("source_note"):
                     last_source_note = result["source_note"]
-                if result.get("cite"):
-                    last_cite = result["cite"]
+                # 合并所有工具的 cite(不覆盖,去重)
+                for item in (result.get("cite") or []):
+                    key = (item.get("source", ""), item.get("chapter", ""))
+                    if key not in _cite_seen:
+                        _cite_seen.add(key)
+                        _cite_items.append(item)
                 if name == "recommend_products":
                     for cand in result.get("candidates", []):
                         nm = (cand.get("product") or {}).get("name")
@@ -206,6 +243,13 @@ def run_turn_stream(session_id: str, text: str):
         additions += f"\n\n根据您的需求,为您推荐:{'、'.join(recommended_names)}。"
     # 引用兜底:模型改写工具答案丢失引用标注时,自动补回
     cite_raw = None
+    # 工具作答但所有工具都没给出引用时,按对接知识域补一条归属引用
+    if (not (last_citation or last_source_note) and tool_events
+            and "出自" not in (reply_buf + additions)
+            and reply_buf.strip() and reply_buf.strip() != REPLY_MODEL_ERROR):
+        dom_names = "、".join(scope.get("domain_names") or [])
+        if dom_names:
+            last_source_note = f" — 出自{dom_names}知识库资料"
     if (last_citation or last_source_note) and "出自" not in (reply_buf + additions):
         cite_raw = last_citation or last_source_note
         additions += "\n\n" + cite_raw
@@ -213,13 +257,16 @@ def run_turn_stream(session_id: str, text: str):
         yield {"type": "delta", "text": additions}
     final = reply_buf + additions
 
+    # 终极兜底:所有工具都没返回 cite 时,从回复文本解析引用
+    cite_payload = _cite_items if _cite_items else _parse_citations_from_text(final)
+
     with get_db() as db:
         sess.append_message(db, session_id, "user", stripped)
         sess.append_message(db, session_id, "assistant", final,
                             tool_calls=[{"name": e["name"], "args": e["args"]}
                                         for e in tool_events] or None)
     yield {"type": "done", "state": state, "reset": False,
-           "cite": last_cite, "cite_raw": cite_raw}
+           "cite": cite_payload, "cite_raw": cite_raw}
 
 
 def run_turn(session_id: str, text: str) -> dict:

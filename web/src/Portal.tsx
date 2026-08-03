@@ -313,11 +313,13 @@ function AgentsTab() {
   const [msg, setMsg] = useState('')
   const [models, setModels] = useState<{ model: string; name: string }[]>([])
   const [sysModel, setSysModel] = useState('')
+  const [channels, setChannels] = useState<any[]>([])
 
   const agent = AGENTS.find(a => a.key === sel)!
   const loadAll = useCallback(() => {
     api('/api/portal/agents').then(setAgents).catch(alert)
     api('/api/portal/domains').then(setDomains).catch(alert)
+    api('/api/portal/channels').then(setChannels).catch(() => {})
     api('/api/portal/llm').then(c => {
       const cc = c || {}
       const raw = Array.isArray(cc.chat_models) ? cc.chat_models : []
@@ -389,9 +391,19 @@ function AgentsTab() {
 
   const origin = window.location.origin
   const endpoint = origin + agent.endpoint
+  const activeToken = (channels.find(c => !c.disabled) || {}).token || ''
+  const MCP_DESC: Record<string, string> = {
+    student: '学生课程顾问 MCP(夏令营班型推荐/确定性费用计算/详情问答/报名引导,知识范围限学生知识域)',
+    teacher: '教师培训顾问 MCP(L1—L3 培训推荐/确定性费用计算/前置与报名,知识范围限教师知识域)',
+    platform: '平台服务顾问 MCP(平台与会员服务咨询,通用入口)',
+  }
   const mcpJson = JSON.stringify({
-    mcpServers: {
-      [`opc-course-advisor-${sel}`]: { type: 'streamable-http', url: endpoint },
+    [`opc-course-advisor-${sel}`]: {
+      type: 'http',
+      url: endpoint,
+      headers: { Authorization: `Bearer ${activeToken || '<在系统设置·渠道令牌签发>'}` },
+      description: MCP_DESC[sel] || '',
+      disabled: false,
     },
   }, null, 2)
 
@@ -500,9 +512,15 @@ function AgentsTab() {
           <div className="p-card">
             <h3>MCP 接入</h3>
             <p className="p-scope-hint">
-              {agent.label}的独立 MCP 端点(streamable HTTP),工具调用自动限定在上述知识域内。
-              在支持 MCP 的宿主(WorkBuddy、OpenClaw、Claude Desktop 等)中添加如下配置:
+              {agent.label}的独立 MCP 端点(HTTP),工具调用自动限定在上述知识域内,
+              经渠道令牌(Bearer)鉴权。将以下条目粘贴进 TRAE / WorkBuddy / OpenClaw 等
+              宿主 MCP 配置文件的 <b>mcpServers</b> 节点即可:
             </p>
+            {!activeToken && (
+              <p className="p-err" style={{ marginBottom: 10 }}>
+                ⚠ 尚无有效渠道令牌:系统一旦签发令牌,MCP 将强制校验。请先到「系统设置 → 渠道令牌」签发。
+              </p>
+            )}
             <div className="p-endpoint">
               <code>{endpoint}</code>
               <button className="p-mini" onClick={() => copy(endpoint)}>复制地址</button>
@@ -510,7 +528,7 @@ function AgentsTab() {
             <pre className="p-json">{mcpJson}</pre>
             <div className="p-toolbar">
               <button onClick={() => copy(mcpJson)}>复制 JSON 配置</button>
-              <span className="p-count">部分宿主字段名为 url/endpoint 或 serverUrl,按其文档调整即可</span>
+              <span className="p-count">Authorization 中的令牌可在「系统设置 → 渠道令牌」更换或禁用</span>
             </div>
           </div>
         </div>
