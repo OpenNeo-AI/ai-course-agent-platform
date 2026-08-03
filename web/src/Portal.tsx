@@ -1371,7 +1371,7 @@ export default function Portal() {
   }, [authed])
 
   // 租户工作台:智能体设置与套餐订阅始终可用;其余 Tab 可见,按套餐功能位解锁
-  const feats = tinfo?.subscription?.features || {}
+  const feats = tinfo?.features || tinfo?.subscription?.features || {}
   const unlocked = (f: string) => !!feats[f]
   const tenantTabs = tinfo ? [
     { key: 'agents', label: '智能体设置', desc: '欢迎语 · 留资 · 模型', el: <TenantAgentTab /> },

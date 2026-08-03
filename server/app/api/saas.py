@@ -455,7 +455,10 @@ def tenant_info(request: Request):
             docs = db.execute(
                 f"SELECT COUNT(*) FROM documents d WHERE d.kb_id IN ({ph})",
                 kb_ids).fetchone()[0]
-    return {"tenant": t, "subscription": sub, "quota": quota,
+    return {"tenant": t,
+            "subscription": {**sub,
+                             "features": json.loads(sub.get("features_json") or "{}")},
+            "quota": quota,
             "features": features, "documents": docs,
             "bot_url": f"/b/{t['slug']}"}
 
