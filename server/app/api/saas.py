@@ -68,6 +68,82 @@ async def register(request: Request):
             "tenant": {"id": t["tenant_id"], "slug": t["slug"], "name": t["name"]}}
 
 
+# ---------- 手机验证码(参照 OpenNeo:阿里云短信 + verification_codes 移植) ----------
+
+@router.post("/api/auth/sms/send")
+async def sms_send(request: Request):
+    """发送验证码:60 秒/条、每小时 ≤5 条;未配置短信密钥时为演示模式
+    (验证码随响应返回并明确标注 demo,保证评审可复现)。"""
+    from ..core import sms
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    r = sms.send_code(((body or {}).get("phone") or "").strip())
+    if not r.get("ok"):
+        raise HTTPException(status_code=400, detail=r.get("error", "发送失败"))
+    return r
+
+
+@router.post("/api/auth/sms/login")
+async def sms_login(request: Request):
+    """手机号 + 验证码登录(用户须已注册;未注册引导注册开通)。"""
+    from ..core import sms
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    body = body or {}
+    phone = (body.get("phone") or "").strip()
+    if not sms.verify_code(phone, body.get("code") or ""):
+        raise HTTPException(status_code=400, detail="验证码错误或已过期")
+    with get_db() as db:
+        user = db.execute("SELECT * FROM users WHERE phone=?", (phone,)).fetchone()
+        if not user:
+            raise HTTPException(status_code=404,
+                                detail="该手机号未注册,请先注册开通机构")
+        user = dict(user)
+        tenant = None
+        if user["tenant_id"]:
+            t = db.execute("SELECT * FROM tenants WHERE id=?",
+                           (user["tenant_id"],)).fetchone()
+            tenant = dict(t) if t else None
+    return {"ok": True, "token": auth.issue_token(user),
+            "user": {"username": user["username"], "role": user["role"],
+                     "tenant_id": user["tenant_id"]},
+            "tenant": tenant}
+
+
+@router.post("/api/auth/sms/register")
+async def sms_register(request: Request):
+    """手机验证码注册开通:机构名 + 手机号 + 验证码 → 租户 + 管理员 + 待开通订阅。"""
+    from ..core import sms
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    body = body or {}
+    phone = (body.get("phone") or "").strip()
+    if not sms.verify_code(phone, body.get("code") or ""):
+        raise HTTPException(status_code=400, detail="验证码错误或已过期")
+    with get_db() as db:
+        if db.execute("SELECT id FROM users WHERE phone=?", (phone,)).fetchone():
+            raise HTTPException(status_code=400, detail="该手机号已注册,请直接登录")
+    try:
+        t = tenancy.register_tenant(body.get("org_name", ""), body.get("username", ""),
+                                    body.get("password", ""), body.get("email", ""),
+                                    phone=phone)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    with get_db() as db:
+        user = dict(db.execute("SELECT * FROM users WHERE username=?",
+                               (t["username"],)).fetchone())
+    return {"ok": True, "token": auth.issue_token(user),
+            "user": {"username": user["username"], "role": user["role"],
+                     "tenant_id": t["tenant_id"]},
+            "tenant": {"id": t["tenant_id"], "slug": t["slug"], "name": t["name"]}}
+
+
 @router.post("/api/auth/login")
 async def login(request: Request):
     try:
@@ -152,9 +228,17 @@ def subscription(request: Request):
                 "quota": tenancy.quota_state(db, tid)}
 
 
+@router.get("/api/billing/channels")
+def billing_channels():
+    """支付渠道可用性(mock 恒可用;微信/支付宝按 .env 配置)。"""
+    from ..core import payments
+    return {"channels": payments.channels_status()}
+
+
 @router.post("/api/billing/orders")
 async def create_order(request: Request):
-    """选套餐 → 创建待支付订单(演示环境默认 mock 渠道)。"""
+    """选套餐下单:mock=演示;wechat=微信扫码(pay_info.code_url);
+    alipay=电脑网站支付(pay_info.pay_url)。"""
     from ..core import payments
     user = jwt_user(request)
     tid = _tenant_of(user)
@@ -164,7 +248,7 @@ async def create_order(request: Request):
         body = {}
     body = body or {}
     try:
-        order = payments.create_order(tid, body.get("plan_code", "pro"),
+        order = payments.create_order(tid, body.get("plan_code", "standard"),
                                       body.get("channel", "mock"))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -173,7 +257,26 @@ async def create_order(request: Request):
 
 @router.post("/api/billing/orders/{order_id}/confirm")
 def confirm_order(order_id: int, request: Request):
-    """模拟支付成功回调:订单置 paid → 订阅升级 → 功能解锁。"""
+    """模拟支付确认(仅 mock 渠道);真实渠道走 查询/回调 确认。"""
+    from ..core import payments
+    user = jwt_user(request)
+    tid = _tenant_of(user)
+    with get_db() as db:
+        order = db.execute("SELECT * FROM payment_orders WHERE id=?", (order_id,)).fetchone()
+    if not order or order["tenant_id"] != tid:
+        raise HTTPException(status_code=404, detail="订单不存在")
+    if order["channel"] != "mock":
+        raise HTTPException(status_code=400,
+                            detail="该订单为真实渠道,请通过支付状态查询确认")
+    try:
+        return {"ok": True, **payments.pay_success(order_id)}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/api/billing/orders/{order_id}/status")
+def order_status(order_id: int, request: Request):
+    """轮询支付结果:主动向渠道查单;成功即升级订阅。"""
     from ..core import payments
     user = jwt_user(request)
     tid = _tenant_of(user)
@@ -182,9 +285,53 @@ def confirm_order(order_id: int, request: Request):
     if not order or order["tenant_id"] != tid:
         raise HTTPException(status_code=404, detail="订单不存在")
     try:
-        return {"ok": True, **payments.pay_success(order_id)}
+        r = payments.query_order(order_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    return {"ok": True, **r}
+
+
+# ---------- 支付回调(公开端点,渠道服务端通知) ----------
+
+@router.post("/api/billing/callback/wechat")
+async def wechat_callback(request: Request):
+    """微信 Native 支付回调:XML + MD5 验签(补齐 OpenNeo 缺失的服务端确认)。"""
+    from fastapi.responses import Response
+    from ..core import payments
+    body = await request.body()
+    try:
+        info = payments.CHANNELS["wechat"].parse_callback(
+            body, request.headers.get("content-type", ""))
+        r = payments.pay_by_out_trade_no(info["out_trade_no"], info.get("trade_no", ""))
+        if r:
+            return Response(
+                "<xml><return_code><![CDATA[SUCCESS]]></return_code>"
+                "<return_msg><![CDATA[OK]]></return_msg></xml>",
+                media_type="application/xml")
+    except Exception as e:  # noqa: BLE001
+        import logging
+        logging.getLogger(__name__).warning("微信回调处理失败: %s", e)
+    return Response(
+        "<xml><return_code><![CDATA[FAIL]]></return_code>"
+        "<return_msg><![CDATA[FAIL]]></return_msg></xml>",
+        media_type="application/xml")
+
+
+@router.post("/api/billing/callback/alipay")
+async def alipay_callback(request: Request):
+    """支付宝异步通知:表单 + RSA2 验签,成功返回纯文本 success。"""
+    from fastapi.responses import PlainTextResponse
+    from ..core import payments
+    body = await request.body()
+    try:
+        info = payments.CHANNELS["alipay"].parse_callback(
+            body, request.headers.get("content-type", ""))
+        if payments.pay_by_out_trade_no(info["out_trade_no"], info.get("trade_no", "")):
+            return PlainTextResponse("success")
+    except Exception as e:  # noqa: BLE001
+        import logging
+        logging.getLogger(__name__).warning("支付宝回调处理失败: %s", e)
+    return PlainTextResponse("fail")
 
 
 @router.get("/api/billing/orders")

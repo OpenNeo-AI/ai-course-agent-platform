@@ -231,16 +231,27 @@ CREATE TABLE IF NOT EXISTS usage_monthly(
   PRIMARY KEY(tenant_id, year_month)
 );
 
--- 支付订单:演示环境默认 mock 渠道;CHANNELS 注册表预留支付宝/微信沙箱。
+-- 支付订单:mock(演示) / wechat(Native 扫码) / alipay(电脑网站支付)。
 CREATE TABLE IF NOT EXISTS payment_orders(
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   tenant_id INTEGER NOT NULL REFERENCES tenants(id),
   plan_code TEXT NOT NULL,
-  channel TEXT DEFAULT 'mock',          -- mock / alipay / wechat
+  channel TEXT DEFAULT 'mock',          -- mock / wechat / alipay
   amount REAL DEFAULT 0,
   status TEXT DEFAULT 'pending',        -- pending / paid / failed
+  out_trade_no TEXT UNIQUE,             -- 渠道商户单号
+  trade_no TEXT DEFAULT '',              -- 渠道交易号(回调/查询回填)
   created_at TEXT DEFAULT (datetime('now','localtime')),
   paid_at TEXT
+);
+
+-- 手机验证码(参照 OpenNeo verification_codes):发送即覆盖,5 分钟有效。
+CREATE TABLE IF NOT EXISTS sms_codes(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  phone TEXT NOT NULL,
+  code TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  created_at TEXT DEFAULT (datetime('now','localtime'))
 );
 """
 
@@ -361,11 +372,22 @@ STARTER_DOC_TEXT = """第一章 平台简介
 
 
 def _migrate_saas(db: sqlite3.Connection) -> None:
-    """存量表增加 tenant_id(NULL 兼容:官方会话/官方知识域不属于任何租户)。"""
+    """存量表增加 tenant_id(NULL 兼容:官方会话/官方知识域不属于任何租户);
+    users 增加 phone(手机验证码注册/登录)。"""
     for tbl in ("sessions", "domains"):
         cols = {r[1] for r in db.execute(f"PRAGMA table_info({tbl})")}
         if "tenant_id" not in cols:
             db.execute(f"ALTER TABLE {tbl} ADD COLUMN tenant_id INTEGER REFERENCES tenants(id)")
+    user_cols = {r[1] for r in db.execute("PRAGMA table_info(users)")}
+    if "phone" not in user_cols:
+        db.execute("ALTER TABLE users ADD COLUMN phone TEXT DEFAULT ''")
+    order_cols = {r[1] for r in db.execute("PRAGMA table_info(payment_orders)")}
+    if "out_trade_no" not in order_cols:
+        db.execute("ALTER TABLE payment_orders ADD COLUMN out_trade_no TEXT")
+    db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_out_trade_no "
+               "ON payment_orders(out_trade_no)")
+    if "trade_no" not in order_cols:
+        db.execute("ALTER TABLE payment_orders ADD COLUMN trade_no TEXT DEFAULT ''")
 
 
 def _migrate_saas_plans(db: sqlite3.Connection) -> None:

@@ -30,10 +30,16 @@ def _valid_username(u: str) -> bool:
     return bool(re.fullmatch(r"[A-Za-z0-9_\-]{3,24}", u or ""))
 
 
-def register_tenant(org_name: str, username: str, password: str, email: str = "") -> dict:
-    """开通新租户;失败抛 ValueError(前端转 400)。"""
+def register_tenant(org_name: str, username: str, password: str, email: str = "",
+                    phone: str = "") -> dict:
+    """开通新租户;失败抛 ValueError(前端转 400)。
+    手机验证码注册时 username/password 可缺省,自动生成(登录走短信验证码)。"""
     org_name = (org_name or "").strip()
     username = (username or "").strip().lower()
+    if phone and not username:
+        username = f"m{phone[-4:]}{secrets.token_hex(2)}"
+    if phone and not password:
+        password = secrets.token_urlsafe(12)
     if not org_name or len(org_name) > 40:
         raise ValueError("机构名称需在 1-40 字之间")
     if not _valid_username(username):
@@ -48,11 +54,14 @@ def register_tenant(org_name: str, username: str, password: str, email: str = ""
         exists = db.execute("SELECT id FROM users WHERE username=?", (username,)).fetchone()
         if exists:
             raise ValueError("用户名已被占用")
+        if phone and db.execute("SELECT id FROM users WHERE phone=?", (phone,)).fetchone():
+            raise ValueError("该手机号已注册")
         cur = db.execute("INSERT INTO tenants(slug, name) VALUES(?,?)", (slug, org_name))
         tid = cur.lastrowid
-        db.execute("INSERT INTO users(tenant_id, username, email, password_hash, role) "
-                   "VALUES(?,?,?,?,?)",
-                   (tid, username, email or "", auth.hash_password(password), "admin"))
+        db.execute("INSERT INTO users(tenant_id, username, email, password_hash, role, phone) "
+                   "VALUES(?,?,?,?,?,?)",
+                   (tid, username, email or "", auth.hash_password(password), "admin",
+                    phone or ""))
         # 两档套餐均为收费:注册生成「待开通」订阅,选购并支付后生效
         db.execute("INSERT INTO subscriptions(tenant_id, plan_code, status) "
                    "VALUES(?,?, 'unpaid')", (tid, "standard"))
