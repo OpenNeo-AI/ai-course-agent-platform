@@ -364,6 +364,196 @@ def tool_enrollment(product_name: str | None = None,
         return info
 
 
+# ---------- Agent Skill(A级测试单:Function Calling 技能封装) ----------
+
+def tool_course_detail(product_name: str | None = None,
+                       domain_ids: list[int] | None = None) -> dict:
+    """Skill-1 查询课程详情:按班型名称返回时间/地点/费用/师资/大纲(全部取自知识库)。
+    降级:参数缺失返回 need 提示追问;班型不存在返回 available 列表供确认。"""
+    domain_ids = domain_ids or []
+    if not (product_name or "").strip():
+        return {"error": "缺少班型名称参数", "need": ["请先告诉我你想查询哪个班型"]}
+    name = product_name.strip()
+    with get_db() as db:
+        hit = hit_dom = None
+        for dom_id in domain_ids:
+            p = engine.find_product(db, dom_id, name=name)
+            if p:
+                hit, hit_dom = p, dom_id
+                break
+        if not hit:
+            available = [p["name"] for d in domain_ids
+                         for p in engine.load_products(db, d)]
+            return {"error": f"未找到班型「{name}」",
+                    "available": available,
+                    "need": ["请确认班型名称,或从 available 列表中选择"]}
+        detail = product_brief(db, hit_dom, hit)          # 时间/地点/费用/营期
+        # 师资:teaches 链接(person → product)
+        teachers = [r["name"] for r in db.execute(
+            "SELECT e.name FROM relations r JOIN entities e ON e.id=r.src_id "
+            "WHERE r.rel='teaches' AND r.dst_id=? AND e.type='person'", (hit["id"],))]
+        # 大纲:该班型来源文档中含「大纲」的知识块摘录
+        outline = ""
+        row = db.execute("SELECT doc_id FROM entities WHERE id=?", (hit["id"],)).fetchone()
+        if row:
+            oc = db.execute(
+                "SELECT chapter, content FROM knowledge_chunks "
+                "WHERE doc_id=? AND (chapter LIKE '%大纲%' OR content LIKE '%大纲%') "
+                "ORDER BY ord LIMIT 2", (row["doc_id"],)).fetchall()
+            outline = " | ".join((c["chapter"] or "") + ":" + c["content"][:160]
+                                 for c in oc)[:500]
+        cite = []
+        item = _entity_cite_item(db, hit)
+        if item:
+            cite.append(item)
+        else:
+            cite = _source_cite(db, hit_dom)
+        return {"product": detail,
+                "teachers": teachers,
+                "outline": outline or "(资料中未收录该班型大纲,可换问课程安排)",
+                "discount_rules": _discount_summary(db, hit_dom),
+                "note": "费用为资料标准价;精确金额(含早鸟/团报)请再调用费用计算。",
+                "cite": cite}
+
+
+_TIME_PREF_MAP = (
+    (("周末", "周六", "周日", "不能脱岗", "无法脱岗", "工作日上班"), {"days_off_continuous": False}),
+    (("连续", "脱岗", "整周", "全天", "请假"), {"days_off_continuous": True}),
+    (("线上", "远程", "在家", "不出门"), {"mode": "online"}),
+    (("线下", "现场", "面授"), {"mode": "offline"}),
+)
+
+
+def _generic_recommend(db, domain_ids: list[int], cons: dict) -> list[dict]:
+    """租户域通用推荐兜底(域内未配置 recommend 规则时):
+    按城市/形式/时间偏好对班型做软过滤并生成理由;不改动引擎与官方规则。"""
+    city, mode = cons.get("city"), cons.get("mode")
+    days_off = cons.get("days_off_continuous")
+    out = []
+    for dom_id in domain_ids:
+        for p in engine.load_products(db, dom_id):
+            a = p["attrs"]
+            hay = " ".join(str(x) for x in [p["name"], a.get("venue"), a.get("city"),
+                                              a.get("format"), a.get("schedule_text")]
+                           if x)
+            reasons = []
+            if city:
+                if city in hay:
+                    reasons.append(f"地点匹配「{city}」")
+                else:
+                    continue    # 城市硬约束:不匹配直接排除
+            if mode == "online":
+                if a.get("format") == "online" or "线上" in hay:
+                    reasons.append("形式为线上,符合偏好")
+                else:
+                    continue
+            elif mode == "offline":
+                if a.get("format") in ("offline", "intensive", "weekend") or "线下" in hay:
+                    reasons.append("形式为线下,符合偏好")
+                else:
+                    continue
+            if days_off is False:
+                if "周末" in hay or a.get("format") == "weekend":
+                    reasons.append("周末开课,无需连续脱岗")
+            elif days_off is True:
+                if "集训" in hay or a.get("format") == "intensive":
+                    reasons.append("连续授课安排,适合可脱岗学员")
+            if not reasons:
+                reasons.append("在当前知识域范围内综合匹配")
+            out.append({"product": p, "periods": [], "reasons": reasons,
+                        "_domain_id": dom_id})
+    return out
+
+
+def tool_recommend_course(city: str | None = None, time_preference: str | None = None,
+                          domain_ids: list[int] | None = None) -> dict:
+    """Skill-2 推荐适合班型:按城市+时间偏好返回最匹配的 1-2 个班型及推荐理由。
+    降级:约束不足返回 need 列表,应先追问再推荐;域内无推荐规则时走通用软过滤兜底。"""
+    domain_ids = domain_ids or []
+    cons: dict = {"city": (city or "").strip() or None}
+    pref = (time_preference or "").strip()
+    for words, patch in _TIME_PREF_MAP:
+        if any(w in pref for w in words):
+            cons.update(patch)
+            break
+    if not cons.get("city") and not pref:
+        return {"candidates": [],
+                "need": ["你所在的城市?", "时间偏好(只有周末有空 / 可以连续安排 / 线上均可)?"],
+                "note": "约束不足,请先追问城市和可用时间,再调用本技能。"}
+    candidates: list[dict] = []
+    need: list[str] = []
+    note = error = None
+    with get_db() as db:
+        for dom_id in domain_ids:
+            res = engine.recommend(db, dom_id, cons)
+            if res.get("error"):
+                error = error or res["error"]
+                continue
+            for c in res.get("candidates", []):
+                c.setdefault("_domain_id", dom_id)
+                candidates.append(c)
+            for n in res.get("need", []):
+                if n not in need:
+                    need.append(n)
+            if res.get("note"):
+                note = res["note"]
+        # 域内未配置推荐策略(新租户常见)→ 通用兜底
+        if not candidates and not error:
+            candidates = _generic_recommend(db, domain_ids, cons)
+            need = []
+            note = None
+        # 城市无匹配等场景:给出说明而非空结果,引导调整约束(如改线上)
+        if not candidates and not need and not error:
+            if cons.get("city"):
+                note = f"知识库中暂无「{cons['city']}」开设的班型;如接受线上形式," \
+                       "可说明「想线上参加」,或联系机构课程顾问确认其他安排。"
+            else:
+                note = "当前约束下没有匹配的班型,请补充更多偏好。"
+        cite = _recommend_cite(db, candidates) if candidates else []
+    candidates = candidates[:2]       # 测试单口径:返回最匹配的 1-2 个
+    if not candidates and not need and error:
+        return {"candidates": [], "need": [], "error": error}
+    return {"candidates": candidates, "need": need, "note": note,
+            "constraints_used": {k: v for k, v in cons.items() if v is not None},
+            "cite": cite}
+
+
+SKILL_COURSE_DETAIL_TOOL = {"type": "function", "function": {
+    "name": "get_course_detail",
+    "description": "Skill·查询课程详情:根据班型名称返回该班型的完整信息"
+                   "(时间、地点、费用、师资、大纲)。用户询问某个班型的具体情况时调用。",
+    "parameters": {"type": "object", "properties": {
+        "product_name": {"type": "string", "description": "班型名称,如「北京线下班」"}},
+        "required": ["product_name"]}}}
+
+SKILL_RECOMMEND_COURSE_TOOL = {"type": "function", "function": {
+    "name": "recommend_course_type",
+    "description": "Skill·推荐适合班型:根据用户的城市与时间偏好(如「我在上海」"
+                   "「我只有周末有空」)返回最匹配的 1-2 个班型及推荐理由。",
+    "parameters": {"type": "object", "properties": {
+        "city": {"type": "string", "description": "用户所在城市,如「上海」"},
+        "time_preference": {"type": "string",
+                            "description": "时间偏好,如「只有周末有空」「可以连续脱岗」「想线上」"}},
+        "required": []}}}
+
+# Skill 自描述元数据(/api/skills 输出,供评审与文档查验)
+SKILLS_META = [
+    {"name": "get_course_detail", "title": "查询课程详情",
+     "description": SKILL_COURSE_DETAIL_TOOL["function"]["description"],
+     "parameters": SKILL_COURSE_DETAIL_TOOL["function"]["parameters"],
+     "returns": {"product": "班型结构化信息(名称/形式/地点/标准费用/时间/营期)",
+                 "teachers": "师资姓名列表", "outline": "课程大纲摘录",
+                 "discount_rules": "适用的优惠规则(早鸟/团报/叠加)",
+                 "cite": "引用溯源(文档《名称》·章节)"}},
+    {"name": "recommend_course_type", "title": "推荐适合班型",
+     "description": SKILL_RECOMMEND_COURSE_TOOL["function"]["description"],
+     "parameters": SKILL_RECOMMEND_COURSE_TOOL["function"]["parameters"],
+     "returns": {"candidates": "最匹配的 1-2 个班型及推荐理由(product/reasons)",
+                 "need": "尚缺的约束(非空时应先追问)",
+                 "cite": "引用溯源(文档《名称》·章节)"}},
+]
+
+
 # ---------- 工具表(OpenAI function calling / MCP 共用) ----------
 
 TOOLS = [
@@ -451,6 +641,10 @@ _DISPATCH = {
     "list_products": lambda a: tool_list_products(domain_ids=a.get("domain_ids")),
     "get_enrollment_info": lambda a: tool_enrollment(a.get("product_name"),
                                                      domain_ids=a.get("domain_ids")),
+    "get_course_detail": lambda a: tool_course_detail(a.get("product_name"),
+                                                      domain_ids=a.get("domain_ids")),
+    "recommend_course_type": lambda a: tool_recommend_course(
+        a.get("city"), a.get("time_preference"), domain_ids=a.get("domain_ids")),
 }
 
 

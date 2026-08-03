@@ -152,12 +152,16 @@ def run_turn_stream(session_id: str, text: str):
     recommended_names: list[str] = []
     reply_buf = ""            # 已流向用户的全部内容(用于兜底判断与持久化)
     got_final_turn = False
-    # 按智能体能力装配工具:lead_capture 能力开启时纳入留资工具(工具在 tools 中定义)
+    # 按智能体能力装配工具:lead_capture 能力开启时纳入留资工具;
+    # tenant_bot(租户会话)追加两个 Agent Skill——官方三通道工具集保持不变,验收零漂移
     caps = scope.get("capabilities") or {}
     tool_defs = list(tools.TOOLS)
     capture_tool = getattr(tools, "CAPTURE_LEAD_TOOL", None)
     if caps.get("lead_capture") and capture_tool:
         tool_defs = tool_defs + [capture_tool]
+    if caps.get("tenant_bot"):
+        tool_defs = tool_defs + [tools.SKILL_COURSE_DETAIL_TOOL,
+                                 tools.SKILL_RECOMMEND_COURSE_TOOL]
     try:
         for _ in range(MAX_TOOL_ROUNDS):
             content_acc = ""
@@ -217,7 +221,8 @@ def run_turn_stream(session_id: str, text: str):
                     out = apply_scope_ask(scope, args)
                     result = out if "error" in out else tools.dispatch("ask_knowledge", out)
                 elif name in ("recommend_products", "calculate_fee",
-                              "list_products", "get_enrollment_info"):
+                              "list_products", "get_enrollment_info",
+                              "get_course_detail", "recommend_course_type"):
                     args["domain_ids"] = scope["domain_ids"]
                     result = tools.dispatch(name, args)
                 elif name == "capture_lead":

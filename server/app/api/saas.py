@@ -217,6 +217,17 @@ def usage(request: Request):
             "trend": [{"month": m, "count": by_month.get(m, 0)} for m in months]}
 
 
+# ---------- Agent Skill 自描述 ----------
+
+@router.get("/api/skills")
+def skills():
+    """Agent Skill 清单:名称/描述/参数 JSON Schema/返回值定义(测试单查验口径)。"""
+    from ..core import tools as core_tools
+    return {"skills": core_tools.SKILLS_META,
+            "degradation": "参数缺失→返回 need 列表由 Agent 追问;班型不存在→返回 available 列表;"
+                           "模型服务异常→固定降级文案;工具不可用时 Agent 基于上下文直答并声明不确定。"}
+
+
 # ---------- 租户 Admin ----------
 
 def _tenant_ctx(request: Request) -> tuple[dict, dict]:
