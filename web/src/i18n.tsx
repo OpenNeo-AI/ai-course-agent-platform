@@ -64,7 +64,6 @@ const DICT: Record<string, { zh: string; en: string }> = {
   'admin.sessions': { zh: '对话记录', en: 'Conversations' },
   'admin.stats': { zh: '用量统计', en: 'Usage Stats' },
   'admin.subscription': { zh: '套餐订阅', en: 'Subscription' },
-  'admin.openBot': { zh: '打开 Bot 对话 ↗', en: 'Open Bot ↗' },
   // 平台工作台
   'portal.tenantBoard': { zh: '租户看板', en: 'Tenant Board' },
 }

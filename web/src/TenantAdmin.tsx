@@ -208,7 +208,6 @@ export function TenantAgentTab() {
   const [cfg, setCfg] = useState<any>(null)
   const [options, setOptions] = useState<string[]>([])
   const [defaultModel, setDefaultModel] = useState('')
-  const [botUrl, setBotUrl] = useState('')
   const [domains, setDomains] = useState<any[]>([])
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
@@ -219,7 +218,6 @@ export function TenantAgentTab() {
       setCfg(d.config)
       setOptions(d.model_options || [])
       setDefaultModel(d.default_model || '')
-      setBotUrl(d.bot_url || '')
     }).catch(e => setErr(e.message))
     api('/api/portal/domains').then(setDomains).catch(() => {})
   }, [])
@@ -309,8 +307,6 @@ export function TenantAgentTab() {
           onClick={() => save(cfg, '配置已保存 · 新会话即时生效')}>
           {busy ? '保存中…' : '保存全部设置'}
         </button>
-        {botUrl && <a className="tadm-botlink" style={{ display: 'inline-block', textDecoration: 'none' }}
-          href={botUrl} target="_blank" rel="noreferrer">打开 Bot 对话验证 ↗</a>}
       </div>
     </section>
   )

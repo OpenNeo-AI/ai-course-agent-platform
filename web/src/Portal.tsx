@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
 import OntologyTab from './OntologyTab'
 
 import { api, clearAuth, TOKEN_KEY } from './api'
@@ -1381,8 +1380,6 @@ export default function Portal() {
           ))}
         </nav>
         <div className="p-side-foot">
-          {isTenant && tinfo && <Link to={tinfo.bot_url}>↗ 打开 Bot 对话</Link>}
-          <Link to="/">↗ 返回前台</Link>
           <button onClick={() => { clearAuth(); setAuthed(false); setMe(null) }}>退出登录</button>
         </div>
       </aside>
