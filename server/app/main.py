@@ -26,6 +26,7 @@ from starlette.routing import Route
 
 from .agent import loop
 from .api.portal import router as portal_router
+from .api.saas import router as saas_router
 from .core import config
 from .mcp_server import mcp_platform
 from .mcp_server import mcp_student, mcp_teacher
@@ -104,6 +105,7 @@ app = FastAPI(title="OPC AI Course Advisor", version="0.1.0", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"],
                    allow_methods=["*"], allow_headers=["*"])
 app.include_router(portal_router)
+app.include_router(saas_router)
 
 
 @app.get("/api/health")
@@ -113,11 +115,28 @@ def health():
 
 @app.post("/api/session")
 async def create_session(request: Request):
+    """创建会话。官方通道:{role};租户 Bot:{tenant: <slug>}(role 固定 tenant)。
+    返回体含 plan/quota(租户会话)供前端做套餐感知。"""
     try:
         body = await request.json()
     except Exception:
         body = {}
-    role = (body or {}).get("role", "platform")
+    body = body or {}
+    slug = (body.get("tenant") or "").strip()
+    if slug:
+        from .core import tenancy
+        tenant = await asyncio.to_thread(tenancy.get_tenant_by_slug, slug)
+        if not tenant:
+            return JSONResponse({"error": "租户不存在"}, status_code=404)
+        out = await asyncio.to_thread(loop.new_session, "tenant", tenant["id"])
+        from .core.db import get_db
+        with get_db() as db:
+            quota = tenancy.quota_state(db, tenant["id"])
+        out["tenant"] = {"slug": tenant["slug"], "name": tenant["name"]}
+        out["plan"] = {"code": quota["plan_code"], "name": quota["plan_name"]}
+        out["quota"] = quota
+        return out
+    role = body.get("role", "platform")
     if role not in ("student", "teacher", "platform"):
         role = "platform"
     return await asyncio.to_thread(loop.new_session, role)
@@ -183,7 +202,9 @@ async def chat(request: Request):
                     yield {"event": "done",
                            "data": json.dumps({"session_id": session_id, "state": ev.get("state"),
                                                "reset": ev.get("reset"), "cite": ev.get("cite"),
-                                               "cite_raw": ev.get("cite_raw")},
+                                               "cite_raw": ev.get("cite_raw"),
+                                               "quota": ev.get("quota"),
+                                               "quota_exceeded": ev.get("quota_exceeded")},
                                               ensure_ascii=False)}
                 elif t == "error":
                     yield {"event": "error",

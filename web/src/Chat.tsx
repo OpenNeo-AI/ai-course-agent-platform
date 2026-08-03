@@ -64,8 +64,11 @@ function CiteCard({ item, index }: { item: CiteItem; index: number }) {
   )
 }
 
-export default function Chat({ role, title, accent, suggestions }: {
-  role: string; title: string; accent: string; suggestions: string[]
+type Quota = { plan_code: string; plan_name: string; limit: number; unlimited: boolean;
+  used: number; remaining: number }
+
+export default function Chat({ role, title, accent, suggestions, tenant }: {
+  role: string; title: string; accent: string; suggestions: string[]; tenant?: string
 }) {
   const [session, setSession] = useState('')
   const [messages, setMessages] = useState<Msg[]>([])
@@ -74,6 +77,8 @@ export default function Chat({ role, title, accent, suggestions }: {
   const [progress, setProgress] = useState('')
   const [error, setError] = useState('')
   const [showMenu, setShowMenu] = useState(false)
+  const [quota, setQuota] = useState<Quota | null>(null)
+  const [quotaHit, setQuotaHit] = useState(false)   // 免费版额度用尽(引导升级)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inited = useRef(false)
 
@@ -82,16 +87,18 @@ export default function Chat({ role, title, accent, suggestions }: {
     inited.current = true
     fetch(`${API}/api/session`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role }),
+      body: JSON.stringify(tenant ? { role, tenant } : { role }),
     })
       .then(r => r.json())
       .then(d => {
+        if (d.error) throw new Error(d.error)
         setSession(d.session_id)
         setMessages([{ role: 'assistant', text: d.welcome }])
+        if (d.quota) setQuota(d.quota)
         setShowMenu(true)
       })
-      .catch(() => setError('无法连接服务,请检查网络或稍后重试。'))
-  }, [role])
+      .catch(e => setError(e.message || '无法连接服务,请检查网络或稍后重试。'))
+  }, [role, tenant])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -152,6 +159,8 @@ export default function Chat({ role, title, accent, suggestions }: {
         } else if (eventName === 'done') {
           finished = true  // 禁止后续 rAF 覆盖已定稿的 cite
           if (payload.reset) setShowMenu(true)
+          if (payload.quota) setQuota(payload.quota)
+          if (payload.quota_exceeded) setQuotaHit(true)
           // 定稿:无论后端是否下发结构化 cite,都剥掉正文里的「出自」原始串,保证不残留;
           // 引用统一以卡片呈现(后端 cite 优先、带原文摘录,缺失时用解析结果兜底),保证不丢失。
           let finalText = reply.replace(/\r\n/g, '\n')
@@ -217,8 +226,21 @@ export default function Chat({ role, title, accent, suggestions }: {
         </Link>
         <h1>{title}</h1>
         <span className="live"><i />在线</span>
+        {quota && (
+          <span className={`quota-badge${quota.unlimited ? ' unlimited' : ''}`}
+            title={`当前套餐:${quota.plan_name}`}>
+            {quota.unlimited ? `${quota.plan_name} · 不限次` : `本月剩余 ${quota.remaining} 次`}
+          </span>
+        )}
         <button className="reset" onClick={reset} disabled={busy || !session}>重新开始</button>
       </header>
+
+      {quotaHit && (
+        <div className="quota-banner">
+          <span>本月免费额度已用完,升级专业版享无限对话与知识库管理。</span>
+          <Link to="/pricing">查看套餐 →</Link>
+        </div>
+      )}
 
       <main className="msgs">
         {!session && !error && (

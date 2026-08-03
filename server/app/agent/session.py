@@ -25,21 +25,26 @@ def _now() -> str:
     return datetime.now(_CST).strftime("%Y-%m-%d %H:%M:%S")
 
 
-def create_session(role: str = "platform") -> dict:
+def create_session(role: str = "platform", tenant_id: int | None = None) -> dict:
     sid = uuid.uuid4().hex[:12]
     state = dict(ROLE_DEFAULTS.get(role, {}))
+    if role == "tenant":
+        state = {"identity": "tenant"}
     with get_db() as db:
-        db.execute("INSERT INTO sessions(id, role, state_json, updated_at) VALUES(?,?,?,?)",
-                   (sid, role, json.dumps(state, ensure_ascii=False), _now()))
-    return {"session_id": sid, "role": role, "state": state}
+        db.execute("INSERT INTO sessions(id, role, state_json, updated_at, tenant_id) "
+                   "VALUES(?,?,?,?,?)",
+                   (sid, role, json.dumps(state, ensure_ascii=False), _now(), tenant_id))
+    return {"session_id": sid, "role": role, "state": state, "tenant_id": tenant_id}
 
 
 def load_session(db: sqlite3.Connection, session_id: str) -> dict | None:
     row = db.execute("SELECT * FROM sessions WHERE id=?", (session_id,)).fetchone()
     if not row:
         return None
+    keys = row.keys()
     return {"session_id": row["id"], "role": row["role"],
-            "state": json.loads(row["state_json"] or "{}")}
+            "state": json.loads(row["state_json"] or "{}"),
+            "tenant_id": row["tenant_id"] if "tenant_id" in keys else None}
 
 
 def save_state(db: sqlite3.Connection, session_id: str, state: dict) -> None:

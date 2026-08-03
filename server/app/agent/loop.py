@@ -11,7 +11,7 @@ import re
 import time
 from datetime import date
 
-from ..core import config, llm, tools
+from ..core import config, llm, tenancy, tools
 from ..core.db import get_db
 from ..core.scope import apply_scope_ask, scope_for_role
 from . import session as sess
@@ -58,6 +58,8 @@ REPLY_EMPTY = "请输入你想咨询的内容,例如「北京线下班多少钱�
 REPLY_TOO_LONG = f"输入内容超过{MAX_INPUT_LEN}字,请精简后再发送。"
 REPLY_RESET = "会话已重置。"
 REPLY_MODEL_ERROR = "模型服务暂时不可用,请稍后重试。"
+REPLY_QUOTA_EXCEEDED = ("本月的免费对话额度已用完。升级到专业版可享无限对话、"
+                        "知识库管理与数据看板,请前往套餐页升级。")
 
 
 def _system_prompt(role: str, state: dict, scope: dict) -> str:
@@ -81,10 +83,11 @@ def _is_reset(text: str) -> bool:
     return t in RESET_WORDS or (len(t) <= 6 and any(w in t for w in RESET_WORDS))
 
 
-def _reply_events(reply: str, state: dict, reset: bool):
-    """固定模板回复(校验/重置):整段作为一条 delta + done。"""
+def _reply_events(reply: str, state: dict, reset: bool, **done_extra):
+    """固定模板回复(校验/重置/配额):整段作为一条 delta + done。"""
     yield {"type": "delta", "text": reply}
-    yield {"type": "done", "state": state, "reset": reset, "cite": None, "cite_raw": None}
+    yield {"type": "done", "state": state, "reset": reset, "cite": None, "cite_raw": None,
+           **done_extra}
 
 
 def run_turn_stream(session_id: str, text: str):
@@ -100,7 +103,9 @@ def run_turn_stream(session_id: str, text: str):
         yield {"type": "error", "error": f"会话不存在: {session_id}"}
         return
     role, state = s["role"], s["state"]
-    scope = scope_for_role(role)
+    tenant_id = s.get("tenant_id")
+    # 租户会话用租户知识域作用域;官方三通道保持 scope_for_role 原路径
+    scope = tenancy.scope_for_tenant(tenant_id) if tenant_id else scope_for_role(role)
 
     stripped = (text or "").strip()
     if not stripped:
@@ -120,6 +125,18 @@ def run_turn_stream(session_id: str, text: str):
             sess.append_message(db, session_id, "assistant", reply)
         yield from _reply_events(reply, state, True)
         return
+
+    # 租户配额门禁(官方三通道 tenant_id 为 NULL,不受影响);通过后计数一次对话
+    if tenant_id:
+        with get_db() as db:
+            if not tenancy.quota_check(db, tenant_id):
+                quota = tenancy.quota_state(db, tenant_id)
+                sess.append_message(db, session_id, "user", stripped)
+                sess.append_message(db, session_id, "assistant", REPLY_QUOTA_EXCEEDED)
+                yield from _reply_events(REPLY_QUOTA_EXCEEDED, state, False,
+                                         quota_exceeded=True, quota=quota)
+                return
+            tenancy.quota_inc(db, tenant_id)
 
     # 工具循环(流式):逐轮调用模型,内容 token 实时 yield,工具调用累积后执行
     messages = [{"role": "system", "content": _system_prompt(role, state, scope)}]
@@ -260,13 +277,16 @@ def run_turn_stream(session_id: str, text: str):
     # 终极兜底:所有工具都没返回 cite 时,从回复文本解析引用
     cite_payload = _cite_items if _cite_items else _parse_citations_from_text(final)
 
+    done_quota = None
     with get_db() as db:
         sess.append_message(db, session_id, "user", stripped)
         sess.append_message(db, session_id, "assistant", final,
                             tool_calls=[{"name": e["name"], "args": e["args"]}
                                         for e in tool_events] or None)
+        if tenant_id:
+            done_quota = tenancy.quota_state(db, tenant_id)
     yield {"type": "done", "state": state, "reset": False,
-           "cite": cite_payload, "cite_raw": cite_raw}
+           "cite": cite_payload, "cite_raw": cite_raw, "quota": done_quota}
 
 
 def run_turn(session_id: str, text: str) -> dict:
@@ -309,6 +329,6 @@ def _summarize(name: str, result: dict) -> str:
     return name
 
 
-def new_session(role: str = "platform") -> dict:
-    s = sess.create_session(role)
+def new_session(role: str = "platform", tenant_id: int | None = None) -> dict:
+    s = sess.create_session(role, tenant_id=tenant_id)
     return {**s, "welcome": tools.tool_welcome(role)["text"]}

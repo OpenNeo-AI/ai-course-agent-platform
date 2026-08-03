@@ -1,9 +1,17 @@
 import { StrictMode, useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Link, useParams } from 'react-router-dom'
+import Auth from './Auth'
 import Chat from './Chat'
 import Portal from './Portal'
 import './index.css'
+
+/* 租户专属对话入口 /b/:slug(会话按租户作用域与套餐配额运行) */
+function TenantChat() {
+  const { slug } = useParams()
+  return <Chat role="tenant" tenant={slug} title="AI 课程顾问" accent="#0f766e"
+    suggestions={['你能做什么?', '介绍一下你们的课程', '推荐一个适合我的班型']} />
+}
 
 /* 落地页右侧:循环播放的对话演示 */
 const SCRIPT: { role: 'user' | 'assistant'; text: string }[] = [
@@ -146,6 +154,11 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/c" element={<Chat role="platform" title="平台通道 · 机构/企业咨询" accent="#7c3aed"
           suggestions={['平台会员有哪些权益?', '机构批量采购如何合作?', '平台提供哪些服务?']} />} />
         <Route path="/portal" element={<Portal />} />
+        <Route path="/login" element={<Auth mode="login" />} />
+        <Route path="/register" element={<Auth mode="register" />} />
+        <Route path="/b/:slug" element={<TenantChat />} />
+        <Route path="/pricing" element={<div />} />
+        <Route path="/admin" element={<div />} />
       </Routes>
     </BrowserRouter>
   </StrictMode>,

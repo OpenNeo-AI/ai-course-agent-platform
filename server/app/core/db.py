@@ -183,6 +183,65 @@ CREATE TABLE IF NOT EXISTS channel_tokens(
   created_at TEXT DEFAULT (datetime('now','localtime')),
   last_used_at TEXT
 );
+
+-- ---------- SaaS:多租户 / 套餐订阅 / 用量 / 支付(A级测试单) ----------
+-- 租户:教育机构客户。官方演示知识域(domain-a/b/c)tenant_id 为 NULL,不属于任何租户。
+CREATE TABLE IF NOT EXISTS tenants(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  slug TEXT UNIQUE NOT NULL,            -- 对话入口标识 /b/<slug>
+  name TEXT NOT NULL,                   -- 机构名称
+  created_at TEXT DEFAULT (datetime('now','localtime'))
+);
+
+-- 用户:租户管理员(tenant_id 归属)与平台超管(tenant_id=NULL)。
+CREATE TABLE IF NOT EXISTS users(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tenant_id INTEGER REFERENCES tenants(id),
+  username TEXT UNIQUE NOT NULL,
+  email TEXT DEFAULT '',
+  password_hash TEXT NOT NULL,          -- pbkdf2_sha256$salt$hash
+  role TEXT DEFAULT 'admin',            -- superadmin(平台) / admin(租户管理员) / member
+  created_at TEXT DEFAULT (datetime('now','localtime'))
+);
+
+-- 套餐定义:free 每月限额对话;pro 无限对话并解锁知识库管理与数据看板。
+CREATE TABLE IF NOT EXISTS plans(
+  code TEXT PRIMARY KEY,                -- free / pro
+  name TEXT NOT NULL,
+  price_monthly REAL DEFAULT 0,         -- 演示价格
+  chat_limit_month INTEGER DEFAULT 50,  -- -1 表示无限
+  features_json TEXT DEFAULT '{}'
+);
+
+-- 订阅:每租户一条,记录当前套餐。
+CREATE TABLE IF NOT EXISTS subscriptions(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tenant_id INTEGER UNIQUE NOT NULL REFERENCES tenants(id),
+  plan_code TEXT NOT NULL REFERENCES plans(code),
+  status TEXT DEFAULT 'active',
+  current_period_end TEXT,
+  updated_at TEXT DEFAULT (datetime('now','localtime'))
+);
+
+-- 月度用量:免费版按自然月计数对话次数。
+CREATE TABLE IF NOT EXISTS usage_monthly(
+  tenant_id INTEGER NOT NULL REFERENCES tenants(id),
+  year_month TEXT NOT NULL,             -- YYYY-MM(北京时间)
+  chat_count INTEGER DEFAULT 0,
+  PRIMARY KEY(tenant_id, year_month)
+);
+
+-- 支付订单:演示环境默认 mock 渠道;CHANNELS 注册表预留支付宝/微信沙箱。
+CREATE TABLE IF NOT EXISTS payment_orders(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tenant_id INTEGER NOT NULL REFERENCES tenants(id),
+  plan_code TEXT NOT NULL,
+  channel TEXT DEFAULT 'mock',          -- mock / alipay / wechat
+  amount REAL DEFAULT 0,
+  status TEXT DEFAULT 'pending',        -- pending / paid / failed
+  created_at TEXT DEFAULT (datetime('now','localtime')),
+  paid_at TEXT
+);
 """
 
 vec_available = False
@@ -210,6 +269,8 @@ def get_db():
     db.executescript(SCHEMA)
     _ensure_domains_kbs(db)
     _migrate_drop_materials(db)
+    _migrate_saas(db)
+    _seed_saas(db)
     try:
         from .ontology.engine import seed_recommend_rules
         seed_recommend_rules(db)
@@ -269,6 +330,68 @@ def _ensure_domains_kbs(db: sqlite3.Connection) -> None:
                    "WHERE kb_id IS NULL")
     db.execute("UPDATE knowledge_chunks SET kb_id=(SELECT d.kb_id FROM documents d "
                "WHERE d.id=knowledge_chunks.doc_id) WHERE kb_id IS NULL")
+
+
+# ---------- SaaS 迁移与种子(幂等) ----------
+
+SAAS_PLANS = [
+    ("free", "免费版", 0.0, 50,
+     '{"rag_manage": false, "dashboard": false, "skills": true,'
+     ' "desc": "每月 50 次 AI 对话,体验 RAG 问答与班型推荐"}'),
+    ("pro", "专业版", 99.0, -1,
+     '{"rag_manage": true, "dashboard": true, "skills": true,'
+     ' "desc": "无限对话 + RAG 知识库管理 + 课程资料管理 + 数据看板"}'),
+]
+
+STARTER_DOC_TITLE = "平台使用指南"
+STARTER_DOC_TEXT = """第一章 平台简介
+本机构已接入「AI教育顾问SaaS平台」。我是本机构的AI课程顾问,可以基于机构上传的课程资料为你解答课程安排、费用、师资等问题,并在资料范围内推荐适合的班型。
+第二章 我能做什么
+1. 课程问答:基于机构知识库回答课程大纲、时间、地点、费用等问题,回答附带资料来源。
+2. 班型推荐:告诉我你所在的城市与时间偏好,我会在机构课程范围内推荐适合的班型并说明理由。
+3. 边界说明:资料范围内的问题据实作答;超出资料范围的问题,我会明确告知「该问题不在我的知识范围内」,不编造信息。
+第三章 温馨提示
+课程余位与报名结果以机构人工确认为准,我不提供实时余位查询。如需人工服务,请联系本机构课程顾问。
+"""
+
+
+def _migrate_saas(db: sqlite3.Connection) -> None:
+    """存量表增加 tenant_id(NULL 兼容:官方会话/官方知识域不属于任何租户)。"""
+    for tbl in ("sessions", "domains"):
+        cols = {r[1] for r in db.execute(f"PRAGMA table_info({tbl})")}
+        if "tenant_id" not in cols:
+            db.execute(f"ALTER TABLE {tbl} ADD COLUMN tenant_id INTEGER REFERENCES tenants(id)")
+
+
+def _seed_saas(db: sqlite3.Connection) -> None:
+    """种入套餐、平台超管与官方演示租户(幂等)。
+    用户种子仅在 users 表为空时执行——pbkdf2 哈希较慢,不得在每次连接时重复计算。"""
+    for code, name, price, limit, features in SAAS_PLANS:
+        db.execute("INSERT OR IGNORE INTO plans(code, name, price_monthly, chat_limit_month, "
+                   "features_json) VALUES(?,?,?,?,?)", (code, name, price, limit, features))
+    if db.execute("SELECT COUNT(*) FROM users").fetchone()[0]:
+        return
+    from . import auth
+    # 平台超管:与 portal 登录账户保持一致(accounts.yaml 默认 demo/demo1234)
+    accounts = config.portal_accounts() or [{"username": "demo", "password": "demo1234"}]
+    acc = accounts[0]
+    db.execute("INSERT OR IGNORE INTO users(username, password_hash, role) VALUES(?,?,?)",
+               (acc["username"], auth.hash_password(acc["password"]), "superadmin"))
+    # 官方演示租户(专业版,供评审直接体验 Admin 全功能)
+    db.execute("INSERT OR IGNORE INTO tenants(slug, name) VALUES(?,?)",
+               ("demo", "演示教育机构(官方)"))
+    row = db.execute("SELECT id FROM tenants WHERE slug='demo'").fetchone()
+    demo_id = row["id"]
+    db.execute("INSERT OR IGNORE INTO users(tenant_id, username, password_hash, role) "
+               "VALUES(?,?,?,?)",
+               (demo_id, "demo-org", auth.hash_password("demo1234"), "admin"))
+    db.execute("INSERT OR IGNORE INTO subscriptions(tenant_id, plan_code) VALUES(?,?)",
+               (demo_id, "pro"))
+    db.execute("INSERT OR IGNORE INTO domains(code, name, description, tenant_id) VALUES(?,?,?,?)",
+               ("dom-tdemo0", "演示课程知识域", "演示租户的课程知识(官方)", demo_id))
+    dom_id = db.execute("SELECT id FROM domains WHERE code='dom-tdemo0'").fetchone()["id"]
+    db.execute("INSERT OR IGNORE INTO kbs(code, name, description, domain_id) VALUES(?,?,?,?)",
+               ("kb-tdemo0", "演示课程知识库", "演示租户知识库", dom_id))
 
 
 def _has_table(db: sqlite3.Connection, name: str) -> bool:

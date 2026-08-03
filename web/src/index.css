@@ -1098,3 +1098,60 @@ button { font-family: inherit; cursor: pointer; }
   .o-side { width: 100%; }
   .o-graphbox { height: 58dvh; min-height: 380px; }
 }
+
+/* ============================================================
+   SaaS:配额徽标 / 升级横幅 / 登录注册
+   ============================================================ */
+.quota-badge {
+  font-size: 11.5px; padding: 3px 10px; border-radius: 999px;
+  background: rgba(202, 138, 4, .12); color: var(--gold-deep);
+  border: 1px solid rgba(202, 138, 4, .35); white-space: nowrap;
+}
+.quota-badge.unlimited { background: rgba(21, 128, 61, .1); color: var(--ok); border-color: rgba(21, 128, 61, .3); }
+.quota-banner {
+  display: flex; align-items: center; justify-content: center; gap: 14px;
+  padding: 9px 16px; background: #FEF3C7; border-bottom: 1px solid #FDE68A;
+  color: #92400E; font-size: 13px;
+}
+.quota-banner a { color: var(--gold-deep); font-weight: 700; text-decoration: none; }
+
+.auth-page {
+  min-height: 100dvh; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(160deg, #0F172A 0%, #1B2942 60%, #233250 100%);
+  padding: 24px;
+}
+.auth-card {
+  width: min(420px, 100%); background: var(--paper); border-radius: 18px;
+  box-shadow: var(--sh-lg); padding: 34px 34px 28px; position: relative;
+}
+.auth-back { position: absolute; top: 16px; left: 20px; font-size: 12.5px; color: var(--mut); text-decoration: none; }
+.auth-back:hover { color: var(--gold-deep); }
+.auth-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; }
+.auth-brand img { width: 34px; height: 34px; border-radius: 9px; }
+.auth-brand b { font-size: 14.5px; letter-spacing: .3px; }
+.auth-card h1 { font-family: var(--serif); font-size: 26px; margin-bottom: 6px; }
+.auth-sub { font-size: 13px; color: var(--mut); margin-bottom: 22px; line-height: 1.6; }
+.auth-field { display: block; margin-bottom: 14px; }
+.auth-field span { display: block; font-size: 12.5px; color: var(--slate); margin-bottom: 6px; font-weight: 600; }
+.auth-field input {
+  width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px;
+  font-size: 14px; background: #FBFCFE; transition: border-color .15s;
+}
+.auth-field input:focus { outline: none; border-color: var(--gold); background: #fff; }
+.auth-error {
+  font-size: 12.5px; color: var(--bad); background: #FEF2F2; border: 1px solid #FECACA;
+  border-radius: 8px; padding: 8px 10px; margin-bottom: 12px;
+}
+.auth-submit {
+  width: 100%; padding: 11px; border: none; border-radius: 10px; margin-top: 4px;
+  background: linear-gradient(135deg, var(--ink) 0%, var(--ink-2) 100%);
+  color: #F8FAFC; font-size: 14.5px; font-weight: 600; letter-spacing: 1px;
+}
+.auth-submit:hover { background: linear-gradient(135deg, var(--ink-2) 0%, var(--ink-3) 100%); }
+.auth-submit:disabled { opacity: .6; cursor: wait; }
+.auth-switch { margin-top: 16px; font-size: 13px; color: var(--mut); text-align: center; }
+.auth-switch a { color: var(--gold-deep); font-weight: 600; text-decoration: none; margin-left: 4px; }
+.auth-demo {
+  margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line);
+  font-size: 11.5px; color: var(--faint); text-align: center; line-height: 1.7;
+}

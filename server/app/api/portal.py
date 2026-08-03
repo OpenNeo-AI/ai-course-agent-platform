@@ -21,10 +21,18 @@ router = APIRouter(prefix="/api/portal", tags=["portal"])
 
 
 def _auth(request: Request) -> None:
-    auth = request.headers.get("authorization", "")
-    token = auth[7:].strip() if auth.lower().startswith("bearer ") else ""
-    if not token or token != config.portal_token():
+    """双认:静态 portal token(兼容存量) 或 平台超管 JWT(SaaS 用户体系)。"""
+    from ..core import auth as core_auth
+    authh = request.headers.get("authorization", "")
+    token = authh[7:].strip() if authh.lower().startswith("bearer ") else ""
+    if not token:
         raise HTTPException(status_code=401, detail="未授权:令牌错误或缺失")
+    if token == config.portal_token():
+        return
+    payload = core_auth.decode_token(token)
+    if payload and payload.get("role") == "superadmin":
+        return
+    raise HTTPException(status_code=401, detail="未授权:令牌错误或缺失")
 
 
 # ---------- 登录 ----------
