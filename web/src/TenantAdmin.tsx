@@ -345,8 +345,9 @@ export function TenantSubTab({ info, onChanged }: { info: TenantInfo | null; onC
           return (
             <div key={p.code} className={`plan-card${p.code === 'flagship' ? ' pro' : ''}`}
               style={{ width: 'min(300px, 100%)' }}>
-              {p.code === 'flagship' && <span className="plan-flag">全功能</span>}
-              {current && <span className="plan-flag" style={{ background: 'var(--ok)' }}>当前</span>}
+              {current
+                ? <span className="plan-flag" style={{ background: 'var(--ok)' }}>当前套餐</span>
+                : p.code === 'flagship' && <span className="plan-flag">全功能</span>}
               <h2>{p.name}</h2>
               <div className="plan-price"><em>¥{p.price_monthly}</em><span>/月</span></div>
               <p className="plan-desc">{p.features?.desc}</p>
