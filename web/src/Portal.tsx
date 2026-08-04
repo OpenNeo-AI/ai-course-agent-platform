@@ -1189,7 +1189,7 @@ function PlanRow({ plan, onSave }: { plan: any; onSave: (code: string, patch: Re
     leads: '线索转化', analytics: '运营分析', skills: 'Agent Skill',
   }
   const feats = Object.entries(plan.features || {})
-    .filter(([k, v]) => v === true)
+    .filter(([, v]) => v === true)
     .map(([k]) => FEATURE_LABELS[k] || k)
   return (
     <tr>
