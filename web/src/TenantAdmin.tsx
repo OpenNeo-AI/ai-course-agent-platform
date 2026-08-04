@@ -198,6 +198,68 @@ export function TenantStatsTab() {
   )
 }
 
+/* ---------- 机构信息维护(机构名称 + 统一服务宗旨) ---------- */
+export function TenantInstitutionTab({ onChanged }: {
+  info: TenantInfo | null; onChanged: () => void
+}) {
+  const [name, setName] = useState('')
+  const [purpose, setPurpose] = useState('')
+  const [msg, setMsg] = useState('')
+  const [err, setErr] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    api('/api/tenant/institution').then(d => {
+      setName(d.name || '')
+      setPurpose(d.service_purpose || '')
+    }).catch(e => setErr(e.message))
+  }, [])
+
+  async function save() {
+    setBusy(true); setErr(''); setMsg('')
+    try {
+      await api('/api/tenant/institution', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim(), service_purpose: purpose.trim() }),
+      })
+      setMsg('已保存 · 新会话即时生效')
+      onChanged()
+    } catch (e: any) { setErr(e.message || '保存失败') } finally { setBusy(false) }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
+      <div className="p-card">
+        <h3>机构信息</h3>
+        <p className="p-scope-hint">维护机构对外展示名称与管理台标题,保存后即时生效。</p>
+        <div style={{ maxWidth: 560 }}>
+          <label className="auth-field">
+            <span>机构名称(1-40 字)</span>
+            <input value={name} maxLength={40} onChange={e => setName(e.target.value)}
+              placeholder="例如:启明教育培训学校" />
+          </label>
+        </div>
+      </div>
+
+      <div className="p-card">
+        <h3>统一服务宗旨</h3>
+        <p className="p-scope-hint">
+          该机构所有智能体的共同服务导向,置于每个智能体系统提示词顶部,优先级最高;
+          留空则仅使用各智能体自身配置。保存后新会话即时生效。
+        </p>
+        <textarea className="p-scope-editor" rows={5} value={purpose} maxLength={500}
+          onChange={e => setPurpose(e.target.value)}
+          placeholder={'例如:以学员成长为中心,诚实守信,不夸大宣传,耐心解答每一位学员与家长的问题。'} />
+        <div className="p-toolbar" style={{ marginTop: 12 }}>
+          <button disabled={busy} onClick={save}>{busy ? '保存中…' : '保存设置'}</button>
+          {msg && <span className="p-ok">{msg}</span>}
+          {err && <span className="p-err">{err}</span>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* ---------- 智能体设置(多智能体:新建 + 独立前台链接 + 按套餐锁配置) ---------- */
 const AGENT_CAPS = [
   { key: 'lead_capture', label: '留资转线索', desc: '用户表达报名意向时采集联系方式,转线索跟进' },

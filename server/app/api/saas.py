@@ -404,6 +404,47 @@ def _tenant_kb_ids(db, tenant_id: int) -> list[int]:
     return [r["id"] for r in rows]
 
 
+# ---------- 机构信息维护(机构名称 + 统一服务宗旨) ----------
+
+@router.get("/api/tenant/institution")
+def get_institution(request: Request):
+    t, _ = _tenant_ctx(request)
+    with get_db() as db:
+        purpose = tenancy.tenant_service_purpose(db, t["id"])
+    return {"name": t["name"], "service_purpose": purpose}
+
+
+@router.put("/api/tenant/institution")
+async def put_institution(request: Request):
+    """维护机构名称与统一服务宗旨(注入该机构所有智能体的系统提示词)。"""
+    t, _ = _tenant_ctx(request)
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    body = body or {}
+    fields, args = [], []
+    if "name" in body:
+        name = (body.get("name") or "").strip()
+        if not name or len(name) > 40:
+            raise HTTPException(status_code=400, detail="机构名称需在 1-40 字之间")
+        fields.append("name=?")
+        args.append(name)
+    if "service_purpose" in body:
+        purpose = (body.get("service_purpose") or "").strip()
+        if len(purpose) > 500:
+            raise HTTPException(status_code=400, detail="服务宗旨不超过 500 字")
+        fields.append("service_purpose=?")
+        args.append(purpose)
+    if not fields:
+        raise HTTPException(status_code=400, detail="无可更新字段")
+    args.append(t["id"])
+    with get_db() as db:
+        db.execute(f"UPDATE tenants SET {', '.join(fields)} WHERE id=?", args)
+    return {"ok": True, "name": body.get("name", t["name"]),
+            "service_purpose": (body.get("service_purpose", "") or "").strip()}
+
+
 # ---------- 租户智能体管理(多智能体:独立配置 + 独立前台链接 /b/<slug>) ----------
 # 套餐门禁:知识域对接=标准版起(domains);能力开关=旗舰版(agent_caps);
 # 数量限额:免费 1 / 标准 3 / 旗舰不限(plans.agent_limit)。

@@ -68,6 +68,12 @@ def _system_prompt(role: str, state: dict, scope: dict, agent=None) -> str:
     # 租户智能体:各自的自定义系统提示词优先,缺省用平台 tenant.md
     base = tenancy.agent_prompt(agent) if agent else None
     base = base or config.get_prompt(role) or config.get_prompt("platform") or "你是AI课程顾问。"
+    # 机构统一服务宗旨:置于所有智能体提示词顶部,作为最高优先的服务导向
+    if agent:
+        with get_db() as db:
+            purpose = tenancy.tenant_service_purpose(db, agent["tenant_id"])
+        if purpose:
+            base = f"## 机构服务宗旨(必须遵守)\n{purpose}\n\n{base}"
     state_block = json.dumps(state, ensure_ascii=False) if state else "{}"
     dom_desc = "、".join(d["name"] for d in scope["domains"]) or "(未对接)"
     scope_block = (f"\n\n## 引用范围(严格遵守)\n"

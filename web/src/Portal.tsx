@@ -4,7 +4,7 @@ import OntologyTab from './OntologyTab'
 import { api, clearAuth, TOKEN_KEY } from './api'
 import AuthPanel from './AuthPanel'
 import {
-  TenantAgentTab, TenantSessionsTab, TenantStatsTab, TenantSubTab,
+  TenantAgentTab, TenantInstitutionTab, TenantSessionsTab, TenantStatsTab, TenantSubTab,
   type TenantInfo,
 } from './TenantAdmin'
 
@@ -30,6 +30,7 @@ const NAV_ICONS: Record<string, ReactNode> = {
   materials: <Ic d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z M14 2v6h6 M12 18v-6 M9 15l3 3 3-3" />,
   usage: <Ic d="M3 3v18h18 M8 16v-5 M12 16V8 M16 16v-8" />,
   sub: <Ic d="M2 12h4l3-9 4 18 3-9h6" />,
+  institution: <Ic d="M3 21h18 M5 21V8l7-4 7 4v13 M9 11h1 M9 15h1 M14 11h1 M14 15h1" />,
 }
 
 const AGENTS = [
@@ -1317,6 +1318,7 @@ export default function Portal() {
   const feats = tinfo?.features || tinfo?.subscription?.features || {}
   const unlocked = (f: string) => !!feats[f]
   const tenantTabs = tinfo ? [
+    { key: 'institution', label: '机构信息', desc: '机构名称 · 统一服务宗旨', el: <TenantInstitutionTab info={tinfo} onChanged={loadTinfo} /> },
     { key: 'agents', label: '智能体设置', desc: '模型 · 能力 · 知识域 · 提示词', el: <TenantAgentTab info={tinfo} /> },
     { key: 'docs', label: '知识域', desc: '知识域 · 知识库 · 课程资料',
       el: unlocked('domains') ? <DomainsTab /> : <LockPanel tabKey="docs" /> },

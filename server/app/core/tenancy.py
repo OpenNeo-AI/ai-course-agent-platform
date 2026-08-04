@@ -110,6 +110,13 @@ def tenant_prompt(db, tenant_id: int) -> str | None:
     return (bot_config_of(db, tenant_id).get("prompt_text") or "").strip() or None
 
 
+def tenant_service_purpose(db, tenant_id: int) -> str:
+    """机构统一服务宗旨(机构信息维护);注入该机构所有智能体的系统提示词。"""
+    row = db.execute("SELECT service_purpose FROM tenants WHERE id=?",
+                     (tenant_id,)).fetchone()
+    return ((row["service_purpose"] if row else "") or "").strip()
+
+
 def scope_for_tenant(tenant_id: int) -> dict:
     """租户作用域(兼容入口):取该租户默认智能体的作用域。"""
     with get_db() as db:

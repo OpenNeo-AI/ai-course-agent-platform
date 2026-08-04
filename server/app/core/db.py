@@ -192,6 +192,7 @@ CREATE TABLE IF NOT EXISTS tenants(
   slug TEXT UNIQUE NOT NULL,            -- 对话入口标识 /b/<slug>
   name TEXT NOT NULL,                   -- 机构名称
   bot_config_json TEXT DEFAULT '{}',    -- 智能体设置:{welcome_text, lead_capture, model}
+  service_purpose TEXT DEFAULT '',      -- 机构统一服务宗旨(注入所有智能体系统提示词)
   created_at TEXT DEFAULT (datetime('now','localtime'))
 );
 
@@ -398,6 +399,8 @@ def _migrate_saas(db: sqlite3.Connection) -> None:
     tenant_cols = {r[1] for r in db.execute("PRAGMA table_info(tenants)")}
     if "bot_config_json" not in tenant_cols:
         db.execute("ALTER TABLE tenants ADD COLUMN bot_config_json TEXT DEFAULT '{}'")
+    if "service_purpose" not in tenant_cols:
+        db.execute("ALTER TABLE tenants ADD COLUMN service_purpose TEXT DEFAULT ''")
     user_cols = {r[1] for r in db.execute("PRAGMA table_info(users)")}
     if "phone" not in user_cols:
         db.execute("ALTER TABLE users ADD COLUMN phone TEXT DEFAULT ''")
