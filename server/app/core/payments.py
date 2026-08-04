@@ -69,7 +69,7 @@ class PaymentChannel:
 class MockChannel(PaymentChannel):
     """模拟支付:确认即成功(演示环境,明确标注不产生真实扣款)。"""
     code = "mock"
-    name = "模拟支付(演示环境)"
+    name = "模拟支付"
 
     def configured(self) -> bool:
         return True
@@ -88,7 +88,7 @@ class MockChannel(PaymentChannel):
 
 class WechatNativeChannel(PaymentChannel):
     code = "wechat"
-    name = "微信支付(扫码)"
+    name = "微信支付"
 
     def configured(self) -> bool:
         return bool(config.env("WECHAT_APP_ID") and config.env("WECHAT_MCH_ID")
@@ -212,7 +212,7 @@ def _rsa_verify(content: str, sign_b64: str, public_pem: str) -> bool:
 
 class AlipayPageChannel(PaymentChannel):
     code = "alipay"
-    name = "支付宝(电脑网站)"
+    name = "支付宝"
     GATEWAY = "https://openapi.alipay.com/gateway.do"
 
     def configured(self) -> bool:
