@@ -367,7 +367,7 @@ SAAS_PLANS = [
     ("free", "免费版", 0.0, -1,
      '{"agent_settings": true, "agent_caps": false, "domains": false, "rag_manage": false,'
      ' "ontology": false, "sessions": false, "leads": false, "analytics": false, "skills": false,'
-     ' "desc": "体验智能体设置与 AI 对话,解锁完整能力请升级",'
+     ' "desc": "快速体验智能体设置与 AI 对话",'
      ' "highlights": ["智能体设置:欢迎语 / 系统提示词", "1 个智能体 · 独立前台链接",'
      ' "无限 AI 对话体验", "知识域对接 / 业务功能需升级解锁"]}', 1),
     ("standard", "标准版", 59.0, -1,
@@ -455,10 +455,16 @@ def _migrate_saas_plans(db: sqlite3.Connection) -> None:
         if not row:
             continue
         try:
-            cur_keys = set(json.loads(row["features_json"] or "{}").keys())
+            cur = json.loads(row["features_json"] or "{}")
         except (ValueError, TypeError):
-            cur_keys = set()
-        if not set(json.loads(features).keys()) <= cur_keys:
+            cur = {}
+        cur_keys = set(cur.keys())
+        new = json.loads(features)
+        # 缺新增功能位键,或 desc/highlights 与最新定义不一致 → 按 SAAS_PLANS 重写
+        # (名称/价格不覆盖,保留超管在线编辑;desc/highlights 为产品文案随代码发布)
+        if (not set(new.keys()) <= cur_keys
+                or cur.get("desc") != new.get("desc")
+                or cur.get("highlights") != new.get("highlights")):
             db.execute("UPDATE plans SET features_json=? WHERE code=?", (features, code))
     # agent_limit 列与取值校正(-1 不限)
     plan_cols = {r[1] for r in db.execute("PRAGMA table_info(plans)")}
