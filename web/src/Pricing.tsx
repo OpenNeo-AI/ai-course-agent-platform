@@ -6,7 +6,7 @@ import PaymentModal from './PaymentModal'
 import { LangSwitch, useI18n } from './i18n'
 
 type Plan = { code: string; name: string; price_monthly: number; chat_limit_month: number;
-  features: { desc?: string; rag_manage?: boolean; dashboard?: boolean } }
+  features: { desc?: string; highlights?: string[] } }
 
 const FEATURE_ROWS: { label: string; free: string | boolean; std: string | boolean; flag: string | boolean }[] = [
   { label: 'AI 对话次数', free: '不限', std: '不限', flag: '不限' },
@@ -62,6 +62,11 @@ export default function Pricing() {
               <em>¥{p.price_monthly}</em><span>{t('pricing.perMonth')}</span>
             </div>
             <p className="plan-desc">{p.features.desc}</p>
+            <ul className="plan-points">
+              {(p.features.highlights || []).map((h: string, i: number) => (
+                <li key={i}>{h}</li>
+              ))}
+            </ul>
             <button className="plan-cta" onClick={() => choose(p)}
               disabled={p.code === 'free' && !!me?.tenant_id}>
               {p.code === 'free'

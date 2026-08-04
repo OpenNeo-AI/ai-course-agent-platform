@@ -1208,7 +1208,16 @@ button { font-family: inherit; cursor: pointer; }
 .plan-price { display: flex; align-items: baseline; gap: 4px; margin-bottom: 10px; }
 .plan-price em { font-family: var(--disp); font-style: normal; font-size: 40px; font-weight: 700; color: var(--ink); }
 .plan-price span { color: var(--mut); font-size: 13px; }
-.plan-desc { font-size: 13px; color: var(--mut); line-height: 1.7; min-height: 44px; margin-bottom: 18px; }
+.plan-desc { font-size: 12.5px; color: var(--mut); line-height: 1.7; margin-bottom: 12px; }
+.plan-points { list-style: none; display: flex; flex-direction: column; gap: 7px; margin-bottom: 16px; }
+.plan-points li {
+  font-size: 12.5px; color: var(--slate); line-height: 1.55; padding-left: 16px; position: relative;
+}
+.plan-points li::before {
+  content: ""; position: absolute; left: 0; top: 7px; width: 7px; height: 7px; border-radius: 2px;
+  background: linear-gradient(135deg, var(--gold-soft), var(--gold));
+}
+.plan-card.pro .plan-points li::before { background: linear-gradient(135deg, var(--gold), var(--gold-deep)); }
 .plan-cta {
   width: 100%; padding: 11px; border-radius: 10px; font-size: 14px; font-weight: 600;
   border: 1px solid var(--ink); background: transparent; color: var(--ink);

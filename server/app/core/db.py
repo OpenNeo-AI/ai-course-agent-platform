@@ -362,19 +362,26 @@ def _ensure_domains_kbs(db: sqlite3.Connection) -> None:
 
 # 套餐定义:免费版(注册即开通,仅智能体设置) / 标准版(知识域智能体) / 旗舰版(全功能)
 # 元组:(code, name, price, chat_limit, features_json, agent_limit)  agent_limit -1=不限
+# features_json 中 highlights 为套餐卡片逐行亮点(一行一点,前后端共用)
 SAAS_PLANS = [
     ("free", "免费版", 0.0, -1,
      '{"agent_settings": true, "agent_caps": false, "domains": false, "rag_manage": false,'
      ' "ontology": false, "sessions": false, "leads": false, "analytics": false, "skills": false,'
-     ' "desc": "体验智能体设置(限 1 个智能体);知识域与全部业务功能需升级解锁"}', 1),
+     ' "desc": "体验智能体设置与 AI 对话,解锁完整能力请升级",'
+     ' "highlights": ["智能体设置:欢迎语 / 系统提示词", "1 个智能体 · 独立前台链接",'
+     ' "无限 AI 对话体验", "知识域对接 / 业务功能需升级解锁"]}', 1),
     ("standard", "标准版", 59.0, -1,
      '{"agent_settings": true, "agent_caps": false, "domains": true, "rag_manage": true,'
      ' "ontology": true, "sessions": false, "leads": false, "analytics": false, "skills": true,'
-     ' "desc": "知识域智能体:最多 3 个智能体、知识域/资料管理、本体知识、RAG 问答"}', 3),
+     ' "desc": "把机构课程资料变成专属 AI 顾问",'
+     ' "highlights": ["最多 3 个智能体 · 独立前台链接", "知识域与课程资料管理(RAG 带引用问答)",'
+     ' "本体知识维护", "Agent Skill:课程详情 / 班型推荐"]}', 3),
     ("flagship", "旗舰版", 199.0, -1,
      '{"agent_settings": true, "agent_caps": true, "domains": true, "rag_manage": true,'
      ' "ontology": true, "sessions": true, "leads": true, "analytics": true, "skills": true,'
-     ' "desc": "全部功能:智能体数量不限 + 能力开关 + 对话记录 + 线索跟进 + 数据分析"}', -1),
+     ' "desc": "覆盖咨询获客到转化的完整经营闭环",'
+     ' "highlights": ["智能体数量不限 · 独立前台链接", "能力开关:留资转线索 / 对话质检",'
+     ' "对话记录(脱敏) · 线索跟进", "运营分析 · 用量统计看板"]}', -1),
 ]
 
 STARTER_DOC_TITLE = "平台使用指南"

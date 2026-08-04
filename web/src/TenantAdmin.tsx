@@ -562,6 +562,11 @@ export function TenantSubTab({ info, onChanged }: { info: TenantInfo | null; onC
               <h2>{p.name}</h2>
               <div className="plan-price"><em>¥{p.price_monthly}</em><span>/月</span></div>
               <p className="plan-desc">{p.features?.desc}</p>
+              <ul className="plan-points">
+                {(p.features?.highlights || []).map((h: string, i: number) => (
+                  <li key={i}>{h}</li>
+                ))}
+              </ul>
               <button className="plan-cta" disabled={current || p.code === 'free'}
                 onClick={() => setPay(p)}>
                 {current ? '当前套餐' : p.code === 'free' ? '注册时自动开通' : '升级开通'}
