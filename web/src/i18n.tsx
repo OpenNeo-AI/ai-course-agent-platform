@@ -54,10 +54,10 @@ const DICT: Record<string, { zh: string; en: string }> = {
   'pay.success': { zh: '支付成功', en: 'Payment Successful' },
   'pay.goAdmin': { zh: '进入管理后台', en: 'Go to Admin Console' },
   // 对话页配额
-  'chat.quotaLeft': { zh: '本月剩余', en: 'left this month' },
+  'chat.quotaLeft': { zh: '剩余', en: 'remaining' },
   'chat.quotaTimes': { zh: '次', en: '' },
   'chat.unlimited': { zh: '不限次', en: 'Unlimited' },
-  'chat.quotaBanner': { zh: '本月免费额度已用完,升级专业版享无限对话与知识库管理。', en: 'Free monthly quota used up. Upgrade to Pro for unlimited chats.' },
+  'chat.quotaBanner': { zh: '免费版对话额度已用完,升级标准版/旗舰版享不限次对话。', en: 'Free chat quota used up. Upgrade to Standard/Flagship for unlimited chats.' },
   'chat.viewPlans': { zh: '查看套餐 →', en: 'View Plans →' },
   // 租户后台
   'admin.docs': { zh: '课程资料', en: 'Course Materials' },

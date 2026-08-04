@@ -247,11 +247,18 @@ def usage_of(db: sqlite3.Connection, tenant_id: int, ym: str | None = None) -> i
     return row["chat_count"] if row else 0
 
 
+def usage_total(db: sqlite3.Connection, tenant_id: int) -> int:
+    """累计对话总量(跨月求和)。免费版限额为「总共 10 次」,按总量计。"""
+    row = db.execute("SELECT IFNULL(SUM(chat_count),0) FROM usage_monthly WHERE tenant_id=?",
+                     (tenant_id,)).fetchone()
+    return row[0]
+
+
 def quota_state(db: sqlite3.Connection, tenant_id: int) -> dict:
     sub = subscription_of(db, tenant_id)
-    used = usage_of(db, tenant_id)
     limit = sub["chat_limit_month"]
     unlimited = limit is not None and limit < 0
+    used = usage_total(db, tenant_id) if not unlimited else usage_of(db, tenant_id)
     return {"plan_code": sub["plan_code"], "plan_name": sub["plan_name"],
             "limit": -1 if unlimited else limit, "unlimited": unlimited,
             "used": used,

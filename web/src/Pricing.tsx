@@ -9,7 +9,7 @@ type Plan = { code: string; name: string; price_monthly: number; chat_limit_mont
   features: { desc?: string; highlights?: string[] } }
 
 const FEATURE_ROWS: { label: string; free: string | boolean; std: string | boolean; flag: string | boolean }[] = [
-  { label: 'AI 对话次数', free: '不限', std: '不限', flag: '不限' },
+  { label: 'AI 对话次数', free: '共 10 次', std: '不限', flag: '不限' },
   { label: '智能体设置(欢迎语/能力/模型)', free: true, std: true, flag: true },
   { label: '知识域管理(含资料上传 · RAG 问答)', free: false, std: true, flag: true },
   { label: '本体知识维护', free: false, std: true, flag: true },

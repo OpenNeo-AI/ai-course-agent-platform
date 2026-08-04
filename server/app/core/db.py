@@ -363,12 +363,12 @@ def _ensure_domains_kbs(db: sqlite3.Connection) -> None:
 # 元组:(code, name, price, chat_limit, features_json, agent_limit)  agent_limit -1=不限
 # features_json 中 highlights 为套餐卡片逐行亮点(一行一点,前后端共用)
 SAAS_PLANS = [
-    ("free", "免费版", 0.0, -1,
+    ("free", "免费版", 0.0, 10,
      '{"agent_settings": true, "agent_caps": false, "domains": false, "rag_manage": false,'
      ' "ontology": false, "sessions": false, "leads": false, "analytics": false, "skills": false,'
      ' "desc": "快速体验智能体设置与 AI 对话",'
      ' "highlights": ["智能体设置:欢迎语 / 系统提示词", "1 个智能体 · 独立前台链接",'
-     ' "无限 AI 对话体验", "知识域对接 / 业务功能需升级解锁"]}', 1),
+     ' "共 10 次 AI 对话", "知识域对接 / 业务功能需升级解锁"]}', 1),
     ("standard", "标准版", 59.0, -1,
      '{"agent_settings": true, "agent_caps": false, "domains": true, "rag_manage": true,'
      ' "ontology": true, "sessions": false, "leads": false, "analytics": false, "skills": true,'
@@ -452,12 +452,13 @@ def _migrate_saas_plans(db: sqlite3.Connection) -> None:
                 or cur.get("desc") != new.get("desc")
                 or cur.get("highlights") != new.get("highlights")):
             db.execute("UPDATE plans SET features_json=? WHERE code=?", (features, code))
-    # agent_limit 列与取值校正(-1 不限)
+    # agent_limit 列与取值校正(-1 不限);chat_limit 随产品定义同步(管理员仅可改名称/价格)
     plan_cols = {r[1] for r in db.execute("PRAGMA table_info(plans)")}
     if "agent_limit" not in plan_cols:
         db.execute("ALTER TABLE plans ADD COLUMN agent_limit INTEGER DEFAULT 1")
-    for code, _n, _p, _l, _f, agent_limit in SAAS_PLANS:
-        db.execute("UPDATE plans SET agent_limit=? WHERE code=?", (agent_limit, code))
+    for code, _n, _p, chat_limit, _f, agent_limit in SAAS_PLANS:
+        db.execute("UPDATE plans SET agent_limit=?, chat_limit_month=? WHERE code=?",
+                   (agent_limit, chat_limit, code))
     # status 列补充(旧行默认 active;新注册显式 unpaid)
     sub_cols = {r[1] for r in db.execute("PRAGMA table_info(subscriptions)")}
     if "status" not in sub_cols:

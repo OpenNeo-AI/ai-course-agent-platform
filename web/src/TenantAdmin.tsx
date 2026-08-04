@@ -179,10 +179,10 @@ export function TenantStatsTab() {
       <div className="tadm-stat-row">
         <div className="tadm-stat"><em>{stats.chats}</em><span>总对话次数</span></div>
         <div className="tadm-stat"><em>{stats.active_users}</em><span>活跃用户量(会话)</span></div>
-        <div className="tadm-stat"><em>{stats.quota.used}</em><span>本月对话</span></div>
+        <div className="tadm-stat"><em>{stats.quota.used}</em><span>累计对话</span></div>
         <div className="tadm-stat">
           <em>{stats.quota.unlimited ? '∞' : stats.quota.remaining}</em>
-          <span>{stats.quota.unlimited ? '套餐不限次' : '本月剩余'}</span>
+          <span>{stats.quota.unlimited ? '套餐不限次' : '剩余'}</span>
         </div>
       </div>
       <h4>近 14 日会话趋势</h4>
