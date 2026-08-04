@@ -1183,9 +1183,14 @@ function PlansTab() {
 function PlanRow({ plan, onSave }: { plan: any; onSave: (code: string, patch: Record<string, unknown>) => void }) {
   const [name, setName] = useState(plan.name)
   const [price, setPrice] = useState(String(plan.price_monthly))
+  const FEATURE_LABELS: Record<string, string> = {
+    agent_settings: '智能体设置', agent_caps: '能力开关', domains: '知识域管理',
+    rag_manage: '课程资料管理', ontology: '本体图谱', sessions: '对话记录',
+    leads: '线索转化', analytics: '运营分析', skills: 'Agent Skill',
+  }
   const feats = Object.entries(plan.features || {})
-    .filter(([k, v]) => v === true && k !== 'skills')
-    .map(([k]) => ({ rag_manage: '资料管理', ontology: '本体图谱', sessions: '对话记录', leads: '线索转化', analytics: '运营分析' }[k] || k))
+    .filter(([k, v]) => v === true)
+    .map(([k]) => FEATURE_LABELS[k] || k)
   return (
     <tr>
       <td>
