@@ -278,12 +278,10 @@ class AlipayPageChannel(PaymentChannel):
                 "trade_no": params.get("trade_no", "")}
 
 
-# 当前启用的渠道:模拟支付 + 微信支付。支付宝渠道已停用(回调域名未在白名单内,
-# 网关返回防钓鱼拦截);如需恢复,将 AlipayPageChannel 重新注册并在支付宝开放平台
-# 配置 edu-demo.openneo.ai 授权域名即可。
 CHANNELS: dict[str, PaymentChannel] = {
     MockChannel.code: MockChannel(),
     WechatNativeChannel.code: WechatNativeChannel(),
+    AlipayPageChannel.code: AlipayPageChannel(),
 }
 
 

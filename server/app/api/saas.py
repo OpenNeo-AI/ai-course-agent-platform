@@ -301,6 +301,23 @@ def order_status(order_id: int, request: Request):
 
 # ---------- 支付回调(公开端点,渠道服务端通知) ----------
 
+@router.post("/api/billing/callback/alipay")
+async def alipay_callback(request: Request):
+    """支付宝异步通知:表单 + RSA2 验签,成功返回纯文本 success。"""
+    from fastapi.responses import PlainTextResponse
+    from ..core import payments
+    body = await request.body()
+    try:
+        info = payments.CHANNELS["alipay"].parse_callback(
+            body, request.headers.get("content-type", ""))
+        if payments.pay_by_out_trade_no(info["out_trade_no"], info.get("trade_no", "")):
+            return PlainTextResponse("success")
+    except Exception as e:  # noqa: BLE001
+        import logging
+        logging.getLogger(__name__).warning("支付宝回调处理失败: %s", e)
+    return PlainTextResponse("fail")
+
+
 @router.post("/api/billing/callback/wechat")
 async def wechat_callback(request: Request):
     """微信 Native 支付回调:XML + MD5 验签(补齐 OpenNeo 缺失的服务端确认)。"""
