@@ -118,7 +118,8 @@ export default function AuthPanel({ initialTab = 'sms', onOk, standalone = false
             <li>免费版体验 · 标准版 / 旗舰版按需升级</li>
           </ul>
           <div className="aw-brand-demo">
-            演示:平台超管 demo / demo1234<br />演示租户 demo-org / demo1234
+            演示账号(密码均 demo1234):<br />
+            admin 平台超管 · demo1 旗舰版 · demo2 标准版 · demo3 免费版
           </div>
         </aside>
 
