@@ -43,13 +43,13 @@ $SSH "$USER_NAME@$HOST" "sudo mkdir -p $REMOTE && sudo chown \$USER:\$USER $REMO
 # 凭据:远端无 .env 时上传本地 .env
 $SSH "$USER_NAME@$HOST" "[ -f $REMOTE/.env ]" || scp -i "$KEY" .env "$USER_NAME@$HOST:$REMOTE/.env"
 
-# 代码同步(app.db 与 uploads 单独处理,不被 --delete 影响)
-rsync -avz --delete -e "$SSH" \
-  --exclude '.venv' --exclude 'node_modules' \
-  --exclude 'server/data/app.db' --exclude 'server/data/uploads' \
-  --exclude 'server/data/reports' \
-  --exclude '.env' --exclude 'wink.pem' --exclude '__pycache__' --exclude '.git' \
-  ./ "$USER_NAME@$HOST:$REMOTE/"
+# 代码同步(tar-over-ssh 管道,无需本地 rsync;排除项与旧 rsync 一致)
+tar -czf - \
+  --exclude='.venv' --exclude='node_modules' \
+  --exclude='server/data/app.db' --exclude='server/data/uploads' \
+  --exclude='server/data/reports' \
+  --exclude='.env' --exclude='wink.pem' --exclude='__pycache__' --exclude='.git' \
+  ./ | $SSH "$USER_NAME@$HOST" "mkdir -p $REMOTE && tar -xzf - -C $REMOTE"
 
 # 知识库:远端无 app.db 时上传本地构建好的库,否则远端自行构建
 $SSH "$USER_NAME@$HOST" "[ -f $REMOTE/server/data/app.db ]" \
