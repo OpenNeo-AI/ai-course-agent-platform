@@ -27,6 +27,18 @@ from app.core.ingest.parse import parse_upload         # noqa: E402
 DOC_PDF = ROOT.parent / "doc" / "pdf"
 PASSWORD = "demo1234"
 
+# 各智能体的默认欢迎语
+AGENT_WELCOMES = {
+    "学生课程顾问": "你好!我是本机构的学生课程顾问 🎓 可以解答夏令营班型、营期、费用与上课安排。"
+                    "告诉我你的城市和空闲时间,我帮你推荐合适的班型!",
+    "教师培训顾问": "你好!我是本机构的教师培训顾问 📚 可以解答 L1—L3 培训体系、班期、前置要求与认证产出。"
+                    "告诉我你的时间安排,我帮你匹配集训班或周末研修班。",
+    "平台服务顾问": "你好!我是本机构的平台服务顾问 🤝 可以解答平台功能、会员权益与机构合作方式。"
+                    "有什么想了解的,尽管问我!",
+    "AI 课程顾问": "你好!我是本机构的 AI 课程顾问 🎓 可以解答课程安排、费用与班型推荐。"
+                   "请问想了解什么?",
+}
+
 # 各智能体的默认系统提示词(角色定位/知识范围/服务方式/沟通风格)
 AGENT_PROMPTS = {
     "学生课程顾问": """你是本机构的资深学生课程顾问,面向学生与家长,提供暑期 AI 素养夏令营的课程咨询。
@@ -139,8 +151,8 @@ def make_domain_kb(db, tid: int, code: str, dom_name: str, kb_name: str) -> int:
 def make_agent(db, tid: int, name: str, domain_ids: list[int], welcome: str = "") -> str:
     agent = tenancy.create_agent(db, tid, name)
     cfg = {"domains": domain_ids}
-    if welcome:
-        cfg["welcome_text"] = welcome
+    if welcome or name in AGENT_WELCOMES:
+        cfg["welcome_text"] = welcome or AGENT_WELCOMES.get(name, "")
     if name in AGENT_PROMPTS:
         cfg["prompt_text"] = AGENT_PROMPTS[name]
     import json as _json

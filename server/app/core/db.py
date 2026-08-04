@@ -296,7 +296,6 @@ def get_db():
     _migrate_drop_materials(db)
     _migrate_saas(db)
     _seed_saas(db)
-    _ensure_default_agents(db)
     try:
         from .ontology.engine import seed_recommend_rules
         seed_recommend_rules(db)
@@ -423,19 +422,6 @@ def _migrate_saas(db: sqlite3.Connection) -> None:
         db.execute("ALTER TABLE sessions ADD COLUMN agent_id INTEGER REFERENCES tenant_agents(id)")
 
 
-def _ensure_default_agents(db: sqlite3.Connection) -> None:
-    """为尚无智能体的租户创建默认智能体(配置取自旧 tenants.bot_config_json)。"""
-    import secrets as _secrets
-    rows = db.execute(
-        "SELECT t.id, t.name, t.bot_config_json FROM tenants t "
-        "WHERE t.id NOT IN (SELECT DISTINCT tenant_id FROM tenant_agents)").fetchall()
-    for t in rows:
-        slug = "a-" + _secrets.token_hex(3)
-        while db.execute("SELECT 1 FROM tenant_agents WHERE slug=?", (slug,)).fetchone():
-            slug = "a-" + _secrets.token_hex(3)
-        db.execute("INSERT INTO tenant_agents(tenant_id, slug, name, config_json) "
-                   "VALUES(?,?,?,?)",
-                   (t["id"], slug, "AI 课程顾问", t["bot_config_json"] or "{}"))
 
 
 def _migrate_saas_plans(db: sqlite3.Connection) -> None:
