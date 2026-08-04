@@ -68,11 +68,12 @@ function CiteCard({ item, index }: { item: CiteItem; index: number }) {
 type Quota = { plan_code: string; plan_name: string; limit: number; unlimited: boolean;
   used: number; remaining: number }
 
-export default function Chat({ role, title, accent, suggestions, tenant }: {
-  role: string; title: string; accent: string; suggestions: string[]; tenant?: string
+export default function Chat({ role, title, accent, suggestions, agentSlug }: {
+  role: string; title: string; accent: string; suggestions: string[]; agentSlug?: string
 }) {
   const { t } = useI18n()
   const [session, setSession] = useState('')
+  const [agentName, setAgentName] = useState('')
   const [messages, setMessages] = useState<Msg[]>([])
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
@@ -89,7 +90,7 @@ export default function Chat({ role, title, accent, suggestions, tenant }: {
     inited.current = true
     fetch(`${API}/api/session`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(tenant ? { role, tenant } : { role }),
+      body: JSON.stringify(agentSlug ? { role, agent: agentSlug } : { role }),
     })
       .then(r => r.json())
       .then(d => {
@@ -97,10 +98,11 @@ export default function Chat({ role, title, accent, suggestions, tenant }: {
         setSession(d.session_id)
         setMessages([{ role: 'assistant', text: d.welcome }])
         if (d.quota) setQuota(d.quota)
+        if (d.agent?.name) setAgentName(d.agent.name)
         setShowMenu(true)
       })
       .catch(e => setError(e.message || '无法连接服务,请检查网络或稍后重试。'))
-  }, [role, tenant])
+  }, [role, agentSlug])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -226,7 +228,7 @@ export default function Chat({ role, title, accent, suggestions, tenant }: {
             <path d="m15 18-6-6 6-6" />
           </svg>
         </Link>
-        <h1>{title}</h1>
+        <h1>{agentName || title}</h1>
         <span className="live"><i />在线</span>
         {quota && (
           <span className={`quota-badge${quota.unlimited ? ' unlimited' : ''}`}

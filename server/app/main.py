@@ -115,25 +115,44 @@ def health():
 
 @app.post("/api/session")
 async def create_session(request: Request):
-    """创建会话。官方通道:{role};租户 Bot:{tenant: <slug>}(role 固定 tenant)。
+    """创建会话。官方通道:{role};租户智能体:{agent: <agent_slug>}
+    (兼容旧 {tenant: <tenant_slug>} → 该租户默认智能体)。
     返回体含 plan/quota(租户会话)供前端做套餐感知。"""
     try:
         body = await request.json()
     except Exception:
         body = {}
     body = body or {}
-    slug = (body.get("tenant") or "").strip()
-    if slug:
+    agent_slug = (body.get("agent") or "").strip()
+    tenant_slug = (body.get("tenant") or "").strip()
+    if agent_slug or tenant_slug:
         from .core import tenancy
-        tenant = await asyncio.to_thread(tenancy.get_tenant_by_slug, slug)
+        from .core.db import get_db
+        with get_db() as db:
+            agent = tenancy.get_agent_by_slug(db, agent_slug) if agent_slug else None
+            if agent:
+                tenant = db.execute("SELECT * FROM tenants WHERE id=?",
+                                    (agent["tenant_id"],)).fetchone()
+                tenant = dict(tenant) if tenant else None
+            else:
+                row = db.execute("SELECT * FROM tenants WHERE slug=?",
+                                 (tenant_slug,)).fetchone() if tenant_slug else None
+                tenant = dict(row) if row else None
+                agent = None
+                if tenant:
+                    row = db.execute("SELECT * FROM tenant_agents WHERE tenant_id=? "
+                                     "ORDER BY id", (tenant["id"],)).fetchone()
+                    agent = dict(row) if row else None
         if not tenant:
             return JSONResponse({"error": "租户不存在"}, status_code=404)
-        out = await asyncio.to_thread(loop.new_session, "tenant", tenant["id"])
-        from .core.db import get_db
+        if not agent:
+            return JSONResponse({"error": "该租户尚未创建智能体"}, status_code=404)
+        out = await asyncio.to_thread(loop.new_session, "tenant", tenant["id"], agent["id"])
         with get_db() as db:
             quota = tenancy.quota_state(db, tenant["id"])
             sub = tenancy.subscription_of(db, tenant["id"])
         out["tenant"] = {"slug": tenant["slug"], "name": tenant["name"]}
+        out["agent"] = {"slug": agent["slug"], "name": agent["name"]}
         out["plan"] = {"code": quota["plan_code"], "name": quota["plan_name"]}
         out["quota"] = quota
         out["subscription_status"] = sub.get("status")

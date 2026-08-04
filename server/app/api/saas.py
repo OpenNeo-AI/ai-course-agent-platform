@@ -404,17 +404,78 @@ def _tenant_kb_ids(db, tenant_id: int) -> list[int]:
     return [r["id"] for r in rows]
 
 
-# ---------- 智能体设置(免费版即可用:欢迎语/留资开关/模型) ----------
+# ---------- 租户智能体管理(多智能体:独立配置 + 独立前台链接 /b/<slug>) ----------
+# 套餐门禁:知识域对接=标准版起(domains);能力开关=旗舰版(agent_caps);
+# 数量限额:免费 1 / 标准 3 / 旗舰不限(plans.agent_limit)。
 
-@router.get("/api/tenant/bot-config")
-def get_bot_config(request: Request):
-    t, _ = _tenant_ctx(request)
+def _agent_owned(request: Request, agent_id: int):
+    """校验智能体归属本租户;返回 (tenant, features, agent_row)。"""
+    t, features = _tenant_ctx(request)
     with get_db() as db:
-        cfg = tenancy.bot_config_of(db, t["id"])
+        agent = tenancy.get_agent(db, agent_id)
+    if not agent or agent["tenant_id"] != t["id"]:
+        raise HTTPException(status_code=404, detail="智能体不存在")
+    return t, features, agent
+
+
+@router.get("/api/tenant/agents")
+def list_tenant_agents(request: Request):
+    t, features = _tenant_ctx(request)
+    with get_db() as db:
+        agents = tenancy.list_agents(db, t["id"])
+        sub = tenancy.subscription_of(db, t["id"])
+        plan = db.execute("SELECT agent_limit FROM plans WHERE code=?",
+                          (sub["plan_code"],)).fetchone()
+    return {"agents": agents,
+            "agent_limit": plan["agent_limit"] if plan else 1,
+            "features": features}
+
+
+@router.post("/api/tenant/agents")
+async def create_tenant_agent(request: Request):
+    t, _ = _tenant_ctx(request)
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    name = ((body or {}).get("name") or "").strip()
+    if not name or len(name) > 20:
+        raise HTTPException(status_code=400, detail="智能体名称需在 1-20 字之间")
+    with get_db() as db:
+        sub = tenancy.subscription_of(db, t["id"])
+        plan = db.execute("SELECT agent_limit FROM plans WHERE code=?",
+                          (sub["plan_code"],)).fetchone()
+        limit = plan["agent_limit"] if plan else 1
+        cnt = db.execute("SELECT COUNT(*) FROM tenant_agents WHERE tenant_id=?",
+                         (t["id"],)).fetchone()[0]
+        if limit >= 0 and cnt >= limit:
+            raise HTTPException(status_code=402,
+                                detail=f"当前套餐最多 {limit} 个智能体,请升级套餐后新建")
+        agent = tenancy.create_agent(db, t["id"], name)
+    return {"ok": True, "agent": {"id": agent["id"], "slug": agent["slug"],
+                                  "name": agent["name"],
+                                  "link": f"/b/{agent['slug']}"}}
+
+
+@router.delete("/api/tenant/agents/{agent_id}")
+def delete_tenant_agent(agent_id: int, request: Request):
+    t, _, _ = _agent_owned(request, agent_id)
+    with get_db() as db:
+        try:
+            tenancy.delete_agent(db, t["id"], agent_id)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+    return {"ok": True}
+
+
+@router.get("/api/tenant/agents/{agent_id}/config")
+def get_agent_config(agent_id: int, request: Request):
+    t, features, agent = _agent_owned(request, agent_id)
     llm_cfg = config.llm_config()
     models = llm_cfg.get("chat_models") or []
     if llm_cfg.get("chat_model"):
         models = [llm_cfg["chat_model"], *[m for m in models if m != llm_cfg["chat_model"]]]
+    cfg = tenancy.agent_config_of(agent)
     return {"config": {"welcome_text": cfg.get("welcome_text", ""),
                        "prompt_text": cfg.get("prompt_text", ""),
                        "lead_capture": cfg.get("lead_capture", True),
@@ -423,22 +484,24 @@ def get_bot_config(request: Request):
                        "model": cfg.get("model") or ""},
             "model_options": models,
             "default_model": llm_cfg.get("chat_model") or "",
-            "bot_url": f"/b/{t['slug']}"}
+            "features": features,
+            "link": f"/b/{agent['slug']}",
+            "agent": {"id": agent["id"], "slug": agent["slug"], "name": agent["name"]}}
 
 
-@router.put("/api/tenant/bot-config")
-async def put_bot_config(request: Request):
-    """更新租户 Bot 设置;热生效(下一轮会话即采用)。
-    字段:welcome_text / prompt_text / lead_capture / quality_check / domains / model。"""
+@router.put("/api/tenant/agents/{agent_id}/config")
+async def put_agent_config(agent_id: int, request: Request):
+    """更新智能体配置;热生效(新会话即采用)。
+    门禁:domains=标准版+;lead_capture/quality_check=旗舰版;其余字段各套餐可用。"""
     from .portal import _tenant_domain_ids
-    t, _ = _tenant_ctx(request)
+    t, features, agent = _agent_owned(request, agent_id)
     try:
         body = await request.json()
     except Exception:
         body = {}
     body = body or {}
     with get_db() as db:
-        cfg = tenancy.bot_config_of(db, t["id"])
+        cfg = tenancy.agent_config_of(agent)
         if "welcome_text" in body:
             wt = (body.get("welcome_text") or "").strip()
             if len(wt) > 800:
@@ -449,11 +512,18 @@ async def put_bot_config(request: Request):
             if len(pt) > 4000:
                 raise HTTPException(status_code=400, detail="系统提示词不超过 4000 字")
             cfg["prompt_text"] = pt
-        if "lead_capture" in body:
-            cfg["lead_capture"] = bool(body["lead_capture"])
-        if "quality_check" in body:
-            cfg["quality_check"] = bool(body["quality_check"])
+        if "lead_capture" in body or "quality_check" in body:
+            if not features.get("agent_caps"):
+                raise HTTPException(status_code=402,
+                                    detail="能力开关为旗舰版功能,请先升级套餐")
+            if "lead_capture" in body:
+                cfg["lead_capture"] = bool(body["lead_capture"])
+            if "quality_check" in body:
+                cfg["quality_check"] = bool(body["quality_check"])
         if "domains" in body:
+            if not features.get("domains"):
+                raise HTTPException(status_code=402,
+                                    detail="知识域对接为标准版功能,请先升级套餐")
             own = set(_tenant_domain_ids(db, t["id"]))
             try:
                 sel = [int(d) for d in (body.get("domains") or [])]
@@ -464,8 +534,8 @@ async def put_bot_config(request: Request):
             cfg["domains"] = sel
         if "model" in body:
             cfg["model"] = (body.get("model") or "").strip() or None
-        db.execute("UPDATE tenants SET bot_config_json=? WHERE id=?",
-                   (json.dumps(cfg, ensure_ascii=False), t["id"]))
+        db.execute("UPDATE tenant_agents SET config_json=? WHERE id=?",
+                   (json.dumps(cfg, ensure_ascii=False), agent["id"]))
     return {"ok": True, "config": cfg}
 
 

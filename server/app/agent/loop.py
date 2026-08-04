@@ -64,12 +64,9 @@ REPLY_SUB_REQUIRED = ("本机构的 AI 课程顾问服务尚未开通或订阅�
                       "请联系机构管理员登录管理工作台,选购套餐并完成支付后即可使用。")
 
 
-def _system_prompt(role: str, state: dict, scope: dict, tenant_id: int | None = None) -> str:
-    # 租户 Bot:智能体设置中的自定义系统提示词优先,缺省用平台 tenant.md
-    base = None
-    if tenant_id:
-        with get_db() as db:
-            base = tenancy.tenant_prompt(db, tenant_id)
+def _system_prompt(role: str, state: dict, scope: dict, agent=None) -> str:
+    # 租户智能体:各自的自定义系统提示词优先,缺省用平台 tenant.md
+    base = tenancy.agent_prompt(agent) if agent else None
     base = base or config.get_prompt(role) or config.get_prompt("platform") or "你是AI课程顾问。"
     state_block = json.dumps(state, ensure_ascii=False) if state else "{}"
     dom_desc = "、".join(d["name"] for d in scope["domains"]) or "(未对接)"
@@ -111,8 +108,15 @@ def run_turn_stream(session_id: str, text: str):
         return
     role, state = s["role"], s["state"]
     tenant_id = s.get("tenant_id")
-    # 租户会话用租户知识域作用域;官方三通道保持 scope_for_role 原路径
-    scope = tenancy.scope_for_tenant(tenant_id) if tenant_id else scope_for_role(role)
+    # 租户会话:按会话绑定的智能体取作用域与配置;官方三通道保持 scope_for_role 原路径
+    agent = None
+    if tenant_id:
+        with get_db() as db:
+            agent = tenancy.get_agent(db, s.get("agent_id")) if s.get("agent_id") else None
+            if not agent:
+                agent = db.execute("SELECT * FROM tenant_agents WHERE tenant_id=? "
+                                   "ORDER BY id", (tenant_id,)).fetchone()
+    scope = tenancy.scope_for_agent(agent) if agent else scope_for_role(role)
 
     stripped = (text or "").strip()
     if not stripped:
@@ -127,7 +131,7 @@ def run_turn_stream(session_id: str, text: str):
         with get_db() as db:
             state = sess.reset_session(db, session_id)
             sess.append_message(db, session_id, "user", stripped)
-            welcome = ((tenancy.tenant_welcome(db, tenant_id) if tenant_id else None)
+            welcome = ((tenancy.agent_welcome(agent) if agent else None)
                        or tools.tool_welcome(role)["text"])
             reply = f"{REPLY_RESET}\n\n{welcome}"
             sess.append_message(db, session_id, "assistant", reply)
@@ -156,7 +160,7 @@ def run_turn_stream(session_id: str, text: str):
 
     # 工具循环(流式):逐轮调用模型,内容 token 实时 yield,工具调用累积后执行
     messages = [{"role": "system",
-                 "content": _system_prompt(role, state, scope, tenant_id)}]
+                 "content": _system_prompt(role, state, scope, agent)}]
     with get_db() as db:
         messages.extend(sess.history(db, session_id, config.context_turns()))
     messages.append({"role": "user", "content": stripped})
@@ -351,10 +355,15 @@ def _summarize(name: str, result: dict) -> str:
     return name
 
 
-def new_session(role: str = "platform", tenant_id: int | None = None) -> dict:
-    s = sess.create_session(role, tenant_id=tenant_id)
+def new_session(role: str = "platform", tenant_id: int | None = None,
+                agent_id: int | None = None) -> dict:
+    s = sess.create_session(role, tenant_id=tenant_id, agent_id=agent_id)
     welcome = None
     if tenant_id:
         with get_db() as db:
-            welcome = tenancy.tenant_welcome(db, tenant_id)
+            agent = tenancy.get_agent(db, agent_id) if agent_id else None
+            if not agent:
+                agent = db.execute("SELECT * FROM tenant_agents WHERE tenant_id=? "
+                                   "ORDER BY id", (tenant_id,)).fetchone()
+            welcome = tenancy.agent_welcome(agent) if agent else None
     return {**s, "welcome": welcome or tools.tool_welcome(role)["text"]}

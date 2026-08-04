@@ -208,11 +208,12 @@ CREATE TABLE IF NOT EXISTS users(
 
 -- 套餐定义:free 每月限额对话;pro 无限对话并解锁知识库管理与数据看板。
 CREATE TABLE IF NOT EXISTS plans(
-  code TEXT PRIMARY KEY,                -- free / pro
+  code TEXT PRIMARY KEY,                -- free / standard / flagship
   name TEXT NOT NULL,
   price_monthly REAL DEFAULT 0,         -- 演示价格
-  chat_limit_month INTEGER DEFAULT 50,  -- -1 表示无限
-  features_json TEXT DEFAULT '{}'
+  chat_limit_month INTEGER DEFAULT -1,  -- -1 表示无限
+  features_json TEXT DEFAULT '{}',
+  agent_limit INTEGER DEFAULT 1         -- 智能体数量上限,-1 不限
 );
 
 -- 订阅:每租户一条,记录当前套餐。
@@ -255,6 +256,16 @@ CREATE TABLE IF NOT EXISTS sms_codes(
   expires_at TEXT NOT NULL,
   created_at TEXT DEFAULT (datetime('now','localtime'))
 );
+
+-- 租户智能体:每租户可建多个,各自独立配置与前台链接(/b/<slug>)。
+CREATE TABLE IF NOT EXISTS tenant_agents(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tenant_id INTEGER NOT NULL REFERENCES tenants(id),
+  slug TEXT UNIQUE NOT NULL,            -- 前台对话入口 /b/<slug>
+  name TEXT NOT NULL,
+  config_json TEXT DEFAULT '{}',        -- {model, lead_capture, quality_check, domains, prompt_text, welcome_text}
+  created_at TEXT DEFAULT (datetime('now','localtime'))
+);
 """
 
 vec_available = False
@@ -284,6 +295,7 @@ def get_db():
     _migrate_drop_materials(db)
     _migrate_saas(db)
     _seed_saas(db)
+    _ensure_default_agents(db)
     try:
         from .ontology.engine import seed_recommend_rules
         seed_recommend_rules(db)
@@ -348,19 +360,20 @@ def _ensure_domains_kbs(db: sqlite3.Connection) -> None:
 # ---------- SaaS 迁移与种子(幂等) ----------
 
 # 套餐定义:免费版(注册即开通,仅智能体设置) / 标准版(知识域智能体) / 旗舰版(全功能)
+# 元组:(code, name, price, chat_limit, features_json, agent_limit)  agent_limit -1=不限
 SAAS_PLANS = [
     ("free", "免费版", 0.0, -1,
-     '{"agent_settings": true, "domains": false, "rag_manage": false, "ontology": false,'
-     ' "sessions": false, "leads": false, "analytics": false, "skills": false,'
-     ' "desc": "体验智能体设置(Bot 欢迎语/能力);知识域与全部业务功能需升级解锁"}'),
+     '{"agent_settings": true, "agent_caps": false, "domains": false, "rag_manage": false,'
+     ' "ontology": false, "sessions": false, "leads": false, "analytics": false, "skills": false,'
+     ' "desc": "体验智能体设置(限 1 个智能体);知识域与全部业务功能需升级解锁"}', 1),
     ("standard", "标准版", 59.0, -1,
-     '{"agent_settings": true, "domains": true, "rag_manage": true, "ontology": true,'
-     ' "sessions": false, "leads": false, "analytics": false, "skills": true,'
-     ' "desc": "知识域智能体:知识域/课程资料管理、本体知识、RAG 问答、班型推荐"}'),
+     '{"agent_settings": true, "agent_caps": false, "domains": true, "rag_manage": true,'
+     ' "ontology": true, "sessions": false, "leads": false, "analytics": false, "skills": true,'
+     ' "desc": "知识域智能体:最多 3 个智能体、知识域/资料管理、本体知识、RAG 问答"}', 3),
     ("flagship", "旗舰版", 199.0, -1,
-     '{"agent_settings": true, "domains": true, "rag_manage": true, "ontology": true,'
-     ' "sessions": true, "leads": true, "analytics": true, "skills": true,'
-     ' "desc": "全部功能:标准版全部 + 对话记录 + 线索跟进 + 数据分析"}'),
+     '{"agent_settings": true, "agent_caps": true, "domains": true, "rag_manage": true,'
+     ' "ontology": true, "sessions": true, "leads": true, "analytics": true, "skills": true,'
+     ' "desc": "全部功能:智能体数量不限 + 能力开关 + 对话记录 + 线索跟进 + 数据分析"}', -1),
 ]
 
 STARTER_DOC_TITLE = "平台使用指南"
@@ -395,6 +408,24 @@ def _migrate_saas(db: sqlite3.Connection) -> None:
                "ON payment_orders(out_trade_no)")
     if "trade_no" not in order_cols:
         db.execute("ALTER TABLE payment_orders ADD COLUMN trade_no TEXT DEFAULT ''")
+    sess_cols = {r[1] for r in db.execute("PRAGMA table_info(sessions)")}
+    if "agent_id" not in sess_cols:
+        db.execute("ALTER TABLE sessions ADD COLUMN agent_id INTEGER REFERENCES tenant_agents(id)")
+
+
+def _ensure_default_agents(db: sqlite3.Connection) -> None:
+    """为尚无智能体的租户创建默认智能体(配置取自旧 tenants.bot_config_json)。"""
+    import secrets as _secrets
+    rows = db.execute(
+        "SELECT t.id, t.name, t.bot_config_json FROM tenants t "
+        "WHERE t.id NOT IN (SELECT DISTINCT tenant_id FROM tenant_agents)").fetchall()
+    for t in rows:
+        slug = "a-" + _secrets.token_hex(3)
+        while db.execute("SELECT 1 FROM tenant_agents WHERE slug=?", (slug,)).fetchone():
+            slug = "a-" + _secrets.token_hex(3)
+        db.execute("INSERT INTO tenant_agents(tenant_id, slug, name, config_json) "
+                   "VALUES(?,?,?,?)",
+                   (t["id"], slug, "AI 课程顾问", t["bot_config_json"] or "{}"))
 
 
 def _migrate_saas_plans(db: sqlite3.Connection) -> None:
@@ -406,9 +437,9 @@ def _migrate_saas_plans(db: sqlite3.Connection) -> None:
     if "pro" in codes:
         db.execute("UPDATE subscriptions SET plan_code='flagship' WHERE plan_code='pro'")
         db.execute("DELETE FROM plans WHERE code='pro'")
-    # 功能位校正:存量套餐行 features_json 缺少新增功能位键(如 domains/agent_settings)
+    # 功能位校正:存量套餐行 features_json 缺少新增功能位键(如 agent_caps/domains)
     # 时按 SAAS_PLANS 最新定义重写(仅 features,不覆盖超管对名称/价格的在线编辑)
-    plan_features = {code: features for code, _n, _p, _l, features in SAAS_PLANS}
+    plan_features = {code: features for code, _n, _p, _l, features, _a in SAAS_PLANS}
     for code, features in plan_features.items():
         row = db.execute("SELECT features_json FROM plans WHERE code=?", (code,)).fetchone()
         if not row:
@@ -419,6 +450,12 @@ def _migrate_saas_plans(db: sqlite3.Connection) -> None:
             cur_keys = set()
         if not set(json.loads(features).keys()) <= cur_keys:
             db.execute("UPDATE plans SET features_json=? WHERE code=?", (features, code))
+    # agent_limit 列与取值校正(-1 不限)
+    plan_cols = {r[1] for r in db.execute("PRAGMA table_info(plans)")}
+    if "agent_limit" not in plan_cols:
+        db.execute("ALTER TABLE plans ADD COLUMN agent_limit INTEGER DEFAULT 1")
+    for code, _n, _p, _l, _f, agent_limit in SAAS_PLANS:
+        db.execute("UPDATE plans SET agent_limit=? WHERE code=?", (agent_limit, code))
     # status 列补充(旧行默认 active;新注册显式 unpaid)
     sub_cols = {r[1] for r in db.execute("PRAGMA table_info(subscriptions)")}
     if "status" not in sub_cols:
@@ -430,10 +467,11 @@ def _seed_saas(db: sqlite3.Connection) -> None:
     用户种子仅在 users 表为空时执行——pbkdf2 哈希较慢,不得在每次连接时重复计算。"""
     # 先迁移清理旧 free/pro 套餐,再按 SAAS_PLANS 种子重建(避免旧 free 与新 free 冲突)
     _migrate_saas_plans(db)
-    for code, name, price, limit, features in SAAS_PLANS:
+    for code, name, price, limit, features, agent_limit in SAAS_PLANS:
         # INSERT OR IGNORE:不覆盖超管在「套餐定价」中的在线编辑
         db.execute("INSERT OR IGNORE INTO plans(code, name, price_monthly, chat_limit_month, "
-                   "features_json) VALUES(?,?,?,?,?)", (code, name, price, limit, features))
+                   "features_json, agent_limit) VALUES(?,?,?,?,?,?)",
+                   (code, name, price, limit, features, agent_limit))
     if db.execute("SELECT COUNT(*) FROM users").fetchone()[0]:
         return
     from . import auth

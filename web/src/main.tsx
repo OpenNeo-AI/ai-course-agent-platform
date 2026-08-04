@@ -9,10 +9,10 @@ import TenantAdmin from './TenantAdmin'
 import { I18nProvider, LangSwitch, useI18n } from './i18n'
 import './index.css'
 
-/* 租户专属对话入口 /b/:slug(会话按租户作用域与套餐配额运行) */
+/* 智能体专属对话入口 /b/:slug(每个智能体独立链接,按其配置运行) */
 function TenantChat() {
   const { slug } = useParams()
-  return <Chat role="tenant" tenant={slug} title="AI 课程顾问" accent="#0f766e"
+  return <Chat role="tenant" agentSlug={slug} title="AI 课程顾问" accent="#0f766e"
     suggestions={['你能做什么?', '介绍一下你们的课程', '推荐一个适合我的班型']} />
 }
 

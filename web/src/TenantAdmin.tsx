@@ -198,157 +198,265 @@ export function TenantStatsTab() {
   )
 }
 
-/* ---------- 智能体设置(与平台 AgentsTab 同构:模型/能力/知识域对接/提示词) ---------- */
+/* ---------- 智能体设置(多智能体:新建 + 独立前台链接 + 按套餐锁配置) ---------- */
 const AGENT_CAPS = [
   { key: 'lead_capture', label: '留资转线索', desc: '用户表达报名意向时采集联系方式,转线索跟进' },
   { key: 'quality_check', label: '对话质检', desc: '对该智能体的会话进行质检评分' },
 ]
 
 export function TenantAgentTab({ info }: { info: TenantInfo | null }) {
+  const [agents, setAgents] = useState<any[]>([])
+  const [agentLimit, setAgentLimit] = useState(1)
+  const [features, setFeatures] = useState<any>({})
+  const [sel, setSel] = useState<number | null>(null)
+  const [creating, setCreating] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [err, setErr] = useState('')
+  const feats = info?.subscription?.features || features || {}
+  const canDomains = !!feats.domains
+  const canCaps = !!feats.agent_caps
+
+  const loadAgents = useCallback(() => {
+    api('/api/tenant/agents').then(d => {
+      setAgents(d.agents || [])
+      setAgentLimit(d.agent_limit ?? 1)
+      setFeatures(d.features || {})
+      setSel(s => (s && (d.agents || []).some((a: any) => a.id === s))
+        ? s : ((d.agents || [])[0]?.id ?? null))
+    }).catch(() => {})
+  }, [])
+  useEffect(() => { loadAgents() }, [loadAgents])
+
+  async function createAgent() {
+    if (!newName.trim()) return
+    setErr('')
+    try {
+      const r = await api('/api/tenant/agents', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newName.trim() }),
+      })
+      setNewName(''); setCreating(false)
+      await loadAgents()
+      setSel(r.agent.id)
+    } catch (e: any) { setErr(e.message || '创建失败') }
+  }
+
+  async function delAgent(a: any) {
+    if (!confirm(`删除智能体「${a.name}」?其前台链接将失效。`)) return
+    setErr('')
+    try {
+      await api(`/api/tenant/agents/${a.id}`, { method: 'DELETE' })
+      loadAgents()
+    } catch (e: any) { setErr(e.message || '删除失败') }
+  }
+
+  const selAgent = agents.find(a => a.id === sel)
+  const overLimit = agentLimit >= 0 && agents.length >= agentLimit
+  return (
+    <div className="p-docgrid">
+      <div className="p-kblist">
+        {agents.map(a => (
+          <button key={a.id} className={`p-kb ${a.id === sel ? 'on' : ''}`}
+            onClick={() => setSel(a.id)}>
+            <b>{a.name}</b>
+            <small>独立前台对话入口</small>
+            <span className="meta">
+              <span className="p-mono">{a.link}</span>
+              <span className="p-count">{a.domain_count || '全部'} 知识域</span>
+            </span>
+          </button>
+        ))}
+        {creating
+          ? (
+            <div className="p-kbform">
+              <input placeholder="智能体名称(1-20字)" value={newName} maxLength={20}
+                onChange={e => setNewName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && createAgent()} />
+              <div className="p-kbform-btns">
+                <button onClick={createAgent}>创建</button>
+                <button className="ghost" onClick={() => setCreating(false)}>取消</button>
+              </div>
+            </div>
+          )
+          : (
+            <button className="p-kb-new" disabled={overLimit}
+              title={overLimit ? `当前套餐最多 ${agentLimit} 个智能体` : ''}
+              onClick={() => setCreating(true)}>+ 新建智能体</button>
+          )}
+        {overLimit && (
+          <p className="p-scope-hint" style={{ padding: '0 4px' }}>
+            已达当前套餐上限({agentLimit} 个),升级套餐可新建更多。
+          </p>
+        )}
+        {err && <p className="p-err" style={{ padding: '0 4px' }}>{err}</p>}
+      </div>
+
+      {selAgent
+        ? <AgentConfigPanel key={selAgent.id} agent={selAgent}
+            canDomains={canDomains} canCaps={canCaps}
+            onDelete={agents.length > 1 ? () => delAgent(selAgent) : undefined} />
+        : <div className="p-empty">暂无智能体,请先新建</div>}
+    </div>
+  )
+}
+
+function AgentConfigPanel({ agent, canDomains, canCaps, onDelete }: {
+  agent: any; canDomains: boolean; canCaps: boolean; onDelete?: () => void
+}) {
   const [cfg, setCfg] = useState<any>(null)
   const [options, setOptions] = useState<string[]>([])
   const [defaultModel, setDefaultModel] = useState('')
-  const [botUrl, setBotUrl] = useState('')
+  const [link, setLink] = useState(agent.link)
   const [domains, setDomains] = useState<any[]>([])
   const [prompt, setPrompt] = useState('')
   const [welcome, setWelcome] = useState('')
   const [msg, setMsg] = useState('')
+  const [err, setErr] = useState('')
 
-  const loadAll = useCallback(() => {
-    api('/api/tenant/bot-config').then(d => {
+  useEffect(() => {
+    api(`/api/tenant/agents/${agent.id}/config`).then(d => {
       setCfg(d.config)
       setPrompt(d.config?.prompt_text || '')
       setWelcome(d.config?.welcome_text || '')
       setOptions(d.model_options || [])
       setDefaultModel(d.default_model || '')
-      setBotUrl(d.bot_url || '')
-    }).catch(() => {})
+      setLink(d.link || agent.link)
+    }).catch(e => setErr(e.message))
     api('/api/portal/domains').then(setDomains).catch(() => {})
-  }, [])
-  useEffect(() => { loadAll() }, [loadAll])
+  }, [agent.id])
 
   const flash = (t: string) => { setMsg(t); setTimeout(() => setMsg(''), 3000) }
 
   async function put(patch: Record<string, unknown>) {
-    const r = await api('/api/tenant/bot-config', {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(patch),
-    })
-    setCfg((c: any) => ({ ...c, ...r.config }))
-    return r.config
+    setErr('')
+    try {
+      const r = await api(`/api/tenant/agents/${agent.id}/config`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      })
+      setCfg((c: any) => ({ ...c, ...r.config }))
+      return true
+    } catch (e: any) { setErr(e.message || '保存失败'); return false }
   }
 
-  async function setModel(model: string) {
-    await put({ model })
-    flash(model ? `对话模型已切换为 ${model}` : '已恢复平台默认模型')
-  }
-  async function toggleCap(key: string) {
-    await put({ [key]: !cfg[key] })
-    flash('能力配置已保存 · 即时生效')
-  }
-  async function toggleDomain(id: number) {
-    const cur: number[] = cfg.domains || []
-    const next = cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id]
-    await put({ domains: next })
-    flash('知识域对接已保存 · 即时生效')
-  }
-  async function savePrompt() {
-    await put({ prompt_text: prompt })
-    flash('系统提示词已保存 · 新会话即时生效')
-  }
-  async function saveWelcome() {
-    await put({ welcome_text: welcome })
-    flash('欢迎语已保存 · 新会话即时生效')
+  async function copyLink() {
+    const url = window.location.origin + link
+    try { await navigator.clipboard.writeText(url); flash('前台链接已复制') }
+    catch { setErr('复制失败,请手动复制:' + url) }
   }
 
-  if (!cfg) return <div className="p-empty">加载中…</div>
+  if (!cfg) return <div className="p-empty">{err || '加载中…'}</div>
   const bound: number[] = cfg.domains || []
   return (
-    <div className="p-docgrid">
-      <div className="p-kblist">
-        <div className="p-kb on">
-          <b>{info?.tenant?.name || '本机构'} · AI 课程顾问</b>
-          <small>租户专属 Bot,作用域限本租户知识域</small>
-          <span className="meta">
-            <span className="p-mono">{botUrl || '/b/…'}</span>
-            <span className="p-count">{bound.length || domains.length} 知识域</span>
-          </span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
+      <div className="p-card">
+        <h3>前台链接(该智能体专属)</h3>
+        <p className="p-scope-hint">访客打开此链接即与本智能体对话,配置与知识域挂载仅对该链接生效。</p>
+        <div className="p-endpoint">
+          <code>{link}</code>
+          <button className="p-mini" onClick={copyLink}>复制链接</button>
+          <a className="p-mini" href={link} target="_blank" rel="noreferrer"
+            style={{ textDecoration: 'none' }}>新窗口打开</a>
         </div>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
-        <div className="p-card">
-          <h3>推理模型</h3>
-          <p className="p-scope-hint">
-            为该智能体选择对话模型;不选则跟随平台默认模型。切换即时生效,仅影响本智能体的对话生成。
-          </p>
-          <div className="p-modelpick">
-            <select value={cfg.model || ''} onChange={e => setModel(e.target.value)}>
-              <option value="">平台默认模型{defaultModel ? `(${defaultModel})` : ''}</option>
-              {options.map(m => <option key={m} value={m}>{m}</option>)}
-            </select>
-            {msg && <span className="p-ok">{msg}</span>}
-          </div>
+      <div className="p-card">
+        <h3>推理模型</h3>
+        <p className="p-scope-hint">
+          为该智能体选择对话模型;不选则跟随平台默认模型。切换即时生效,仅影响本智能体的对话生成。
+        </p>
+        <div className="p-modelpick">
+          <select value={cfg.model || ''}
+            onChange={async e => {
+              if (await put({ model: e.target.value })) {
+                flash(e.target.value ? `对话模型已切换为 ${e.target.value}` : '已恢复平台默认模型')
+              }
+            }}>
+            <option value="">平台默认模型{defaultModel ? `(${defaultModel})` : ''}</option>
+            {options.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+          {msg && <span className="p-ok">{msg}</span>}
         </div>
+      </div>
 
-        <div className="p-card">
-          <h3>能力配置</h3>
-          <p className="p-scope-hint">按智能体启用的扩展能力(留资转线索 / 对话质检),保存后即时生效。</p>
-          <div className="p-caps">
-            {AGENT_CAPS.map(c => {
-              const on = !!cfg[c.key]
-              return (
-                <label key={c.key} className={`p-cap ${on ? 'on' : ''}`}
-                  onClick={() => toggleCap(c.key)}>
-                  <span className={`p-switch ${on ? 'on' : ''}`}><i /></span>
-                  <span className="p-cap-tx"><b>{c.label}</b><small>{c.desc}</small></span>
-                </label>
-              )
-            })}
-          </div>
-        </div>
-
-        <div className="p-card">
-          <h3>知识域对接</h3>
-          <p className="p-scope-hint">
-            勾选本 Bot 可引用的知识域。<b>未勾选知识域的内容不参与检索、推荐与计算</b>;
-            不勾选任何项 = 挂载本租户全部知识域;勾选变更立即保存并生效。
-          </p>
-          <div className="p-checks">
-            {domains.map(d => (
-              <label key={d.id} className={bound.includes(d.id) ? 'on' : ''}>
-                <input type="checkbox" checked={bound.includes(d.id)}
-                  onChange={() => toggleDomain(d.id)} />
-                <span><b>{d.name}</b><small>{d.description || d.code}</small></span>
+      <div className="p-card">
+        <h3>能力配置{!canCaps && <span className="p-count" style={{ marginLeft: 8 }}>旗舰版功能 · 未解锁</span>}</h3>
+        <p className="p-scope-hint">
+          {canCaps
+            ? '按智能体启用的扩展能力(留资转线索 / 对话质检),保存后即时生效。'
+            : '能力开关为旗舰版功能,请先在「套餐订阅」中升级后配置。'}
+        </p>
+        <div className="p-caps" style={canCaps ? undefined : { opacity: .55, pointerEvents: 'none' }}>
+          {AGENT_CAPS.map(c => {
+            const on = !!cfg[c.key]
+            return (
+              <label key={c.key} className={`p-cap ${on ? 'on' : ''}`}
+                onClick={async () => { if (await put({ [c.key]: !cfg[c.key] })) flash('能力配置已保存 · 即时生效') }}>
+                <span className={`p-switch ${on ? 'on' : ''}`}><i /></span>
+                <span className="p-cap-tx"><b>{c.label}</b><small>{c.desc}</small></span>
               </label>
-            ))}
-            {!domains.length && <div className="p-empty">暂无知识域,请先在「知识域」中创建并上传资料</div>}
-          </div>
-        </div>
-
-        <div className="p-card">
-          <h3>系统提示词</h3>
-          <p className="p-scope-hint">
-            定义该智能体的身份、服务流程与回答风格;留空则使用平台默认模板(角色设定与红线约束)。保存后新会话即时生效。
-          </p>
-          <textarea className="p-scope-editor" rows={16} value={prompt} maxLength={4000}
-            onChange={e => setPrompt(e.target.value)} />
-          <div className="p-toolbar" style={{ marginTop: 12 }}>
-            <button onClick={savePrompt}>保存提示词</button>
-            {msg && <span className="p-ok">{msg}</span>}
-          </div>
-        </div>
-
-        <div className="p-card">
-          <h3>欢迎语</h3>
-          <p className="p-scope-hint">新会话第一条消息;留空则使用平台默认欢迎语。保存后新会话即时生效。</p>
-          <textarea className="p-scope-editor" rows={9} value={welcome} maxLength={800}
-            onChange={e => setWelcome(e.target.value)} />
-          <div className="p-toolbar" style={{ marginTop: 12 }}>
-            <button onClick={saveWelcome}>保存欢迎语</button>
-          </div>
+            )
+          })}
         </div>
       </div>
+
+      <div className="p-card">
+        <h3>知识域对接{!canDomains && <span className="p-count" style={{ marginLeft: 8 }}>标准版功能 · 未解锁</span>}</h3>
+        <p className="p-scope-hint">
+          {canDomains
+            ? <>勾选本智能体可引用的知识域。<b>未勾选知识域的内容不参与检索、推荐与计算</b>;
+              不勾选任何项 = 挂载本租户全部知识域;勾选变更立即保存并生效。</>
+            : '知识域对接为标准版功能,请先在「套餐订阅」中升级。当前默认挂载全部知识域。'}
+        </p>
+        <div className="p-checks" style={canDomains ? undefined : { opacity: .55, pointerEvents: 'none' }}>
+          {domains.map(d => (
+            <label key={d.id} className={bound.includes(d.id) ? 'on' : ''}>
+              <input type="checkbox" checked={bound.includes(d.id)}
+                onChange={async () => {
+                  const next = bound.includes(d.id)
+                    ? bound.filter(x => x !== d.id) : [...bound, d.id]
+                  if (await put({ domains: next })) flash('知识域对接已保存 · 即时生效')
+                }} />
+              <span><b>{d.name}</b><small>{d.description || d.code}</small></span>
+            </label>
+          ))}
+          {!domains.length && <div className="p-empty">暂无知识域,请先在「知识域」中创建并上传资料</div>}
+        </div>
+      </div>
+
+      <div className="p-card">
+        <h3>系统提示词</h3>
+        <p className="p-scope-hint">
+          定义该智能体的身份、服务流程与回答风格;留空则使用平台默认模板(角色设定与红线约束)。保存后新会话即时生效。
+        </p>
+        <textarea className="p-scope-editor" rows={16} value={prompt} maxLength={4000}
+          onChange={e => setPrompt(e.target.value)} />
+        <div className="p-toolbar" style={{ marginTop: 12 }}>
+          <button onClick={async () => { if (await put({ prompt_text: prompt })) flash('系统提示词已保存 · 新会话即时生效') }}>保存提示词</button>
+          {msg && <span className="p-ok">{msg}</span>}
+        </div>
+      </div>
+
+      <div className="p-card">
+        <h3>欢迎语</h3>
+        <p className="p-scope-hint">新会话第一条消息;留空则使用平台默认欢迎语。保存后新会话即时生效。</p>
+        <textarea className="p-scope-editor" rows={9} value={welcome} maxLength={800}
+          onChange={e => setWelcome(e.target.value)} />
+        <div className="p-toolbar" style={{ marginTop: 12 }}>
+          <button onClick={async () => { if (await put({ welcome_text: welcome })) flash('欢迎语已保存 · 新会话即时生效') }}>保存欢迎语</button>
+          {err && <span className="p-err">{err}</span>}
+        </div>
+      </div>
+
+      {onDelete && (
+        <div className="p-card" style={{ borderColor: 'rgba(185,28,28,.3)' }}>
+          <h3 style={{ color: 'var(--bad)' }}>删除智能体</h3>
+          <p className="p-scope-hint">删除后该智能体的前台链接失效,历史会话记录保留。</p>
+          <div className="p-toolbar">
+            <button className="p-mini danger" onClick={onDelete}>删除「{agent.name}」</button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

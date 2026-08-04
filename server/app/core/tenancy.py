@@ -111,11 +111,84 @@ def tenant_prompt(db, tenant_id: int) -> str | None:
 
 
 def scope_for_tenant(tenant_id: int) -> dict:
-    """租户 Bot 作用域:知识域按智能体设置的挂载列表过滤(空=全部挂载)。"""
-    from .db import list_domains, list_kbs
+    """租户作用域(兼容入口):取该租户默认智能体的作用域。"""
     with get_db() as db:
-        domains = [d for d in list_domains(db) if d.get("tenant_id") == tenant_id]
-        cfg = bot_config_of(db, tenant_id)
+        agent = db.execute("SELECT * FROM tenant_agents WHERE tenant_id=? ORDER BY id",
+                           (tenant_id,)).fetchone()
+    if not agent:
+        return {"domains": [], "domain_ids": [], "kbs": [], "kb_ids": [],
+                "domain_names": [], "identity": "tenant", "model": None,
+                "capabilities": {"tenant_bot": True}}
+    return scope_for_agent(agent)
+
+
+# ---------- 租户智能体(多智能体:独立配置 + 独立前台链接) ----------
+
+def agent_config_of(agent) -> dict:
+    try:
+        return json.loads(agent["config_json"] or "{}")
+    except (ValueError, TypeError):
+        return {}
+
+
+def list_agents(db, tenant_id: int) -> list[dict]:
+    rows = db.execute("SELECT * FROM tenant_agents WHERE tenant_id=? ORDER BY id",
+                      (tenant_id,)).fetchall()
+    out = []
+    for r in rows:
+        cfg = agent_config_of(r)
+        out.append({"id": r["id"], "slug": r["slug"], "name": r["name"],
+                    "created_at": r["created_at"],
+                    "link": f"/b/{r['slug']}",
+                    "config": {"welcome_text": cfg.get("welcome_text", ""),
+                               "prompt_text": cfg.get("prompt_text", ""),
+                               "lead_capture": cfg.get("lead_capture", True),
+                               "quality_check": cfg.get("quality_check", True),
+                               "domains": cfg.get("domains") or [],
+                               "model": cfg.get("model") or ""},
+                    "domain_count": len(cfg.get("domains") or [])})
+    return out
+
+
+def get_agent(db, agent_id: int):
+    return db.execute("SELECT * FROM tenant_agents WHERE id=?", (agent_id,)).fetchone()
+
+
+def get_agent_by_slug(db, slug: str):
+    return db.execute("SELECT * FROM tenant_agents WHERE slug=?", (slug,)).fetchone()
+
+
+def create_agent(db, tenant_id: int, name: str) -> dict:
+    """新建智能体;套餐数量限额在调用方(API 层)校验。"""
+    slug = "a-" + secrets.token_hex(3)
+    while db.execute("SELECT 1 FROM tenant_agents WHERE slug=?", (slug,)).fetchone():
+        slug = "a-" + secrets.token_hex(3)
+    cur = db.execute("INSERT INTO tenant_agents(tenant_id, slug, name, config_json) "
+                     "VALUES(?,?,?,?)", (tenant_id, slug, (name or "").strip(), "{}"))
+    return dict(db.execute("SELECT * FROM tenant_agents WHERE id=?",
+                           (cur.lastrowid,)).fetchone())
+
+
+def delete_agent(db, tenant_id: int, agent_id: int) -> None:
+    cnt = db.execute("SELECT COUNT(*) FROM tenant_agents WHERE tenant_id=?",
+                     (tenant_id,)).fetchone()[0]
+    if cnt <= 1:
+        raise ValueError("至少保留一个智能体")
+    row = db.execute("SELECT id FROM tenant_agents WHERE id=? AND tenant_id=?",
+                     (agent_id, tenant_id)).fetchone()
+    if not row:
+        raise ValueError("智能体不存在")
+    # 历史会话解除绑定(后续对话回退到该租户默认智能体)
+    db.execute("UPDATE sessions SET agent_id=NULL WHERE agent_id=?", (agent_id,))
+    db.execute("DELETE FROM tenant_agents WHERE id=?", (agent_id,))
+
+
+def scope_for_agent(agent) -> dict:
+    """智能体作用域:知识域按配置挂载列表过滤(空=挂载租户全部知识域)。"""
+    from .db import list_domains, list_kbs
+    cfg = agent_config_of(agent)
+    with get_db() as db:
+        domains = [d for d in list_domains(db) if d.get("tenant_id") == agent["tenant_id"]]
         bound = cfg.get("domains") or []
         if bound:
             bound_ids = set(bound)
@@ -131,6 +204,14 @@ def scope_for_tenant(tenant_id: int) -> dict:
             "capabilities": {"tenant_bot": True,
                              "lead_capture": bool(cfg.get("lead_capture", True)),
                              "quality_check": bool(cfg.get("quality_check", True))}}
+
+
+def agent_welcome(agent) -> str | None:
+    return (agent_config_of(agent).get("welcome_text") or "").strip() or None
+
+
+def agent_prompt(agent) -> str | None:
+    return (agent_config_of(agent).get("prompt_text") or "").strip() or None
 
 
 # ---------- 套餐与配额 ----------
