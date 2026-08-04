@@ -1370,7 +1370,7 @@ export default function Portal() {
           <img className="p-logo" src="/logo.png" alt="AI 课程顾问" />
           <div>
             <b>{isTenant ? (tinfo?.tenant?.name || '机构工作台') : 'SaaS 运营工作台'}</b>
-            <small>{isTenant ? 'AI 教育顾问 · 机构业务后台' : 'AI 教育顾问 · 平台经营'}</small>
+            <small>{isTenant ? 'AI课程顾问管理工作台' : 'AI 教育顾问 · 平台经营'}</small>
           </div>
         </div>
         <nav className="p-nav" aria-label="管理功能">
