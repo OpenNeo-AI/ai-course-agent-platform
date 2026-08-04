@@ -7,17 +7,24 @@
 from __future__ import annotations
 
 import json
+import logging
+import threading
 from pathlib import Path
 
 import yaml
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 
 from ..core import config, llm, quality
-from ..core.db import get_db, list_domains, list_kbs, log_action
+from ..core.db import get_db, get_db_autocommit, list_domains, list_kbs, log_action
 from ..core.ingest.chunk import clear_document_knowledge, ingest_text
 from ..core.ontology.graph import build_graph, derive_all, derive_links, object_detail
 
 router = APIRouter(prefix="/api/portal", tags=["portal"])
+
+log = logging.getLogger(__name__)
+
+# 后台知识摄入串行化:避免多个文档同时摄入争抢 SQLite 写锁
+_INGEST_LOCK = threading.Lock()
 
 
 def _principal(request: Request) -> dict:
@@ -407,11 +414,11 @@ def list_documents(request: Request, kb_id: int = 0):
 @router.post("/documents", dependencies=[Depends(_auth)])
 async def upload_document(request: Request, file: UploadFile = File(...),
                           kb_id: int = Form(...), title: str = Form("")):
-    """上传知识文档(.txt/.docx/.doc/.pdf)→ 解析 → 切块向量化 → ontology 抽取。
+    """上传知识文档(.txt/.docx/.doc/.pdf)→ 后台异步解析+摄入,立即返回 ingesting 状态。
     归属知识库由 kb_id 指定(文档经 知识库→知识域 归属);同名文件自动重建。
     租户上传受专业版 rag_manage 门禁(免费版 402 引导升级)。"""
-    from ..core.ingest.parse import parse_upload
     p = _principal(request)
+    doc_title = title or file.filename.rsplit(".", 1)[0]
     with get_db() as db:
         kb = db.execute("SELECT * FROM kbs WHERE id=?", (kb_id,)).fetchone()
         if not kb:
@@ -421,16 +428,38 @@ async def upload_document(request: Request, file: UploadFile = File(...),
         if not p["super"] and not _tenant_features(db, p).get("rag_manage"):
             raise HTTPException(status_code=402,
                                 detail="课程资料管理需要订阅套餐,请先开通")
+        # 预插 ingesting 行,请求立即返回;真实解析/摄入在后台线程完成
+        cur = db.execute(
+            "INSERT INTO documents(kb_id, filename, title, status) VALUES(?,?,?, 'ingesting')",
+            (kb_id, file.filename, doc_title))
+        doc_id = cur.lastrowid
     raw = await file.read()
-    try:
-        text = parse_upload(file.filename, raw)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
     (config.UPLOAD_DIR / f"kb{kb_id}_{file.filename}").write_bytes(raw)
-    doc_title = title or file.filename.rsplit(".", 1)[0]
-    with get_db() as db:
-        stats = ingest_text(db, kb_id, file.filename, doc_title, text)
-    return {"ok": True, "filename": file.filename, "kb_id": kb_id, "stats": stats}
+    threading.Thread(target=_background_ingest,
+                     args=(kb_id, file.filename, doc_title, raw, doc_id),
+                     daemon=True).start()
+    return {"ok": True, "filename": file.filename, "kb_id": kb_id,
+            "doc_id": doc_id, "status": "ingesting"}
+
+
+def _background_ingest(kb_id: int, filename: str, doc_title: str,
+                       raw: bytes, doc_id: int) -> None:
+    """后台执行 解析 → 切块向量化 → 本体抽取,不阻塞其他接口。
+    autocommit 连接保证每条写入即时提交,不跨网络/LLM 调用持写锁。"""
+    from ..core.ingest.parse import parse_upload
+    with _INGEST_LOCK:
+        try:
+            text = parse_upload(filename, raw)
+            with get_db_autocommit() as db:
+                ingest_text(db, kb_id, filename, doc_title, text)
+            log.info("文档摄入完成: %s (doc %s)", filename, doc_id)
+        except Exception as e:  # noqa: BLE001
+            log.error("文档摄入失败 %s: %s", filename, e)
+            try:
+                with get_db() as db:
+                    db.execute("UPDATE documents SET status='failed' WHERE id=?", (doc_id,))
+            except Exception:  # noqa: BLE001
+                pass
 
 
 @router.delete("/documents/{doc_id}", dependencies=[Depends(_auth)])

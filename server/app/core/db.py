@@ -311,6 +311,29 @@ def get_db():
         db.close()
 
 
+@contextmanager
+def get_db_autocommit():
+    """autocommit 连接:每条语句即时提交,不跨网络/LLM 调用持写锁。
+
+    供后台耗时的知识摄入(解析→向量化→抽取)使用——单条语句短暂,可与其他请求并发;
+    中途失败会留下部分数据,由摄入失败置 status='failed',同名重传幂等重建。
+    """
+    config.ensure_dirs()
+    db = sqlite3.connect(config.DB_PATH, timeout=30, isolation_level=None)
+    db.row_factory = sqlite3.Row
+    db.execute("PRAGMA foreign_keys=ON")
+    _load_vec(db)
+    db.executescript(SCHEMA)
+    _ensure_domains_kbs(db)
+    _migrate_drop_materials(db)
+    _migrate_saas(db)
+    _seed_saas(db)
+    try:
+        yield db
+    finally:
+        db.close()
+
+
 DEFAULT_DOMAINS = [
     ("domain-a", "学生课程知识域",
      "暑期AI素养夏令营:北京/上海线下班、线上直播班,营期、费用与物资"),

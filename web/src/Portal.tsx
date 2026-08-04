@@ -59,7 +59,7 @@ function DomainsTab() {
   const [creatingKb, setCreatingKb] = useState(false)
   const [kbForm, setKbForm] = useState({ name: '', description: '' })
   const [title, setTitle] = useState('')
-  const [busy, setBusy] = useState('')
+  const [processing, setProcessing] = useState('')   // 后台摄入中的文件名(空=无)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const loadDomains = useCallback(() => api('/api/portal/domains').then(r => {
@@ -143,16 +143,27 @@ function DomainsTab() {
     fd.append('file', f)
     fd.append('kb_id', String(selKb))
     fd.append('title', title || f.name.replace(/\.[^.]+$/, ''))
-    setBusy(`正在解析并摄入 ${f.name}(解析 → 切块向量化 → 本体抽取,约 1—3 分钟)…`)
     try {
-      const r = await api('/api/portal/documents', { method: 'POST', body: fd })
-      const s = r.stats || {}
-      alert(`摄入完成:知识块 ${s.chunks ?? '?'};抽取实体 ${s.extract?.entities ?? '?'}、规则 ${s.extract?.rules ?? '?'};错误 ${s.extract?.errors?.length ?? 0}`)
+      await api('/api/portal/documents', { method: 'POST', body: fd })
+      setProcessing(f.name)          // 后台异步摄入,立即返回;轮询状态直至完成
       setTitle('')
       if (fileRef.current) fileRef.current.value = ''
-      loadDocs(); loadKbs(); loadDomains()
-    } catch (e: any) { alert('上传失败:' + e.message) } finally { setBusy('') }
+      loadDocs()
+    } catch (e: any) { alert('上传失败:' + e.message) }
   }
+
+  // 后台摄入期间每 2.5s 轮询文档列表;全部不再 ingesting 后停止并刷新计数
+  useEffect(() => {
+    if (!processing) return
+    const t = setInterval(loadDocs, 2500)
+    return () => clearInterval(t)
+  }, [processing, loadDocs])
+  useEffect(() => {
+    if (processing && docs.length && !docs.some((d: any) => d.status === 'ingesting')) {
+      setProcessing('')
+      loadKbs(); loadDomains()
+    }
+  }, [docs, processing])
   async function removeDoc(id: number, name: string) {
     if (!confirm(`删除文档「${name}」及其全部知识块与本体记录?`)) return
     await api(`/api/portal/documents/${id}`, { method: 'DELETE' })
@@ -248,8 +259,8 @@ function DomainsTab() {
                     <div className="p-toolbar">
                       <input ref={fileRef} type="file" accept=".txt,.docx,.doc,.pdf" />
                       <input placeholder="文档标题(可选)" value={title} onChange={e => setTitle(e.target.value)} />
-                      <button onClick={upload} disabled={!!busy}>上传并摄入</button>
-                      {busy && <span className="p-busy">{busy}</span>}
+                      <button onClick={upload} disabled={!!processing}>上传并摄入</button>
+                      {processing && <span className="p-busy">解析与知识抽取中(后台异步,可继续操作)…</span>}
                     </div>
                     <table className="p-table">
                       <thead><tr><th>ID</th><th>文件</th><th>状态</th><th>知识块</th><th>实体</th><th>上传时间</th><th></th></tr></thead>
