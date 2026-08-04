@@ -278,10 +278,12 @@ class AlipayPageChannel(PaymentChannel):
                 "trade_no": params.get("trade_no", "")}
 
 
+# 当前启用的渠道:模拟支付 + 微信支付。支付宝渠道已停用(回调域名未在白名单内,
+# 网关返回防钓鱼拦截);如需恢复,将 AlipayPageChannel 重新注册并在支付宝开放平台
+# 配置 edu-demo.openneo.ai 授权域名即可。
 CHANNELS: dict[str, PaymentChannel] = {
     MockChannel.code: MockChannel(),
     WechatNativeChannel.code: WechatNativeChannel(),
-    AlipayPageChannel.code: AlipayPageChannel(),
 }
 
 
@@ -303,7 +305,10 @@ def create_order(tenant_id: int, plan_code: str, channel_code: str = "mock") -> 
         plan = db.execute("SELECT * FROM plans WHERE code=?", (plan_code,)).fetchone()
         if not plan:
             raise ValueError("套餐不存在")
-        ch = channel_of(channel_code)
+        # 严格校验:指定渠道不在启用列表或未配置 → 报错,不做静默回退
+        ch = CHANNELS.get(channel_code or "mock")
+        if not ch or not ch.configured():
+            raise ValueError("该支付渠道不可用")
         out_trade_no = gen_out_trade_no()
         cur = db.execute(
             "INSERT INTO payment_orders(tenant_id, plan_code, channel, amount, out_trade_no) "
