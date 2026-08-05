@@ -42,8 +42,8 @@ const AGENTS = [
 
 /* 按智能体可配置的扩展能力 */
 const CAPABILITIES = [
-  { key: 'lead_capture', label: '留资转线索', desc: '用户表达报名意向时采集联系方式,转线索跟进' },
-  { key: 'quality_check', label: '对话质检', desc: '对该智能体的会话进行质检评分' },
+  { key: 'lead_capture', i18n: 'cap.lead_capture', i18nD: 'cap.lead_capture.d' },
+  { key: 'quality_check', i18n: 'cap.quality_check', i18nD: 'cap.quality_check.d' },
 ]
 
 /* ---------- 知识域 / 知识库 / 文档 ---------- */
@@ -291,6 +291,7 @@ function DomainsTab() {
 
 /* ---------- 智能体设置 ---------- */
 export function AgentsTab() {
+  const { t } = useI18n()
   const [sel, setSel] = useState('student')
   const [agents, setAgents] = useState<any>({})
   const [domains, setDomains] = useState<any[]>([])
@@ -450,7 +451,7 @@ export function AgentsTab() {
                   <label key={c.key} className={`p-cap ${on ? 'on' : ''}`}
                     onClick={() => toggleCapability(c.key)}>
                     <span className={`p-switch ${on ? 'on' : ''}`}><i /></span>
-                    <span className="p-cap-tx"><b>{c.label}</b><small>{c.desc}</small></span>
+                    <span className="p-cap-tx"><b>{t(c.i18n)}</b><small>{t(c.i18nD)}</small></span>
                   </label>
                 )
               })}
@@ -1266,39 +1267,38 @@ function OrdersTab() {
   )
 }
 
+const PLATFORM_TABS = [
+  { key: 'tenants', label: '', i18nLabel: 'tab.tenants', i18nDesc: 'tab.tenants.d', el: <TenantsTab /> },
+  { key: 'plans', label: '', i18nLabel: 'tab.plans', i18nDesc: 'tab.plans.d', el: <PlansTab /> },
+  { key: 'orders', label: '', i18nLabel: 'tab.orders', i18nDesc: 'tab.orders.d', el: <OrdersTab /> },
+  { key: 'board', label: '', i18nLabel: 'tab.board', i18nDesc: 'tab.board.d', el: <BoardTab /> },
+  { key: 'system', label: '', i18nLabel: 'tab.system', i18nDesc: 'tab.system.d', el: <SystemTab /> },
+]
+
 /* ---------- 功能锁定面板(可见不可用,引导升级) ---------- */
-const LOCK_DESC: Record<string, { desc: string; need: string }> = {
-  docs: { desc: '知识域与知识库管理:创建知识域、上传课程资料,是 AI 顾问的知识基础。', need: '标准版' },
-  ontology: { desc: '本体知识:班型/营期/费用等实体与规则的图谱化维护。', need: '标准版' },
-  sessions: { desc: '对话记录:查看会话明细(脱敏)、按时间筛选、质检评分。', need: '旗舰版' },
-  leads: { desc: '线索转化:报名意向工单跟进与状态管理。', need: '旗舰版' },
-  analytics: { desc: '运营分析:高频问题、未答问题、趋势与 LLM 洞察。', need: '旗舰版' },
-  usage: { desc: '用量统计:对话次数、活跃用户与近 14 日趋势图表。', need: '旗舰版' },
+const LOCK_I18N: Record<string, { descKey: string; needKey: string }> = {
+  docs: { descKey: "lock.docs", needKey: "lock.needStandard" },
+  ontology: { descKey: "lock.ontology", needKey: "lock.needStandard" },
+  sessions: { descKey: "lock.sessions", needKey: "lock.needFlagship" },
+  leads: { descKey: "lock.leads", needKey: "lock.needFlagship" },
+  analytics: { descKey: "lock.analytics", needKey: "lock.needFlagship" },
+  usage: { descKey: "lock.usage", needKey: "lock.needFlagship" },
 }
 
 function LockPanel({ tabKey }: { tabKey: string }) {
-  const info = LOCK_DESC[tabKey] || { desc: '该功能需升级套餐后使用。', need: '标准版' }
+  const { t } = useI18n()
+  const info = LOCK_I18N[tabKey] || { descKey: 'lock.docs', needKey: 'lock.needStandard' }
   return (
     <div className="tadm-lock">
-      <h3>🔒 {info.need}功能</h3>
-      <p>{info.desc}</p>
+      <h3>🔒 {t(info.needKey)}</h3>
+      <p>{t(info.descKey)}</p>
       <a href="#sub" onClick={e => {
         e.preventDefault()
         window.dispatchEvent(new CustomEvent('opc-goto-tab', { detail: 'sub' }))
-      }}>升级套餐解锁 →</a>
+      }}>{t('lock.unlock')}</a>
     </div>
   )
 }
-
-/* ---------- 两套 Tab:平台经营(超管) / 业务工作(租户) ---------- */
-
-const PLATFORM_TABS = [
-  { key: 'tenants', label: '租户管理', desc: '机构租户 · 套餐 · 用量概览', el: <TenantsTab /> },
-  { key: 'plans', label: '套餐定价', desc: '标准版 / 旗舰版 · 价格维护', el: <PlansTab /> },
-  { key: 'orders', label: '订单管理', desc: '支付流水 · 状态核对', el: <OrdersTab /> },
-  { key: 'board', label: '租户看板', desc: '租户级对话数 · 用户数 · 趋势图表', el: <BoardTab /> },
-  { key: 'system', label: '系统设置', desc: '模型服务 · API Key · 渠道 · 全局参数', el: <SystemTab /> },
-]
 
 export default function Portal() {
   const { t } = useI18n()
@@ -1336,23 +1336,22 @@ export default function Portal() {
   const feats = tinfo?.features || tinfo?.subscription?.features || {}
   const unlocked = (f: string) => !!feats[f]
   const tenantTabs = tinfo ? [
-    { key: 'institution', label: '机构信息', desc: '机构名称 · 统一服务宗旨', el: <TenantInstitutionTab info={tinfo} onChanged={loadTinfo} /> },
-    { key: 'agents', label: '智能体设置', desc: '模型 · 能力 · 知识域 · 提示词', el: <TenantAgentTab info={tinfo} /> },
-    { key: 'docs', label: '知识域', desc: '知识域 · 知识库 · 课程资料',
+    { key: 'institution', label: '', i18nLabel: 'tab.institution', i18nDesc: 'tab.institution.d', el: <TenantInstitutionTab info={tinfo} onChanged={loadTinfo} /> },
+    { key: 'agents', label: '', i18nLabel: 'tab.agents', i18nDesc: 'tab.agents.d', el: <TenantAgentTab info={tinfo} /> },
+    { key: 'docs', label: '', i18nLabel: 'tab.docs', i18nDesc: 'tab.docs.d',
       el: unlocked('domains') ? <DomainsTab /> : <LockPanel tabKey="docs" /> },
-    { key: 'ontology', label: '本体知识', desc: '实体 · 规则 · 关系',
+    { key: 'ontology', label: '', i18nLabel: 'tab.ontology', i18nDesc: 'tab.ontology.d',
       el: unlocked('ontology') ? <OntologyTab /> : <LockPanel tabKey="ontology" /> },
-    { key: 'sessions', label: '对话记录', desc: '脱敏 · 时间筛选 · 质检',
+    { key: 'sessions', label: '', i18nLabel: 'tab.sessions', i18nDesc: 'tab.sessions.d',
       el: unlocked('sessions') ? <TenantSessionsTab /> : <LockPanel tabKey="sessions" /> },
-    { key: 'leads', label: '线索转化', desc: '报名意向 · 留资工单',
+    { key: 'leads', label: '', i18nLabel: 'tab.leads', i18nDesc: 'tab.leads.d',
       el: unlocked('leads') ? <LeadsTab /> : <LockPanel tabKey="leads" /> },
-    { key: 'analytics', label: '运营分析', desc: '高频问题 · 未答 · 洞察',
+    { key: 'analytics', label: '', i18nLabel: 'tab.analytics', i18nDesc: 'tab.analytics.d',
       el: unlocked('analytics') ? <AnalyticsTab /> : <LockPanel tabKey="analytics" /> },
-    { key: 'usage', label: '用量统计', desc: '对话次数 · 活跃用户 · 趋势',
+    { key: 'usage', label: '', i18nLabel: 'tab.usage', i18nDesc: 'tab.usage.d',
       el: unlocked('analytics') ? <TenantStatsTab /> : <LockPanel tabKey="usage" /> },
-    { key: 'sub', label: '套餐订阅', desc: '免费版 / 标准版 / 旗舰版', el: <TenantSubTab info={tinfo} onChanged={loadTinfo} /> },
+    { key: 'sub', label: '', i18nLabel: 'tab.sub', i18nDesc: 'tab.sub.d', el: <TenantSubTab info={tinfo} onChanged={loadTinfo} /> },
   ] : []
-
   const tabs = isTenant ? tenantTabs : PLATFORM_TABS
   useEffect(() => {
     const h = (e: Event) => setTab((e as CustomEvent).detail)
@@ -1361,7 +1360,6 @@ export default function Portal() {
   }, [])
 
   if (!authed) return <AuthPanel onOk={() => setAuthed(true)} />
-  // 身份/租户信息加载完成前渲染占位,避免 tabs 为空导致渲染崩溃白屏
   if (isTenant && tinfoErr) {
     return (
       <div className="portal">
@@ -1369,16 +1367,17 @@ export default function Portal() {
           <div className="auth-error" style={{ maxWidth: 460 }}>{tinfoErr}</div>
           <button className="plan-cta" style={{ width: 'auto', padding: '9px 22px', marginTop: 12 }}
             onClick={() => { clearAuth(); setAuthed(false); setMe(null); setTinfo(null) }}>
-            重新登录
+            {t('wb.logout')}
           </button>
         </main>
       </div>
     )
   }
   if (!me || (isTenant && !tinfo)) {
-    return <div className="portal"><main className="p-main" style={{ padding: 40 }}>加载中…</main></div>
+    return <div className="portal"><main className="p-main" style={{ padding: 40 }}>{t('wb.loading')}</main></div>
   }
-  const active = tabs.find(t => t.key === tab) || tabs[0]
+
+const active = tabs.find(t => t.key === tab) || tabs[0]
   if (!active) return <div className="portal"><main className="p-main" style={{ padding: 40 }}>加载中…</main></div>
   const subActive = tinfo?.subscription?.status === 'active'
   return (
@@ -1392,10 +1391,10 @@ export default function Portal() {
           </div>
         </div>
         <nav className="p-nav" aria-label="管理功能">
-          {tabs.map(t => (
-            <button key={t.key} className={t.key === active.key ? 'on' : ''} onClick={() => setTab(t.key)}>
-              <span className="ic">{NAV_ICONS[t.key]}</span>
-              <span className="tx"><b>{t.label}</b><small>{t.desc}</small></span>
+          {tabs.map(x => (
+            <button key={x.key} className={x.key === active.key ? 'on' : ''} onClick={() => setTab(x.key)}>
+              <span className="ic">{NAV_ICONS[x.key]}</span>
+              <span className="tx"><b>{t(x.i18nLabel)}</b><small>{t(x.i18nDesc)}</small></span>
             </button>
           ))}
         </nav>
@@ -1414,13 +1413,13 @@ export default function Portal() {
         )}
         {isTenant && tinfo?.subscription?.plan_code === 'free' && (
           <div className="quota-banner" style={{ background: '#EFF6FF', borderColor: '#BFDBFE', color: '#1E40AF' }}>
-            <span>当前为免费版:仅智能体设置可用。升级标准版解锁知识域与课程资料,让 Bot 基于你的课程资料作答。</span>
+            <span>{t('wb.freeHint')}</span>
             <a onClick={() => setTab('sub')} style={{ cursor: 'pointer' }}>去升级 →</a>
           </div>
         )}
         <header className="p-pagehead">
-          <h2>{active.label}</h2>
-          <p>{active.desc}</p>
+          <h2>{active ? t(active.i18nLabel) : ''}</h2>
+          <p>{active ? t(active.i18nDesc) : ''}</p>
         </header>
         {active.el}
       </main>
