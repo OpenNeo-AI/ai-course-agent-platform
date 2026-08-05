@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { API, currentUser } from './api'
 import PaymentModal from './PaymentModal'
-import { LangSwitch, useI18n } from './i18n'
+import { LangSwitch, useI18n, useTData } from './i18n'
 
 type Plan = { code: string; name: string; price_monthly: number; chat_limit_month: number;
   features: { desc?: string; highlights?: string[] } }
@@ -31,6 +31,7 @@ export default function Pricing() {
   const me = currentUser()
   const nav = useNavigate()
   const { t } = useI18n()
+  const td = useTData()
 
   useEffect(() => {
     fetch(API + '/api/plans').then(r => r.json()).then(d => setPlans(d.plans || [])).catch(() => {})
@@ -57,14 +58,14 @@ export default function Pricing() {
           <div key={p.code} className={`plan-card${p.code === 'flagship' ? ' pro' : ''}`}
             style={{ width: 'min(290px, 100%)' }}>
             {p.code === 'flagship' && <span className="plan-flag">{t('pricing.recommended')}</span>}
-            <h2>{p.name}</h2>
+            <h2>{td(p.name)}</h2>
             <div className="plan-price">
               <em>¥{p.price_monthly}</em><span>{t('pricing.perMonth')}</span>
             </div>
-            <p className="plan-desc">{p.features.desc}</p>
+            <p className="plan-desc">{td(p.features.desc || '')}</p>
             <ul className="plan-points">
               {(p.features.highlights || []).map((h: string, i: number) => (
-                <li key={i}>{h}</li>
+                <li key={i}>{td(h)}</li>
               ))}
             </ul>
             <button className="plan-cta" onClick={() => choose(p)}

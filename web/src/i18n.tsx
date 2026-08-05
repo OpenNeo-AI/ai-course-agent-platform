@@ -439,6 +439,36 @@ export function useI18n() {
   return useContext(I18nCtx)
 }
 
+/* 后端数据(套餐 highlights/desc/plan name)翻译映射 */
+const DATA_ZH_EN: Record<string, string> = {
+  '免费版': 'Free', '标准版': 'Standard', '旗舰版': 'Flagship',
+  '快速体验智能体设置与 AI 对话': 'Quick start with agent settings & AI chat',
+  '把机构课程资料变成专属 AI 顾问': 'Turn your course materials into a dedicated AI advisor',
+  '覆盖咨询获客到转化的完整经营闭环': 'Full pipeline: inquiry, acquisition, conversion',
+  '智能体设置:欢迎语 / 系统提示词': 'Agent settings: welcome / system prompt',
+  '1 个智能体 · 独立前台链接': '1 agent · independent frontend link',
+  '共 10 次 AI 对话': '10 AI chats total',
+  '知识域对接 / 业务功能需升级解锁': 'Domain binding & features require upgrade',
+  '最多 3 个智能体 · 独立前台链接': 'Up to 3 agents · independent links',
+  '知识域与课程资料管理(RAG 带引用问答)': 'Domain & document management (RAG with citations)',
+  '本体知识维护': 'Ontology maintenance',
+  'Agent Skill:课程详情 / 班型推荐': 'Agent Skill: course detail / recommendation',
+  '智能体数量不限 · 独立前台链接': 'Unlimited agents · independent links',
+  '能力开关:留资转线索 / 对话质检': 'Capability toggles: lead capture / QA scoring',
+  '对话记录(脱敏) · 线索跟进': 'Conversation logs (masked) · lead follow-up',
+  '运营分析 · 用量统计看板': 'Analytics · usage dashboard',
+}
+
+export function translateData(text: string, lang: Lang): string {
+  if (lang === 'en' && DATA_ZH_EN[text]) return DATA_ZH_EN[text]
+  return text
+}
+
+export function useTData() {
+  const { lang } = useI18n()
+  return (text: string) => translateData(text, lang)
+}
+
 /* 语言切换按钮(中英) */
 export function LangSwitch() {
   const { lang, setLang } = useI18n()

@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { api } from './api'
 import PaymentModal from './PaymentModal'
-import { useI18n } from './i18n'
+import { useI18n, useTData } from './i18n'
 
 export type Doc = { id: number; filename: string; title: string; status: string; chunks: number;
   entities: number; uploaded_at: string; kb_id: number }
@@ -532,6 +532,7 @@ function AgentConfigPanel({ agent, canDomains, canCaps, onDelete }: {
 /* ---------- 套餐订阅(开通/升级 + 订单记录) ---------- */
 export function TenantSubTab({ info, onChanged }: { info: TenantInfo | null; onChanged: () => void }) {
   const { t } = useI18n()
+  const td = useTData()
   const [orders, setOrders] = useState<any[]>([])
   const [plans, setPlans] = useState<any[]>([])
   const [pay, setPay] = useState<any>(null)
@@ -566,12 +567,12 @@ export function TenantSubTab({ info, onChanged }: { info: TenantInfo | null; onC
               {current
                 ? <span className="plan-flag" style={{ background: 'var(--ok)' }}>{t('sub.currentTag')}</span>
                 : p.code === 'flagship' && <span className="plan-flag">{t('sub.recommend')}</span>}
-              <h2>{p.name}</h2>
+              <h2>{td(p.name)}</h2>
               <div className="plan-price"><em>¥{p.price_monthly}</em><span>{t('sub.perMonth')}</span></div>
-              <p className="plan-desc">{p.features?.desc}</p>
+              <p className="plan-desc">{td(p.features?.desc || '')}</p>
               <ul className="plan-points">
                 {(p.features?.highlights || []).map((h: string, i: number) => (
-                  <li key={i}>{h}</li>
+                  <li key={i}>{td(h)}</li>
                 ))}
               </ul>
               <button className="plan-cta" disabled={current || p.code === 'free'}
