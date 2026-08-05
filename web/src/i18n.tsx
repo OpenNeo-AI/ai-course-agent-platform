@@ -397,6 +397,26 @@ const DICT: Record<string, { zh: string; en: string }> = {
   'sys.params': { zh: '全局参数', en: 'Global Parameters' },
   'sys.save': { zh: '保存配置', en: 'Save Config' },
   'sys.saved': { zh: '配置已保存·热加载生效', en: 'Saved · hot-reloaded' },
+  // ---- 课程资料管理 ----
+  'docs.notActivated': { zh: '服务未开通', en: 'Service Not Activated' },
+  'docs.notActivatedHint': { zh: '注册后需选购套餐并完成支付,即可上传课程资料并启用 AI 课程顾问。', en: 'Subscribe and complete payment to upload materials and activate the AI advisor.' },
+  'docs.goSubscribe': { zh: '前往「套餐订阅」开通 ->', en: 'Go to Subscription ->' },
+  'docs.noKb': { zh: '尚未创建知识库,请先在「知识域」中创建', en: 'No knowledge base yet. Create one in Knowledge Domains first.' },
+  'docs.uploadFail': { zh: '上传失败', en: 'Upload failed' },
+  'docs.uploadOk': { zh: '上传成功', en: 'Upload OK' },
+  'docs.ready': { zh: '已可基于新资料回答', en: 'can now answer from new materials' },
+  'docs.confirmDel': { zh: '删除该文档?其知识块与索引将同步清理。', en: 'Delete this document? Its chunks and index will be cleared.' },
+  'docs.uploaded': { zh: '已挂载知识库文档', en: 'Mounted Documents' },
+  'docs.processing': { zh: '解析向量化中…', en: 'Processing…' },
+  'docs.uploadPdf': { zh: '上传课程手册(PDF)', en: 'Upload Course Manual (PDF)' },
+  'docs.empty': { zh: '暂无文档,上传课程手册后 Bot 即可基于资料回答', en: 'No documents. Upload a course manual to enable Bot answers.' },
+  // ---- 智能体操作反馈 ----
+  'agent.modelSwitched': { zh: '对话模型已切换为', en: 'Model switched to' },
+  'agent.defaultRestored': { zh: '已恢复平台默认模型', en: 'Restored to platform default' },
+  'agent.capsSaved': { zh: '能力配置已保存 · 即时生效', en: 'Capabilities saved · instant' },
+  'agent.domainsSaved': { zh: '知识域对接已保存 · 即时生效', en: 'Domain binding saved · instant' },
+  'agent.promptSaved': { zh: '系统提示词已保存 · 新会话即时生效', en: 'Prompt saved · new sessions instant' },
+  'agent.welcomeSaved': { zh: '欢迎语已保存 · 新会话即时生效', en: 'Welcome saved · new sessions instant' },
 }
 
 const I18nCtx = createContext<{ lang: Lang; t: (k: string) => string; setLang: (l: Lang) => void }>({

@@ -20,6 +20,7 @@ export default function TenantAdmin() {
 
 /* ---------- 课程资料管理(标准版起含;未开通显示开通引导) ---------- */
 export function TenantDocsTab({ info, onChanged }: { info: TenantInfo | null; onChanged: () => void }) {
+  const { t } = useI18n()
   const [docs, setDocs] = useState<Doc[]>([])
   const [kbId, setKbId] = useState<number>(0)
   const [busy, setBusy] = useState(false)
@@ -37,8 +38,8 @@ export function TenantDocsTab({ info, onChanged }: { info: TenantInfo | null; on
   if (info && !active) {
     return (
       <div className="tadm-lock">
-        <h3>🔒 服务未开通</h3>
-        <p>注册后需选购套餐并完成支付,即可上传课程资料并启用 AI 课程顾问。</p>
+        <h3>🔒 t('docs.notActivated')</h3>
+        <p>t('docs.notActivatedHint')</p>
         <a href="#sub" onClick={e => { e.preventDefault(); window.dispatchEvent(new CustomEvent('opc-goto-tab', { detail: 'sub' })) }}>
           前往「套餐订阅」开通 →</a>
       </div>
@@ -46,7 +47,7 @@ export function TenantDocsTab({ info, onChanged }: { info: TenantInfo | null; on
   }
 
   async function upload(f: File) {
-    if (!kbId) { setErr('尚未创建知识库,请先在「知识域」中创建'); return }
+    if (!kbId) { setErr(t('docs.noKb')); return }
     setBusy(true); setErr(''); setMsg('')
     try {
       const fd = new FormData()
@@ -57,13 +58,13 @@ export function TenantDocsTab({ info, onChanged }: { info: TenantInfo | null; on
         method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd,
       })
       const d = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(d.detail || `上传失败(${res.status})`)
+      if (!res.ok) throw new Error(d.detail || `${t('docs.uploadFail')}(${res.status})`)
       const s = d.stats || {}
       const ex = s.extract || {}
-      setMsg(`上传成功:切块 ${s.chunks ?? 0} · 实体 ${ex.entities ?? 0} · 规则 ${ex.rules ?? 0},Bot 已可基于新资料回答`)
+      setMsg(`${t('docs.uploadOk')} ${s.chunks ?? 0} · ${t('th.entities')} ${ex.entities ?? 0} · ${t('kb.rules')} ${ex.rules ?? 0}, ${t('docs.ready')}`)
       load(); onChanged()
     } catch (e: any) {
-      setErr(e.message || '上传失败')
+      setErr(e.message || t('docs.uploadFail'))
     } finally {
       setBusy(false)
       if (fileRef.current) fileRef.current.value = ''
@@ -71,7 +72,7 @@ export function TenantDocsTab({ info, onChanged }: { info: TenantInfo | null; on
   }
 
   async function del(id: number) {
-    if (!confirm('删除该文档?其知识块与索引将同步清理。')) return
+    if (!confirm(t('docs.confirmDel'))) return
     try {
       await api(`/api/portal/documents/${id}`, { method: 'DELETE' })
       load(); onChanged()
@@ -81,20 +82,20 @@ export function TenantDocsTab({ info, onChanged }: { info: TenantInfo | null; on
   return (
     <section className="tadm-card">
       <div className="tadm-docs-head">
-        <h3>已挂载知识库文档({docs.length})</h3>
+        <h3>t('docs.uploaded')({docs.length})</h3>
         <label className="tadm-upload">
           <input ref={fileRef} type="file" accept=".pdf,.txt,.docx,.doc" hidden
             onChange={e => { const f = e.target.files?.[0]; if (f) upload(f) }} />
           <button className="plan-cta" disabled={busy}
             onClick={() => fileRef.current?.click()}>
-            {busy ? '解析向量化中…' : '上传课程手册(PDF)'}
+            {busy ? t('docs.processing') : t('docs.uploadPdf')}
           </button>
         </label>
       </div>
       {msg && <div className="tadm-ok">{msg}</div>}
       {err && <div className="auth-error">{err}</div>}
       <table className="tadm-table">
-        <thead><tr><th>文档</th><th>状态</th><th>知识块</th><th>实体</th><th>上传时间</th><th /></tr></thead>
+        <thead><tr><th>{t('th.doc')}</th><th>{t('th.status')}</th><th>{t('th.chunks')}</th><th>{t('th.entities')}</th><th>{t('th.uploaded')}</th><th /></tr></thead>
         <tbody>
           {docs.map(d => (
             <tr key={d.id}>
@@ -102,10 +103,10 @@ export function TenantDocsTab({ info, onChanged }: { info: TenantInfo | null; on
               <td><span className={`st-${d.status}`}>{d.status}</span></td>
               <td>{d.chunks}</td><td>{d.entities}</td>
               <td>{d.uploaded_at}</td>
-              <td><button className="tadm-del" onClick={() => del(d.id)}>删除</button></td>
+              <td><button className="tadm-del" onClick={() => del(d.id)}>{t('btn.delete')}</button></td>
             </tr>
           ))}
-          {!docs.length && <tr><td colSpan={6} className="tadm-empty">暂无文档,上传课程手册后 Bot 即可基于资料回答</td></tr>}
+          {!docs.length && <tr><td colSpan={6} className="tadm-empty">t('docs.empty')</td></tr>}
         </tbody>
       </table>
     </section>
@@ -431,13 +432,13 @@ function AgentConfigPanel({ agent, canDomains, canCaps, onDelete }: {
       <div className="p-card">
         <h3>{t('agent.model')}</h3>
         <p className="p-scope-hint">
-          为该智能体选择对话模型;不选则跟随平台默认模型。切换即时生效,仅影响本智能体的对话生成。
+          {t('agent.modelHint')}
         </p>
         <div className="p-modelpick">
           <select value={cfg.model || ''}
             onChange={async e => {
               if (await put({ model: e.target.value })) {
-                flash(e.target.value ? `对话模型已切换为 ${e.target.value}` : '已恢复平台默认模型')
+                flash(e.target.value ? `${t('agent.modelSwitched')} ${e.target.value}` : t('agent.defaultRestored'))
               }
             }}>
             <option value="">平台默认模型{defaultModel ? `(${defaultModel})` : ''}</option>
@@ -448,7 +449,7 @@ function AgentConfigPanel({ agent, canDomains, canCaps, onDelete }: {
       </div>
 
       <div className="p-card">
-        <h3>能力配置{!canCaps && <span className="p-count" style={{ marginLeft: 8 }}>{t('agent.capsLocked')}</span>}</h3>
+        <h3>{t('agent.caps')}{!canCaps && <span className="p-count" style={{ marginLeft: 8 }}>{t('agent.capsLocked')}</span>}</h3>
         <p className="p-scope-hint">
           {canCaps
             ? t('agent.capsHint')
@@ -459,7 +460,7 @@ function AgentConfigPanel({ agent, canDomains, canCaps, onDelete }: {
             const on = !!cfg[c.key]
             return (
               <label key={c.key} className={`p-cap ${on ? 'on' : ''}`}
-                onClick={async () => { if (await put({ [c.key]: !cfg[c.key] })) flash('能力配置已保存 · 即时生效') }}>
+                onClick={async () => { if (await put({ [c.key]: !cfg[c.key] })) flash(t('agent.capsSaved')) }}>
                 <span className={`p-switch ${on ? 'on' : ''}`}><i /></span>
                 <span className="p-cap-tx"><b>{t(c.i18n)}</b><small>{t(c.i18nD)}</small></span>
               </label>
@@ -469,7 +470,7 @@ function AgentConfigPanel({ agent, canDomains, canCaps, onDelete }: {
       </div>
 
       <div className="p-card">
-        <h3>知识域对接{!canDomains && <span className="p-count" style={{ marginLeft: 8 }}>{t('agent.domainsLocked')}</span>}</h3>
+        <h3>{t('agent.domains')}{!canDomains && <span className="p-count" style={{ marginLeft: 8 }}>{t('agent.domainsLocked')}</span>}</h3>
         <p className="p-scope-hint">
           {canDomains
             ? <>{t('agent.domainsHint')}</>
@@ -482,7 +483,7 @@ function AgentConfigPanel({ agent, canDomains, canCaps, onDelete }: {
                 onChange={async () => {
                   const next = bound.includes(d.id)
                     ? bound.filter(x => x !== d.id) : [...bound, d.id]
-                  if (await put({ domains: next })) flash('知识域对接已保存 · 即时生效')
+                  if (await put({ domains: next })) flash(t('agent.domainsSaved'))
                 }} />
               <span><b>{d.name}</b><small>{d.description || d.code}</small></span>
             </label>
@@ -494,12 +495,12 @@ function AgentConfigPanel({ agent, canDomains, canCaps, onDelete }: {
       <div className="p-card">
         <h3>{t('agent.prompt')}</h3>
         <p className="p-scope-hint">
-          定义该智能体的身份、服务流程与回答风格;留空则使用平台默认模板(角色设定与红线约束)。保存后新会话即时生效。
+          {t('agent.promptHint')}
         </p>
         <textarea className="p-scope-editor" rows={16} value={prompt} maxLength={4000}
           onChange={e => setPrompt(e.target.value)} />
         <div className="p-toolbar" style={{ marginTop: 12 }}>
-          <button onClick={async () => { if (await put({ prompt_text: prompt })) flash('系统提示词已保存 · 新会话即时生效') }}>{t('btn.savePrompt')}</button>
+          <button onClick={async () => { if (await put({ prompt_text: prompt })) flash(t('agent.promptSaved')) }}>{t('btn.savePrompt')}</button>
           {msg && <span className="p-ok">{msg}</span>}
         </div>
       </div>
@@ -510,7 +511,7 @@ function AgentConfigPanel({ agent, canDomains, canCaps, onDelete }: {
         <textarea className="p-scope-editor" rows={9} value={welcome} maxLength={800}
           onChange={e => setWelcome(e.target.value)} />
         <div className="p-toolbar" style={{ marginTop: 12 }}>
-          <button onClick={async () => { if (await put({ welcome_text: welcome })) flash('欢迎语已保存 · 新会话即时生效') }}>{t('btn.saveWelcome')}</button>
+          <button onClick={async () => { if (await put({ welcome_text: welcome })) flash(t('agent.welcomeSaved')) }}>{t('btn.saveWelcome')}</button>
           {err && <span className="p-err">{err}</span>}
         </div>
       </div>
@@ -583,7 +584,7 @@ export function TenantSubTab({ info, onChanged }: { info: TenantInfo | null; onC
       </div>
       <h4>{t('sub.orders')}</h4>
       <table className="tadm-table">
-        <thead><tr><th>订单号</th><th>套餐</th><th>渠道</th><th>金额</th><th>状态</th><th>支付时间</th></tr></thead>
+        <thead><tr><th>订单号</th><th>套餐</th><th>渠道</th><th>金额</th><th>{t('th.status')}</th><th>支付时间</th></tr></thead>
         <tbody>
           {orders.map(o => (
             <tr key={o.id}>
