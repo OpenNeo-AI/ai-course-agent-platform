@@ -597,7 +597,7 @@ function ChannelsCard() {
         {msg && <span className="p-ok">{msg}</span>}
       </div>
       <table className="p-table">
-        <thead><tr><th>{t('th.channel')}</th><th>令牌</th><th>{t('th.status')}</th><th>最近使用</th><th>操作</th></tr></thead>
+        <thead><tr><th>{t('th.channel')}</th><th>令牌</th><th>{t('th.status')}</th><th>最近使用</th><th>{t('lead.action')}</th></tr></thead>
         <tbody>
           {channels.map(c => (
             <tr key={c.id}>
@@ -894,10 +894,10 @@ function LeadsTab() {
           <option value="converted">{t('lead.converted')}</option>
           <option value="invalid">{t('lead.invalid')}</option>
         </select>
-        <button onClick={load}>刷新</button>
+        <button onClick={load}>{t('lead.refresh')}</button>
       </div>
       <table className="p-table">
-        <thead><tr><th>姓名</th><th>联系方式</th><th>意向</th><th>来源</th><th>{t('th.status')}</th><th>时间</th><th>操作</th></tr></thead>
+        <thead><tr><th>{t('lead.name')}</th><th>{t('lead.contact')}</th><th>{t('lead.intent')}</th><th>{t('lead.source')}</th><th>{t('th.status')}</th><th>{t('lead.time')}</th><th>{t('lead.action')}</th></tr></thead>
         <tbody>
           {leads.map(l => (
             <tr key={l.id}>
@@ -914,7 +914,7 @@ function LeadsTab() {
               </td>
             </tr>
           ))}
-          {!leads.length && <tr><td colSpan={7} className="p-src">暂无工单</td></tr>}
+          {!leads.length && <tr><td colSpan={7} className="p-src">{t('lead.noLeads')}</td></tr>}
         </tbody>
       </table>
     </div>
@@ -923,6 +923,7 @@ function LeadsTab() {
 
 /* ---------- 数据分析(智能体运营分析) ---------- */
 function AnalyticsTab() {
+  const { t } = useI18n()
   const [role, setRole] = useState('')
   const [data, setData] = useState<any>(null)
   const [insight, setInsight] = useState<any>(null)
@@ -951,17 +952,17 @@ function AnalyticsTab() {
     <div className="p-ana">
       <div className="p-toolbar">
         <select value={role} onChange={e => setRole(e.target.value)}>
-          <option value="">全部智能体</option>
+          <option value="">{t('analytics.allAgents')}</option>
           <option value="student">学生智能体</option>
           <option value="teacher">教师智能体</option>
           <option value="platform">平台智能体</option>
         </select>
-        <button onClick={load}>刷新</button>
+        <button onClick={load}>{t('lead.refresh')}</button>
       </div>
 
       <div className="p-stats">
-        <div className="p-stat"><b>{ov.total_sessions ?? 0}</b><span>总会话数</span></div>
-        <div className="p-stat"><b>{ov.total_questions ?? 0}</b><span>总提问数</span></div>
+        <div className="p-stat"><b>{ov.total_sessions ?? 0}</b><span>{t('analytics.totalSessions')}</span></div>
+        <div className="p-stat"><b>{ov.total_questions ?? 0}</b><span>{t('analytics.totalQuestions')}</span></div>
         {(data?.by_agent || []).map((a: any) => (
           <div className="p-stat" key={a.role}><b>{a.c}</b><span>{roleZh(a.role)}会话</span></div>
         ))}
@@ -972,7 +973,7 @@ function AnalyticsTab() {
 
       <div className="p-ana-grid">
         <div className="p-card">
-          <h3>近 14 日会话趋势</h3>
+          <h3>{t('analytics.trend14')}</h3>
           <div className="p-trend">
             {(data?.trend || []).map((t: any) => (
               <div className="p-trend-col" key={t.d} title={`${t.d}:${t.c}`}>
@@ -985,7 +986,7 @@ function AnalyticsTab() {
         </div>
 
         <div className="p-card">
-          <h3>推荐班型分布</h3>
+          <h3>{t('analytics.recommendDist')}</h3>
           <div className="p-bars">
             {(data?.recommend_dist || []).map((x: any) => (
               <div className="p-bar-row" key={x.name}>
@@ -994,12 +995,12 @@ function AnalyticsTab() {
                 <b>{x.count}</b>
               </div>
             ))}
-            {!(data?.recommend_dist || []).length && <div className="p-empty">暂无推荐记录</div>}
+            {!(data?.recommend_dist || []).length && <div className="p-empty">{t('analytics.noRecs')}</div>}
           </div>
         </div>
 
         <div className="p-card">
-          <h3>高频问题 TOP</h3>
+          <h3>{t('analytics.topQuestions')}</h3>
           <div className="p-bars">
             {(data?.top_questions || []).map((x: any, i: number) => (
               <div className="p-bar-row" key={i}>
@@ -1008,29 +1009,29 @@ function AnalyticsTab() {
                 <b>{x.c}</b>
               </div>
             ))}
-            {!(data?.top_questions || []).length && <div className="p-empty">暂无提问</div>}
+            {!(data?.top_questions || []).length && <div className="p-empty">{t('analytics.noQuestions')}</div>}
           </div>
         </div>
 
         <div className="p-card">
-          <h3>未答 / 边界问题(知识缺口)</h3>
+          <h3>{t('analytics.unanswered')}</h3>
           <div className="p-unans">
             {(data?.unanswered || []).map((u: any, i: number) => (
               <div className="p-unans-item" key={i}>{u.q}</div>
             ))}
-            {!(data?.unanswered || []).length && <div className="p-empty">暂无未答问题</div>}
+            {!(data?.unanswered || []).length && <div className="p-empty">{t('analytics.noUnanswered')}</div>}
           </div>
         </div>
       </div>
 
       <div className="p-card">
         <div className="p-toolbar" style={{ marginBottom: 8 }}>
-          <h3 style={{ margin: 0 }}>LLM 运营洞察</h3>
-          <button onClick={genInsight} disabled={genIng}>{genIng ? '生成中…' : '生成/刷新洞察'}</button>
+          <h3 style={{ margin: 0 }}>{t('analytics.insight')}</h3>
+          <button onClick={genInsight} disabled={genIng}>{genIng ? '生成中…' : t('analytics.genInsight')}</button>
         </div>
         {insight?.content
           ? <div className="p-insight">{insight.content}</div>
-          : <div className="p-empty">点击「生成/刷新洞察」,由 LLM 分析运营数据给出改进建议</div>}
+          : <div className="p-empty">{t('analytics.insightHint')}</div>}
       </div>
     </div>
   )

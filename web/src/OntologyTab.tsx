@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useI18n } from './i18n'
 import cytoscape from 'cytoscape'
 import fcose from 'cytoscape-fcose'
 import { api } from './api'
@@ -246,6 +247,7 @@ function applyVisibility(cy: any, visible: Record<string, boolean>) {
 }
 
 export default function OntologyTab() {
+  const { t } = useI18n()
   const [schema, setSchema] = useState<any>(null)
   const [domains, setDomains] = useState<any[]>([])
   const [domain, setDomain] = useState('')
@@ -468,7 +470,7 @@ export default function OntologyTab() {
   async function doConfirm() {
     if (!detail) return
     await api(`/api/portal/entities/${detail.id.slice(1)}/confirm`, { method: 'POST' })
-    flash('已确认')
+    flash(t('ont.confirmed'))
     void loadGraph()
     void selectNode(detail.id)
   }
@@ -515,15 +517,15 @@ export default function OntologyTab() {
           <select value={domain} onChange={e => setDomain(e.target.value)}>
             {domains.map(d => <option key={d.code} value={d.code}>{d.name}</option>)}
           </select>
-          <input placeholder="搜索对象…" value={q} onChange={e => setQ(e.target.value)}
+          <input placeholder={t('ont.search')} value={q} onChange={e => setQ(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && searchNode()} style={{ width: 180 }} />
-          <button onClick={searchNode}>定位</button>
+          <button onClick={searchNode}>{t('ont.locate')}</button>
           <select value={layout} onChange={e => setLayout(e.target.value)}>
-            {LAYOUTS.map(l => <option key={l.key} value={l.key}>{l.label}布局</option>)}
+            {LAYOUTS.map(l => <option key={l.key} value={l.key}>{l.label}</option>)}
           </select>
-          <button onClick={rederive}>重算派生链接</button>
+          <button onClick={rederive}>{t('ont.rederive')}</button>
           <span className="o-stats">
-            对象 {stats.node_count ?? 0} · 链接 {stats.edge_count ?? 0} · 已确认 {stats.confirmed ?? 0}
+            {t('ont.objects')} {stats.node_count ?? 0} · {t('ont.links')} {stats.edge_count ?? 0} · {t('ont.confirmed')} {stats.confirmed ?? 0}
             {msg && <span className="p-ok" style={{ marginLeft: 10 }}>{msg}</span>}
           </span>
         </div>
@@ -546,15 +548,15 @@ export default function OntologyTab() {
             onClick={() => setVisible(v => ({ ...v, other: v['other'] === false }))}>
             <i style={{ background: '#94A3B8' }} />其他{stats.by_type?.['other'] ? ` ${stats.by_type['other']}` : ''}
           </button>
-          {([['runs_in', '开设'], ['prerequisite_of', '前置'], ['discount_of', '优惠'],
-            ['variant_of', '同级变体'], ['located_at', '位于'], ['teaches', '教学']] as const)
+          {([['runs_in', t('link.runs_in')], ['prerequisite_of', t('link.prerequisite_of')], ['discount_of', t('link.discount_of')],
+            ['variant_of', t('link.variant_of')], ['located_at', t('link.located_at')], ['teaches', t('link.teaches')]] as const)
             .map(([rel, lab]) => (
               <span key={rel} className="o-legend-edge">
                 <i style={{ borderTopColor: LINK_COLORS[rel] }} />{lab}
               </span>
             ))}
-          <span className="o-legend-edge"><i className="dashed" />派生虚线</span>
-          <span className="o-legend-edge"><i className="thick" style={{ borderTopColor: '#E9C46A' }} />人工加粗</span>
+          <span className="o-legend-edge"><i className="dashed" /> {t('ont.derivedDashed')}</span>
+          <span className="o-legend-edge"><i className="thick" style={{ borderTopColor: '#E9C46A' }} /> {t('ont.manualBold')}</span>
         </div>
       </div>
 
@@ -613,7 +615,7 @@ export default function OntologyTab() {
                   </div>
                 )}
 
-                <h3>属性</h3>
+                <h3>{t('ont.properties')}</h3>
                 {editing
                   ? <>
                       <textarea className="p-scope-editor" rows={10} value={editText}
@@ -636,10 +638,10 @@ export default function OntologyTab() {
                         </tbody>
                       </table>
                       <div className="p-toolbar" style={{ marginTop: 10 }}>
-                        <button onClick={() => setEditing(true)}>编辑属性</button>
+                        <button onClick={() => setEditing(true)}>{t('ont.editProps')}</button>
                         {detail.type !== 'rule' && detail.type !== 'document' && detail.type !== 'domain'
                           && detail.status !== 'confirmed'
-                          && <button onClick={doConfirm}>确认对象</button>}
+                          && <button onClick={doConfirm}>{t('ont.confirmObj')}</button>}
                       </div>
                     </>}
 
@@ -650,18 +652,18 @@ export default function OntologyTab() {
                       <span className="o-linkdir">{l.direction === 'out' ? '→' : '←'}</span>
                       <span className="o-linkrel">{l.rel_label}</span>
                       <a onClick={() => focusNode(l.other.id)}>{l.other.label}</a>
-                      <span className="o-linkorigin">{l.origin === 'manual' ? '人工' : l.origin === 'derived' ? '派生' : '抽取'}</span>
+                      <span className="o-linkorigin">{l.origin === 'manual' ? '人工' : l.origin === 'derived' ? t('ont.derived') : t('ont.extracted')}</span>
                       <span className="del" onClick={() => removeLink(l.edge_id)} title="删除链接">×</span>
                     </div>
                   ))}
                   {!(detail.links || []).length && <div className="o-empty">暂无链接</div>}
                 </div>
 
-                <h3>添加链接</h3>
+                <h3>{t('ont.addLink')}</h3>
                 <div className="o-addlink">
                   <select value={linkForm.rel}
                     onChange={e => setLinkForm(f => ({ ...f, rel: e.target.value, dst: '' }))}>
-                    <option value="">选择链接类型…</option>
+                    <option value="">{t('ont.selectLinkType')}</option>
                     {linkTypes.filter(([, lt]) => (lt.source || []).includes(detail.type))
                       .map(([code, lt]) => (
                         <option key={code} value={code}>{lt.label}({code})</option>
@@ -669,25 +671,25 @@ export default function OntologyTab() {
                   </select>
                   <select value={linkForm.dst}
                     onChange={e => setLinkForm(f => ({ ...f, dst: e.target.value }))}>
-                    <option value="">选择目标对象…</option>
+                    <option value="">{t('ont.selectTarget')}</option>
                     {targetOptions.map((n: any) => (
                       <option key={n.id} value={n.id}>{n.label} · {typeLabel(n.type)}</option>
                     ))}
                   </select>
                   <button onClick={addLink}
-                    disabled={!linkForm.rel || !linkForm.dst}>创建链接</button>
+                    disabled={!linkForm.rel || !linkForm.dst}>{t('ont.createLink')}</button>
                 </div>
               </div>
             )
             : (
               <div className="o-detail o-placeholder">
-                <b>点击图中节点查看详情</b>
-                <p>可编辑属性、确认对象、维护对象间链接;滚轮缩放,拖拽平移,点击空白取消选择。</p>
+                <b>{t('ont.graphHint')}</b>
+                <p>{t('ont.graphHint2')}</p>
               </div>
             )}
 
           <div className="o-detail">
-            <h3 style={{ marginTop: 0 }}>操作记录</h3>
+            <h3 style={{ marginTop: 0 }}>{t('ont.actions')}</h3>
             <div className="o-feed">
               {actions.map(a => (
                 <div key={a.id}>
@@ -695,7 +697,7 @@ export default function OntologyTab() {
                   <span>{a.created_at}</span>
                 </div>
               ))}
-              {!actions.length && <div className="o-empty">暂无记录</div>}
+              {!actions.length && <div className="o-empty">{t('ont.noActions')}</div>}
             </div>
           </div>
         </aside>
