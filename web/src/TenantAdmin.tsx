@@ -418,7 +418,7 @@ function AgentConfigPanel({ agent, canDomains, canCaps, onDelete }: {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
       <div className="p-card">
-        <h3>前台链接(该智能体专属)</h3>
+        <h3>{t('agent.frontendLink')}</h3>
         <p className="p-scope-hint">{t('agent.linkHint')}</p>
         <div className="p-endpoint">
           <code>{link}</code>

@@ -547,7 +547,7 @@ function ChannelsCard() {
   useEffect(() => { load() }, [load])
   const flash = (t: string) => { setMsg(t); setTimeout(() => setMsg(''), 3000) }
   async function create() {
-    if (!name.trim()) return alert('请填写渠道名称')
+    if (!name.trim()) return alert(t('ch.nameHint'))
     await api('/api/portal/channels', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: name.trim() }),
@@ -597,7 +597,7 @@ function ChannelsCard() {
         {msg && <span className="p-ok">{msg}</span>}
       </div>
       <table className="p-table">
-        <thead><tr><th>{t('th.channel')}</th><th>令牌</th><th>{t('th.status')}</th><th>最近使用</th><th>{t('lead.action')}</th></tr></thead>
+        <thead><tr><th>{t('th.channel')}</th><th>{t('ch.token')}</th><th>{t('th.status')}</th><th>{t('ch.lastUsed')}</th><th>{t('lead.action')}</th></tr></thead>
         <tbody>
           {channels.map(c => (
             <tr key={c.id}>
@@ -609,11 +609,11 @@ function ChannelsCard() {
                   {showToken[c.id] ? '隐藏' : '显示'}
                 </button>
               </td>
-              <td><span className={`p-lead-st ${c.disabled ? 'invalid' : 'converted'}`}>{c.disabled ? '已禁用' : '启用'}</span></td>
+              <td><span className={`p-lead-st ${c.disabled ? 'invalid' : 'converted'}`}>{c.disabled ? '已禁用' : t('ch.enable')}</span></td>
               <td className="p-src">{c.last_used_at || '—'}</td>
               <td className="p-ops">
                 <button className="p-mini" onClick={() => copyCfg(c)}>复制配置</button>
-                <button className="p-mini" onClick={() => toggle(c)}>{c.disabled ? '启用' : '禁用'}</button>
+                <button className="p-mini" onClick={() => toggle(c)}>{c.disabled ? t('ch.enable') : t('ch.disable')}</button>
                 <button className="p-mini danger" onClick={() => remove(c)}>{t('btn.delete')}</button>
               </td>
             </tr>

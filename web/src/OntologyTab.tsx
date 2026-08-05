@@ -51,14 +51,14 @@ const TYPE_ICON: Record<string, string> = {
 
 /* 图标以 DOM SVG 覆盖层渲染(不经 cytoscape canvas 图像通道,规避图像缓存崩溃) */
 
-const LAYOUTS = [
-  { key: 'fcose', label: '力导向' },
-  { key: 'radial', label: '放射' },
-  { key: 'cluster', label: '聚簇' },
-  { key: 'concentric', label: '同心圆' },
-  { key: 'breadthfirst', label: '层级' },
-  { key: 'circle', label: '环形' },
-  { key: 'grid', label: '网格' },
+const LAYOUTS = (t: (k: string) => string) => [
+  { key: 'fcose', label: t('ont.relayout') },
+  { key: 'radial', label: t('ont.layoutRadial') },
+  { key: 'cluster', label: t('ont.layoutCluster') },
+  { key: 'concentric', label: t('ont.layoutConcentric') },
+  { key: 'breadthfirst', label: t('ont.layoutBreadth') },
+  { key: 'circle', label: t('ont.layoutCircle') },
+  { key: 'grid', label: t('ont.layoutGrid') },
 ]
 
 /* 放射布局:最高度数节点为圆心,BFS 分层成环;同环节点按已定位邻居的角度均值排序减少交叉 */
@@ -521,7 +521,7 @@ export default function OntologyTab() {
             onKeyDown={e => e.key === 'Enter' && searchNode()} style={{ width: 180 }} />
           <button onClick={searchNode}>{t('ont.locate')}</button>
           <select value={layout} onChange={e => setLayout(e.target.value)}>
-            {LAYOUTS.map(l => <option key={l.key} value={l.key}>{l.label}</option>)}
+            {LAYOUTS(t).map(l => <option key={l.key} value={l.key}>{l.label}</option>)}
           </select>
           <button onClick={rederive}>{t('ont.rederive')}</button>
           <span className="o-stats">
@@ -656,7 +656,7 @@ export default function OntologyTab() {
                       <span className="del" onClick={() => removeLink(l.edge_id)} title="删除链接">×</span>
                     </div>
                   ))}
-                  {!(detail.links || []).length && <div className="o-empty">暂无链接</div>}
+                  {!(detail.links || []).length && <div className="o-empty">{t('ont.noLinks')}</div>}
                 </div>
 
                 <h3>{t('ont.addLink')}</h3>

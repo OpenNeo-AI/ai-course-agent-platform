@@ -375,6 +375,28 @@ const DICT: Record<string, { zh: string; en: string }> = {
   // ---- 套餐订阅残留 ----
   'sub.activatedTag': { zh: '已开通', en: 'Active' },
   'sub.flagshipFull': { zh: '全部功能:知识域智能体 + 本体图谱 + 对话记录 + 线索转化 + 运营分析', en: 'All: Knowledge agent + Ontology + Conversations + Leads + Analytics' },
+  'ont.layoutRadial': { zh: '放射', en: 'Radial' },
+  'ont.layoutCluster': { zh: '聚簇', en: 'Cluster' },
+  'ont.layoutConcentric': { zh: '同心圆', en: 'Concentric' },
+  'ont.layoutBreadth': { zh: '层级', en: 'Hierarchical' },
+  'ont.layoutCircle': { zh: '环形', en: 'Circle' },
+  'ont.layoutGrid': { zh: '网格', en: 'Grid' },
+  'kb.noFile': { zh: '未选择文件', en: 'No file selected' },
+  'ont.kind': { zh: '种类', en: 'Kind' },
+  'ont.noLinks': { zh: '暂无链接', en: 'No links' },
+  'ch.token': { zh: '令牌', en: 'Token' },
+  'ch.lastUsed': { zh: '最近使用', en: 'Last Used' },
+  'ch.name': { zh: '渠道名称', en: 'Channel Name' },
+  'ch.nameHint': { zh: '请填写渠道名称', en: 'Enter channel name' },
+  'ch.create': { zh: '创建渠道', en: 'Create Channel' },
+  'ch.disable': { zh: '禁用', en: 'Disable' },
+  'ch.enable': { zh: '启用', en: 'Enable' },
+  'ch.notFound': { zh: '渠道不存在', en: 'Channel not found' },
+  'sys.modelService': { zh: '模型服务', en: 'Model Service' },
+  'sys.apiKey': { zh: 'API 密钥', en: 'API Key' },
+  'sys.params': { zh: '全局参数', en: 'Global Parameters' },
+  'sys.save': { zh: '保存配置', en: 'Save Config' },
+  'sys.saved': { zh: '配置已保存·热加载生效', en: 'Saved · hot-reloaded' },
 }
 
 const I18nCtx = createContext<{ lang: Lang; t: (k: string) => string; setLang: (l: Lang) => void }>({
