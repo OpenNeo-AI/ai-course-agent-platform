@@ -7,7 +7,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: opc-edu:latest
+    # 默认构建/使用 latest;导入预构建镜像时用 IMAGE_TAG=1.0.0 指定版本
+    image: "opc-edu:${IMAGE_TAG:-latest}"
     container_name: opc-edu
     restart: unless-stopped
 
