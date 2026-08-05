@@ -2,7 +2,7 @@
 
 AI 课程顾问 SaaS 平台的容器化部署方案：**一条命令**拉起完整服务（后端 API + 前端 SPA + 三个 MCP 端点），首次启动自动建库、摄入知识素材、创建演示账号。
 
-镜像版本 `opc-edu:1.0.0` — 已通过 17 组 SaaS API 测试与 25 组官方验收用例。
+镜像版本 `opc-edu:1.0.0` ([Release v1.0.0](https://github.com/OpenNeo-AI/ai-course-agent-platform/releases/tag/v1.0.0)) — 已通过 17 组 SaaS API 测试与 25 组官方验收用例。
 
 ### 文件分布
 
@@ -64,9 +64,18 @@ docker compose up -d
 
 ## 二、部署路径 B：导入预构建镜像
 
-若已拿到 `opc-edu-1.0.0-image.tar.gz`（无需构建，也不需要 node/python 环境）：
+镜像已发布在 GitHub Release，适合不便构建（无外网拉基础镜像、或缺 node/python 环境）的评委直接下载导入，全程无需构建。
+
+**获取镜像**（二选一）：
+
+- Release 页面：<https://github.com/OpenNeo-AI/ai-course-agent-platform/releases/tag/v1.0.0>
+- 直链下载（约 72MB）：<https://github.com/OpenNeo-AI/ai-course-agent-platform/releases/download/v1.0.0/opc-edu-1.0.0-image.tar.gz>
 
 ```bash
+# 0) 下载(约 72MB)
+curl -L -o opc-edu-1.0.0-image.tar.gz \
+  https://github.com/OpenNeo-AI/ai-course-agent-platform/releases/download/v1.0.0/opc-edu-1.0.0-image.tar.gz
+
 # 1) 校验完整性(强烈建议,大文件传输易损坏)
 sha256sum opc-edu-1.0.0-image.tar.gz
 # 应等于 238e7e16e564ef3a073879f2a4edc272bbe9d964359aa39be61d4f95d590b6a5
@@ -80,7 +89,7 @@ cp .env.example .env && vi .env
 IMAGE_TAG=1.0.0 docker compose up -d --no-build
 ```
 
-导入路径同样需要 `docker-compose.yml` 与 `.env`，只是跳过了构建步骤。
+`IMAGE_TAG=1.0.0` 让 compose 直接使用已导入的 `opc-edu:1.0.0`（`--no-build` 双保险，镜像缺失时直接报错而非触发构建）。导入路径同样需要仓库根的 `docker-compose.yml` 与 `.env`，只是跳过了构建步骤。
 
 ---
 
@@ -133,7 +142,7 @@ docker exec opc-edu sh -c "cd /app/server && python /app/tests/run_saas_checks.p
 | 源码仓库 | 含 `docker/`(Dockerfile + entrypoint)与仓库根 `docker-compose.yml` | **必需** |
 | 本文档 `docker/README.md` | 一键部署操作说明 | **必需** |
 | `.env.example` | 全部环境变量说明（已在仓库根） | **必需** |
-| `opc-edu-1.0.0-image.tar.gz` | 预构建镜像（72MB），供不便构建的评委直接导入 | 可选附件 |
+| `opc-edu-1.0.0-image.tar.gz` | 预构建镜像（72MB），已发布在 [Release v1.0.0](https://github.com/OpenNeo-AI/ai-course-agent-platform/releases/tag/v1.0.0)，供不便构建的评委直接导入 | 可选附件 |
 
 **主交付走源码仓库。** 评委执行 `docker compose up -d` 自行构建，比收一个二进制镜像更能验证项目真实性与可复现性，也避免了大文件传输。镜像 tar 作为备选附件，用于评委环境不便构建（无外网拉基础镜像等）的情况。
 
