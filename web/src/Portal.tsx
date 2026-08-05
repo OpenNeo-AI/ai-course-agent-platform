@@ -3,6 +3,7 @@ import OntologyTab from './OntologyTab'
 
 import { api, clearAuth, TOKEN_KEY } from './api'
 import AuthPanel from './AuthPanel'
+import { LangSwitch, useI18n } from './i18n'
 import {
   TenantAgentTab, TenantInstitutionTab, TenantSessionsTab, TenantStatsTab, TenantSubTab,
   type TenantInfo,
@@ -1300,6 +1301,7 @@ const PLATFORM_TABS = [
 ]
 
 export default function Portal() {
+  const { t } = useI18n()
   const [authed, setAuthed] = useState(!!localStorage.getItem(TOKEN_KEY))
   const [me, setMe] = useState<any>(null)              // /api/auth/me 身份
   const [tinfo, setTinfo] = useState<TenantInfo | null>(null)
@@ -1386,7 +1388,7 @@ export default function Portal() {
           <img className="p-logo" src="/logo.png" alt="AI 课程顾问" />
           <div>
             <b>{isTenant ? (tinfo?.tenant?.name || '机构工作台') : 'SaaS 运营工作台'}</b>
-            <small>{isTenant ? 'AI课程顾问管理工作台' : 'AI 教育顾问 · 平台经营'}</small>
+            <small>{isTenant ? t('wb.tenantWs') : t('wb.platformOps')}</small>
           </div>
         </div>
         <nav className="p-nav" aria-label="管理功能">
@@ -1398,7 +1400,8 @@ export default function Portal() {
           ))}
         </nav>
         <div className="p-side-foot">
-          <button onClick={() => { clearAuth(); setAuthed(false); setMe(null) }}>退出登录</button>
+          <LangSwitch />
+          <button onClick={() => { clearAuth(); setAuthed(false); setMe(null) }}>{t('wb.logout')}</button>
         </div>
       </aside>
 

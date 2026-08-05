@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { API, saveAuth } from './api'
+import { LangSwitch } from './i18n'
 
 export type AuthTab = 'sms' | 'password' | 'register'
 
@@ -124,7 +125,10 @@ export default function AuthPanel({ initialTab = 'sms', onOk, standalone = false
         </aside>
 
         <div className="aw-form">
-          {standalone && <Link to="/" className="aw-back">← 返回首页</Link>}
+          <div style={{ position: 'absolute', top: 16, right: 20, display: 'flex', gap: 12, alignItems: 'center' }}>
+            {standalone && <Link to="/" className="aw-back" style={{ position: 'static' }}>← Home</Link>}
+            <LangSwitch />
+          </div>
           <div className="aw-tabs">
             {TABS.map(t => (
               <button key={t.key} className={tab === t.key ? 'on' : ''}

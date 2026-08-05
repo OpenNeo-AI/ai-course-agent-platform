@@ -60,12 +60,25 @@ const DICT: Record<string, { zh: string; en: string }> = {
   'chat.quotaBanner': { zh: '免费版对话额度已用完,升级标准版/旗舰版享不限次对话。', en: 'Free chat quota used up. Upgrade to Standard/Flagship for unlimited chats.' },
   'chat.viewPlans': { zh: '查看套餐 →', en: 'View Plans →' },
   // 租户后台
+  'admin.institution': { zh: '机构信息', en: 'Institution' },
+  'admin.agents': { zh: '智能体设置', en: 'Agent Settings' },
   'admin.docs': { zh: '课程资料', en: 'Course Materials' },
   'admin.sessions': { zh: '对话记录', en: 'Conversations' },
   'admin.stats': { zh: '用量统计', en: 'Usage Stats' },
   'admin.subscription': { zh: '套餐订阅', en: 'Subscription' },
-  // 平台工作台
+  // 平台超管
+  'portal.tenants': { zh: '租户管理', en: 'Tenants' },
+  'portal.plans': { zh: '套餐定价', en: 'Plans' },
+  'portal.orders': { zh: '订单管理', en: 'Orders' },
   'portal.tenantBoard': { zh: '租户看板', en: 'Tenant Board' },
+  'portal.system': { zh: '系统设置', en: 'System' },
+  // 工作台通用
+  'wb.logout': { zh: '退出登录', en: 'Sign Out' },
+  'wb.platformOps': { zh: 'AI 教育顾问 · 平台经营', en: 'AI Advisor · Platform Ops' },
+  'wb.tenantWs': { zh: 'AI课程顾问管理工作台', en: 'AI Course Advisor Console' },
+  'wb.loading': { zh: '加载中…', en: 'Loading…' },
+  'wb.freeHint': { zh: '当前为免费版:仅智能体设置可用。升级标准版解锁知识域与课程资料。', en: 'Free plan: only Agent Settings available. Upgrade to unlock knowledge base.' },
+  'wb.upgrade': { zh: '去升级 ->', en: 'Upgrade ->' },
 }
 
 const I18nCtx = createContext<{ lang: Lang; t: (k: string) => string; setLang: (l: Lang) => void }>({
