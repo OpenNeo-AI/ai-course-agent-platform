@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { api } from './api'
 import PaymentModal from './PaymentModal'
+import { useI18n } from './i18n'
 
 export type Doc = { id: number; filename: string; title: string; status: string; chunks: number;
   entities: number; uploaded_at: string; kb_id: number }
@@ -113,6 +114,7 @@ export function TenantDocsTab({ info, onChanged }: { info: TenantInfo | null; on
 
 /* ---------- 对话记录(脱敏 + 时间筛选) ---------- */
 export function TenantSessionsTab() {
+  const { t } = useI18n()
   const [list, setList] = useState<TSession[]>([])
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
@@ -135,12 +137,12 @@ export function TenantSessionsTab() {
   return (
     <section className="tadm-card">
       <div className="tadm-filter">
-        <h3>对话记录(内容已脱敏)</h3>
+        <h3>t('sess.title')</h3>
         <div className="tadm-range">
           <input type="date" value={from} onChange={e => setFrom(e.target.value)} />
-          <span>至</span>
+          <span>t('sess.to')</span>
           <input type="date" value={to} onChange={e => setTo(e.target.value)} />
-          <button onClick={() => { setFrom(''); setTo('') }}>清除</button>
+          <button onClick={() => { setFrom(''); setTo('') }}>t('sess.clear')</button>
         </div>
       </div>
       <div className="tadm-split">
@@ -148,16 +150,16 @@ export function TenantSessionsTab() {
           {list.map(s => (
             <button key={s.id} className={sel === s.id ? 'on' : ''} onClick={() => setSel(s.id)}>
               <b>{s.id}</b>
-              <small>{s.msgs} 条消息 · {s.updated_at}</small>
+              <small>{s.msgs} {t('sess.msgs')} · {s.updated_at}</small>
             </button>
           ))}
-          {!list.length && <div className="tadm-empty">该时间范围内暂无对话</div>}
+          {!list.length && <div className="tadm-empty">t('sess.empty')</div>}
         </div>
         <div className="tadm-msgs">
-          {!sel && <div className="tadm-empty">选择左侧会话查看消息</div>}
+          {!sel && <div className="tadm-empty">t('sess.select')</div>}
           {msgs.map((m, i) => (
             <div key={i} className={`tadm-msg ${m.role}`}>
-              <span className="tadm-msg-role">{m.role === 'user' ? '用户' : '顾问'}</span>
+              <span className="tadm-msg-role">{m.role === 'user' ? t('sess.user') : t('sess.advisor')}</span>
               <p>{m.content}</p>
             </div>
           ))}
@@ -169,23 +171,24 @@ export function TenantSessionsTab() {
 
 /* ---------- 用量统计 ---------- */
 export function TenantStatsTab() {
+  const { t } = useI18n()
   const [stats, setStats] = useState<any>(null)
   useEffect(() => { api('/api/tenant/stats').then(setStats).catch(() => {}) }, [])
   if (!stats) return <section className="tadm-card">加载中…</section>
   const max = Math.max(1, ...stats.trend.map((t: any) => t.count))
   return (
     <section className="tadm-card">
-      <h3>用量统计</h3>
+      <h3>t('stats.title')</h3>
       <div className="tadm-stat-row">
-        <div className="tadm-stat"><em>{stats.chats}</em><span>总对话次数</span></div>
-        <div className="tadm-stat"><em>{stats.active_users}</em><span>活跃用户量(会话)</span></div>
-        <div className="tadm-stat"><em>{stats.quota.used}</em><span>累计对话</span></div>
+        <div className="tadm-stat"><em>{stats.chats}</em><span>t('stats.totalChats')</span></div>
+        <div className="tadm-stat"><em>{stats.active_users}</em><span>t('stats.activeUsers')</span></div>
+        <div className="tadm-stat"><em>{stats.quota.used}</em><span>t('stats.used')</span></div>
         <div className="tadm-stat">
           <em>{stats.quota.unlimited ? '∞' : stats.quota.remaining}</em>
-          <span>{stats.quota.unlimited ? '套餐不限次' : '剩余'}</span>
+          <span>{stats.quota.unlimited ? t('stats.unlimited') : t('stats.remaining')}</span>
         </div>
       </div>
-      <h4>近 14 日会话趋势</h4>
+      <h4>t('stats.trend14')</h4>
       <div className="tadm-trend">
         {stats.trend.map((t: any) => (
           <div key={t.date} className="tadm-trend-col" title={`${t.date}:${t.count}`}>
@@ -202,6 +205,7 @@ export function TenantStatsTab() {
 export function TenantInstitutionTab({ onChanged }: {
   info: TenantInfo | null; onChanged: () => void
 }) {
+  const { t } = useI18n()
   const [name, setName] = useState('')
   const [purpose, setPurpose] = useState('')
   const [msg, setMsg] = useState('')
@@ -230,11 +234,11 @@ export function TenantInstitutionTab({ onChanged }: {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
       <div className="p-card">
-        <h3>机构信息</h3>
-        <p className="p-scope-hint">维护机构对外展示名称与管理台标题,保存后即时生效。</p>
+        <h3>t('inst.title')</h3>
+        <p className="p-scope-hint">t('inst.nameHint')</p>
         <div style={{ maxWidth: 560 }}>
           <label className="auth-field">
-            <span>机构名称(1-40 字)</span>
+            <span>t('inst.name')</span>
             <input value={name} maxLength={40} onChange={e => setName(e.target.value)}
               placeholder="例如:启明教育培训学校" />
           </label>
@@ -242,7 +246,7 @@ export function TenantInstitutionTab({ onChanged }: {
       </div>
 
       <div className="p-card">
-        <h3>统一服务宗旨</h3>
+        <h3>t('inst.purpose')</h3>
         <p className="p-scope-hint">
           该机构所有智能体的共同服务导向,置于每个智能体系统提示词顶部,优先级最高;
           留空则仅使用各智能体自身配置。保存后新会话即时生效。
@@ -251,7 +255,7 @@ export function TenantInstitutionTab({ onChanged }: {
           onChange={e => setPurpose(e.target.value)}
           placeholder={'例如:以学员成长为中心,诚实守信,不夸大宣传,耐心解答每一位学员与家长的问题。'} />
         <div className="p-toolbar" style={{ marginTop: 12 }}>
-          <button disabled={busy} onClick={save}>{busy ? '保存中…' : '保存设置'}</button>
+          <button disabled={busy} onClick={save}>{busy ? '保存中…' : t('inst.save')}</button>
           {msg && <span className="p-ok">{msg}</span>}
           {err && <span className="p-err">{err}</span>}
         </div>
@@ -262,11 +266,12 @@ export function TenantInstitutionTab({ onChanged }: {
 
 /* ---------- 智能体设置(多智能体:新建 + 独立前台链接 + 按套餐锁配置) ---------- */
 const AGENT_CAPS = [
-  { key: 'lead_capture', label: '留资转线索', desc: '用户表达报名意向时采集联系方式,转线索跟进' },
-  { key: 'quality_check', label: '对话质检', desc: '对该智能体的会话进行质检评分' },
+  { key: 'lead_capture', i18n: 'cap.lead_capture', i18nD: 'cap.lead_capture.d' },
+  { key: 'quality_check', i18n: 'cap.quality_check', i18nD: 'cap.quality_check.d' },
 ]
 
 export function TenantAgentTab({ info }: { info: TenantInfo | null }) {
+  const { t } = useI18n()
   const [agents, setAgents] = useState<any[]>([])
   const [agentLimit, setAgentLimit] = useState(1)
   const [features, setFeatures] = useState<any>({})
@@ -321,10 +326,10 @@ export function TenantAgentTab({ info }: { info: TenantInfo | null }) {
           <button key={a.id} className={`p-kb ${a.id === sel ? 'on' : ''}`}
             onClick={() => setSel(a.id)}>
             <b>{a.name}</b>
-            <small>独立前台对话入口</small>
+            <small>t('agent.independentEntry')</small>
             <span className="meta">
               <span className="p-mono">{a.link}</span>
-              <span className="p-count">{a.domain_count || '全部'} 知识域</span>
+              <span className="p-count">{a.domain_count || t('agent.countAll')} {t('agent.countDomains')}</span>
             </span>
           </button>
         ))}
@@ -335,15 +340,15 @@ export function TenantAgentTab({ info }: { info: TenantInfo | null }) {
                 onChange={e => setNewName(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && createAgent()} />
               <div className="p-kbform-btns">
-                <button onClick={createAgent}>创建</button>
-                <button className="ghost" onClick={() => setCreating(false)}>取消</button>
+                <button onClick={createAgent}>t('btn.create')</button>
+                <button className="ghost" onClick={() => setCreating(false)}>t('btn.cancel')</button>
               </div>
             </div>
           )
           : (
             <button className="p-kb-new" disabled={overLimit}
               title={overLimit ? `当前套餐最多 ${agentLimit} 个智能体` : ''}
-              onClick={() => setCreating(true)}>+ 新建智能体</button>
+              onClick={() => setCreating(true)}>t('btn.newAgent')</button>
           )}
         {overLimit && (
           <p className="p-scope-hint" style={{ padding: '0 4px' }}>
@@ -365,6 +370,7 @@ export function TenantAgentTab({ info }: { info: TenantInfo | null }) {
 function AgentConfigPanel({ agent, canDomains, canCaps, onDelete }: {
   agent: any; canDomains: boolean; canCaps: boolean; onDelete?: () => void
 }) {
+  const { t } = useI18n()
   const [cfg, setCfg] = useState<any>(null)
   const [options, setOptions] = useState<string[]>([])
   const [defaultModel, setDefaultModel] = useState('')
@@ -413,17 +419,17 @@ function AgentConfigPanel({ agent, canDomains, canCaps, onDelete }: {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
       <div className="p-card">
         <h3>前台链接(该智能体专属)</h3>
-        <p className="p-scope-hint">访客打开此链接即与本智能体对话,配置与知识域挂载仅对该链接生效。</p>
+        <p className="p-scope-hint">t('agent.linkHint')</p>
         <div className="p-endpoint">
           <code>{link}</code>
-          <button className="p-mini" onClick={copyLink}>复制链接</button>
+          <button className="p-mini" onClick={copyLink}>t('btn.copyLink')</button>
           <a className="p-mini" href={link} target="_blank" rel="noreferrer"
-            style={{ textDecoration: 'none' }}>新窗口打开</a>
+            style={{ textDecoration: 'none' }}>t('btn.openNew')</a>
         </div>
       </div>
 
       <div className="p-card">
-        <h3>推理模型</h3>
+        <h3>t('agent.model')</h3>
         <p className="p-scope-hint">
           为该智能体选择对话模型;不选则跟随平台默认模型。切换即时生效,仅影响本智能体的对话生成。
         </p>
@@ -442,11 +448,11 @@ function AgentConfigPanel({ agent, canDomains, canCaps, onDelete }: {
       </div>
 
       <div className="p-card">
-        <h3>能力配置{!canCaps && <span className="p-count" style={{ marginLeft: 8 }}>旗舰版功能 · 未解锁</span>}</h3>
+        <h3>能力配置{!canCaps && <span className="p-count" style={{ marginLeft: 8 }}>t('agent.capsLocked')</span>}</h3>
         <p className="p-scope-hint">
           {canCaps
-            ? '按智能体启用的扩展能力(留资转线索 / 对话质检),保存后即时生效。'
-            : '能力开关为旗舰版功能,请先在「套餐订阅」中升级后配置。'}
+            ? t('agent.capsHint')
+            : t('agent.capsLockedHint')}
         </p>
         <div className="p-caps" style={canCaps ? undefined : { opacity: .55, pointerEvents: 'none' }}>
           {AGENT_CAPS.map(c => {
@@ -455,7 +461,7 @@ function AgentConfigPanel({ agent, canDomains, canCaps, onDelete }: {
               <label key={c.key} className={`p-cap ${on ? 'on' : ''}`}
                 onClick={async () => { if (await put({ [c.key]: !cfg[c.key] })) flash('能力配置已保存 · 即时生效') }}>
                 <span className={`p-switch ${on ? 'on' : ''}`}><i /></span>
-                <span className="p-cap-tx"><b>{c.label}</b><small>{c.desc}</small></span>
+                <span className="p-cap-tx"><b>{t(c.i18n)}</b><small>{t(c.i18nD)}</small></span>
               </label>
             )
           })}
@@ -463,12 +469,11 @@ function AgentConfigPanel({ agent, canDomains, canCaps, onDelete }: {
       </div>
 
       <div className="p-card">
-        <h3>知识域对接{!canDomains && <span className="p-count" style={{ marginLeft: 8 }}>标准版功能 · 未解锁</span>}</h3>
+        <h3>知识域对接{!canDomains && <span className="p-count" style={{ marginLeft: 8 }}>t('agent.domainsLocked')</span>}</h3>
         <p className="p-scope-hint">
           {canDomains
-            ? <>勾选本智能体可引用的知识域。<b>未勾选知识域的内容不参与检索、推荐与计算</b>;
-              不勾选任何项 = 挂载本租户全部知识域;勾选变更立即保存并生效。</>
-            : '知识域对接为标准版功能,请先在「套餐订阅」中升级。当前默认挂载全部知识域。'}
+            ? <>t('agent.domainsHint')</>
+            : t('agent.domainsLockedHint')}
         </p>
         <div className="p-checks" style={canDomains ? undefined : { opacity: .55, pointerEvents: 'none' }}>
           {domains.map(d => (
@@ -482,38 +487,38 @@ function AgentConfigPanel({ agent, canDomains, canCaps, onDelete }: {
               <span><b>{d.name}</b><small>{d.description || d.code}</small></span>
             </label>
           ))}
-          {!domains.length && <div className="p-empty">暂无知识域,请先在「知识域」中创建并上传资料</div>}
+          {!domains.length && <div className="p-empty">t('agent.noDomains')</div>}
         </div>
       </div>
 
       <div className="p-card">
-        <h3>系统提示词</h3>
+        <h3>t('agent.prompt')</h3>
         <p className="p-scope-hint">
           定义该智能体的身份、服务流程与回答风格;留空则使用平台默认模板(角色设定与红线约束)。保存后新会话即时生效。
         </p>
         <textarea className="p-scope-editor" rows={16} value={prompt} maxLength={4000}
           onChange={e => setPrompt(e.target.value)} />
         <div className="p-toolbar" style={{ marginTop: 12 }}>
-          <button onClick={async () => { if (await put({ prompt_text: prompt })) flash('系统提示词已保存 · 新会话即时生效') }}>保存提示词</button>
+          <button onClick={async () => { if (await put({ prompt_text: prompt })) flash('系统提示词已保存 · 新会话即时生效') }}>t('btn.savePrompt')</button>
           {msg && <span className="p-ok">{msg}</span>}
         </div>
       </div>
 
       <div className="p-card">
-        <h3>欢迎语</h3>
-        <p className="p-scope-hint">新会话第一条消息;留空则使用平台默认欢迎语。保存后新会话即时生效。</p>
+        <h3>t('agent.welcome')</h3>
+        <p className="p-scope-hint">t('agent.welcomeHint')</p>
         <textarea className="p-scope-editor" rows={9} value={welcome} maxLength={800}
           onChange={e => setWelcome(e.target.value)} />
         <div className="p-toolbar" style={{ marginTop: 12 }}>
-          <button onClick={async () => { if (await put({ welcome_text: welcome })) flash('欢迎语已保存 · 新会话即时生效') }}>保存欢迎语</button>
+          <button onClick={async () => { if (await put({ welcome_text: welcome })) flash('欢迎语已保存 · 新会话即时生效') }}>t('btn.saveWelcome')</button>
           {err && <span className="p-err">{err}</span>}
         </div>
       </div>
 
       {onDelete && (
         <div className="p-card" style={{ borderColor: 'rgba(185,28,28,.3)' }}>
-          <h3 style={{ color: 'var(--bad)' }}>删除智能体</h3>
-          <p className="p-scope-hint">删除后该智能体的前台链接失效,历史会话记录保留。</p>
+          <h3 style={{ color: 'var(--bad)' }}>t('agent.deleteTitle')</h3>
+          <p className="p-scope-hint">t('agent.deleteHint')</p>
           <div className="p-toolbar">
             <button className="p-mini danger" onClick={onDelete}>删除「{agent.name}」</button>
           </div>
@@ -525,6 +530,7 @@ function AgentConfigPanel({ agent, canDomains, canCaps, onDelete }: {
 
 /* ---------- 套餐订阅(开通/升级 + 订单记录) ---------- */
 export function TenantSubTab({ info, onChanged }: { info: TenantInfo | null; onChanged: () => void }) {
+  const { t } = useI18n()
   const [orders, setOrders] = useState<any[]>([])
   const [plans, setPlans] = useState<any[]>([])
   const [pay, setPay] = useState<any>(null)
@@ -536,7 +542,7 @@ export function TenantSubTab({ info, onChanged }: { info: TenantInfo | null; onC
   const active = sub?.status === 'active'
   return (
     <section className="tadm-card">
-      <h3>当前订阅</h3>
+      <h3>t('sub.title')</h3>
       <div className="tadm-sub">
         <div>
           <b className="tadm-plan-name">
@@ -557,10 +563,10 @@ export function TenantSubTab({ info, onChanged }: { info: TenantInfo | null; onC
             <div key={p.code} className={`plan-card${p.code === 'flagship' ? ' pro' : ''}`}
               style={{ width: 'min(300px, 100%)' }}>
               {current
-                ? <span className="plan-flag" style={{ background: 'var(--ok)' }}>当前套餐</span>
-                : p.code === 'flagship' && <span className="plan-flag">全功能</span>}
+                ? <span className="plan-flag" style={{ background: 'var(--ok)' }}>t('sub.currentTag')</span>
+                : p.code === 'flagship' && <span className="plan-flag">t('sub.recommend')</span>}
               <h2>{p.name}</h2>
-              <div className="plan-price"><em>¥{p.price_monthly}</em><span>/月</span></div>
+              <div className="plan-price"><em>¥{p.price_monthly}</em><span>t('sub.perMonth')</span></div>
               <p className="plan-desc">{p.features?.desc}</p>
               <ul className="plan-points">
                 {(p.features?.highlights || []).map((h: string, i: number) => (
@@ -569,13 +575,13 @@ export function TenantSubTab({ info, onChanged }: { info: TenantInfo | null; onC
               </ul>
               <button className="plan-cta" disabled={current || p.code === 'free'}
                 onClick={() => setPay(p)}>
-                {current ? '当前套餐' : p.code === 'free' ? '注册时自动开通' : '升级开通'}
+                {current ? t('sub.currentTag') : p.code === 'free' ? t('sub.autoOnFree') : t('sub.activateNow')}
               </button>
             </div>
           )
         })}
       </div>
-      <h4>订单记录</h4>
+      <h4>t('sub.orders')</h4>
       <table className="tadm-table">
         <thead><tr><th>订单号</th><th>套餐</th><th>渠道</th><th>金额</th><th>状态</th><th>支付时间</th></tr></thead>
         <tbody>
@@ -584,11 +590,11 @@ export function TenantSubTab({ info, onChanged }: { info: TenantInfo | null; onC
               <td>{o.id}</td><td>{o.plan_code}</td><td>{o.channel}</td>
               <td>¥{Number(o.amount).toFixed(2)}</td>
               <td><span className={`st-${o.status === 'paid' ? 'ingested' : 'failed'}`}>
-                {o.status === 'paid' ? '已支付' : o.status === 'pending' ? '待支付' : '失败'}</span></td>
+                {o.status === 'paid' ? t('sub.paid') : o.status === 'pending' ? t('sub.pending') : t('sub.failed')}</span></td>
               <td>{o.paid_at || '—'}</td>
             </tr>
           ))}
-          {!orders.length && <tr><td colSpan={6} className="tadm-empty">暂无订单</td></tr>}
+          {!orders.length && <tr><td colSpan={6} className="tadm-empty">t('sub.noOrders')</td></tr>}
         </tbody>
       </table>
       {pay && (

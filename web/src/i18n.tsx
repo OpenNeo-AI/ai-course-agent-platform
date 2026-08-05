@@ -200,6 +200,48 @@ const DICT: Record<string, { zh: string; en: string }> = {
   'th.limit': { zh: '对话限额', en: 'Chat Limit' },
   'th.activeSubs': { zh: '开通租户数', en: 'Active Subs' },
   'th.features': { zh: '功能', en: 'Features' },
+  // ---- 智能体设置详情 ----
+  'agent.independentEntry': { zh: '独立前台对话入口', en: 'Independent frontend entry' },
+  'agent.linkHint': { zh: '访客打开此链接即与本智能体对话,配置与知识域挂载仅对该链接生效。', en: 'Visitors opening this link chat with this agent. Config and domain binding apply only to this link.' },
+  'agent.modelHint': { zh: '为该智能体选择对话模型;不选则跟随平台默认模型。切换即时生效,仅影响本智能体的对话生成。', en: 'Select a model for this agent. Leave empty to use platform default. Takes effect immediately.' },
+  'agent.defaultModel': { zh: '平台默认模型', en: 'Platform default' },
+  'agent.capsLocked': { zh: '旗舰版功能 · 未解锁', en: 'Flagship feature · Locked' },
+  'agent.capsLockedHint': { zh: '能力开关为旗舰版功能,请先在「套餐订阅」中升级后配置。', en: 'Capability switches are a Flagship feature. Upgrade in Subscription to configure.' },
+  'agent.capsHint': { zh: '按智能体启用的扩展能力(留资转线索 / 对话质检),保存后即时生效。', en: 'Enable extensions for this agent. Saved instantly.' },
+  'agent.domainsLocked': { zh: '标准版功能 · 未解锁', en: 'Standard feature · Locked' },
+  'agent.domainsLockedHint': { zh: '知识域对接为标准版功能,请先在「套餐订阅」中升级。当前默认挂载全部知识域。', en: 'Domain binding is a Standard feature. Upgrade in Subscription. Currently mounts all domains.' },
+  'agent.domainsHint': { zh: '勾选本智能体可引用的知识域。未勾选知识域的内容不参与检索、推荐与计算;不勾选任何项 = 挂载本租户全部知识域;勾选变更立即保存并生效。', en: 'Select domains this agent can access. Unchecked domains are excluded. Leave all unchecked to mount all. Changes save instantly.' },
+  'agent.promptHint': { zh: '定义该智能体的身份、服务流程与回答风格;留空则使用平台默认模板(角色设定与红线约束)。保存后新会话即时生效。', en: 'Define the agent identity, workflow, and style. Leave empty for platform default. Takes effect on new sessions.' },
+  'agent.welcomeHint': { zh: '新会话第一条消息;留空则使用平台默认欢迎语。保存后新会话即时生效。', en: 'First message in new sessions. Leave empty for platform default.' },
+  'agent.noDomains': { zh: '暂无知识域,请先在「知识域」中创建并上传资料', en: 'No domains yet. Create one in Knowledge Domains first.' },
+  'agent.countDomains': { zh: '知识域', en: 'domains' },
+  'agent.countAll': { zh: '全部', en: 'all' },
+  'agent.namePlaceholder': { zh: '智能体名称(1-20字)', en: 'Agent name (1-20 chars)' },
+  'agent.reachedLimit': { zh: '已达当前套餐上限', en: 'Plan limit reached' },
+  'agent.upgradeForMore': { zh: '个,升级套餐可新建更多。', en: ' agents. Upgrade for more.' },
+  // ---- 机构信息 ----
+  'inst.nameHint': { zh: '维护机构对外展示名称与管理台标题,保存后即时生效。', en: 'Edit the display name and console title. Saved instantly.' },
+  'inst.purposePlaceholder': { zh: '例如:以学员成长为中心,诚实守信,不夸大宣传,耐心解答每一位学员与家长的问题。', en: 'e.g. Student-centered, honest, patient with every learner.' },
+  'inst.namePlaceholder': { zh: '例如:启明教育培训学校', en: 'e.g. Qiming Education' },
+  // ---- 对话记录 ----
+  'sess.msgs': { zh: '条消息', en: 'msgs' },
+  // ---- 用量统计 ----
+  'stats.title': { zh: '用量统计', en: 'Usage Stats' },
+  // ---- 套餐订阅 ----
+  'sub.title': { zh: '当前订阅', en: 'Current Subscription' },
+  'sub.flagshipDesc': { zh: '全部功能:标准版全部 + 对话记录 + 线索跟进 + 数据分析', en: 'All features: Standard + Conversations + Leads + Analytics' },
+  'sub.standardDesc': { zh: '知识域智能体:知识域/课程资料管理、本体知识、RAG 问答、班型推荐', en: 'Knowledge agent: domains, documents, ontology, RAG, skills' },
+  'sub.unlimitedPlan': { zh: '不限次对话 · 知识库管理 · 数据看板', en: 'Unlimited chats · KB management · Dashboard' },
+  'sub.perMonth': { zh: '/月', en: '/mo' },
+  'sub.recommend': { zh: '全功能', en: 'All' },
+  'sub.currentTag': { zh: '当前套餐', en: 'Current' },
+  'sub.autoOnFree': { zh: '注册时自动开通', en: 'Auto on register' },
+  'sub.activateNow': { zh: '升级开通', en: 'Upgrade' },
+  'sub.paid': { zh: '已支付', en: 'Paid' },
+  'sub.pending': { zh: '待支付', en: 'Pending' },
+  'sub.failed': { zh: '失败', en: 'Failed' },
+  'sub.activated': { zh: '已开通', en: 'Active' },
+  'sub.pendingActivation': { zh: '待支付开通', en: 'Pending' },
 }
 
 const I18nCtx = createContext<{ lang: Lang; t: (k: string) => string; setLang: (l: Lang) => void }>({
