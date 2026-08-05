@@ -2,17 +2,15 @@
   <img src="https://edu-demo.openneo.ai/assets/hero.png" alt="AI 课程顾问" width="600" />
 </p>
 
-<h1 align="center">AI 课程顾问 · AI Course Advisor</h1>
+<h1 align="center">AI 教育顾问 SaaS 平台</h1>
 
 <p align="center">
-  <strong>AI 原生课程顾问智能体运营平台</strong><br/>
-  结构化本体 · 多路检索 · 规则引擎零硬编码 · MCP 优先
+  <strong>AI Course Advisor · 多租户智能体运营平台</strong><br/>
+  结构化本体 RAG · 多路检索引用溯源 · 规则引擎零硬编码 · 真实支付 · 中英双语
 </p>
 
 <p align="center">
-  <a href="https://edu-demo.openneo.ai/"><strong>🎥 在线体验</strong></a>
-  &nbsp;·&nbsp;
-  <a href="https://edu-demo.openneo.ai/intro.html"><strong>📖 产品介绍</strong></a>
+  <a href="https://edu-demo.openneo.ai/portal"><strong>🚀 立即体验（管理工作台）</strong></a>
   &nbsp;·&nbsp;
   <a href="https://github.com/OpenNeo-AI/ai-course-agent-platform"><strong>⭐ GitHub</strong></a>
 </p>
@@ -21,273 +19,248 @@
 
 ## 这是什么
 
-「AI 课程顾问」是一个将 **AI 智能体** 与 **知识库运营** 打通的课程咨询平台。
+本项目为 **A级测试单（L3）交付**：在首届 OPC 软件与智能体开发大赛第一名作品「AI 课程顾问」基础上，扩展为可按机构授权的多租户 SaaS 平台。教育机构注册后即可拥有自己的 AI 课程顾问智能体，上传课程资料自动构建 RAG 知识库、配置知识域边界、开通套餐后解锁留资/质检/运营分析等能力。
 
-传统 chatbot 靠提示词硬背业务规则，一问深就幻觉。「AI 课程顾问」的做法不同——课程信息被抽取为结构化本体（Ontology），早鸟折扣、团报叠加、退费阶梯、前置要求等业务规则全部对象化存入知识库，由通用规则引擎确定性执行，**代码中不包含任何一条业务数值**。回答时三路并行检索（向量语义 + FTS5 中文关键词 + 本体精确匹配），每个结论都标注出自哪份文档的哪个章节。
+技术内核：课程信息抽取为结构化本体（Ontology），早鸟折扣、团报叠加、退费阶梯、前置要求等业务规则全部对象化存入库内，由通用规则引擎确定性执行，**代码中不包含任何一条业务数值**。回答时三路并行检索（向量语义 + FTS5 中文关键词 + 本体精确匹配），每个结论标注出自哪份文档的哪个章节。
 
-它同时也是一个 **智能体运营平台**：管理员在 portal 中上传知识文档即自动抽取入库、可视化本体图谱、按智能体配置知识域边界、查看对话质检与运营分析、跟进留资工单。第三方 Agent 可通过 MCP over HTTP 接入，范围自动收敛到该智能体对接的知识域。
-
-> 🏆 本项目为「OPC 接单吧·首届软件与智能体开发大赛」参赛作品，25 组官方验收用例全部通过。
+> 🏆 底层竞赛版获首届 OPC 软件与智能体开发大赛第一名，25 组官方验收用例全部通过。
 
 ---
 
 ## 在线演示
 
-| 入口 | 地址 | 说明 |
-|------|------|------|
-| 总入口 | [edu-demo.openneo.ai](https://edu-demo.openneo.ai/) | 落地页，三通道入口 |
-| 学生/家长 | [/s](https://edu-demo.openneo.ai/s) | 暑期 AI 素养夏令营咨询 |
-| 教师 | [/t](https://edu-demo.openneo.ai/t) | L1–L3 教师 AI 素养培训咨询 |
-| 平台/机构 | [/c](https://edu-demo.openneo.ai/c) | 平台服务与合作咨询 |
-| SaaS 管理工作台 | [/portal](https://edu-demo.openneo.ai/portal) | 统一工作台（超管 / 租户按身份装配） |
-| 产品介绍 | [/intro.html](https://edu-demo.openneo.ai/intro.html) | 产品展示页 |
+**唯一入口：<https://edu-demo.openneo.ai/portal>**
 
-**SaaS 演示账号（密码均 `demo1234`）**
+> 登录后按身份自适应：超管看到租户/套餐/订单/看板，租户管理员看到自己的机构与智能体。各智能体的独立前台对话链接在「智能体设置」中获取。
+
+**演示账号（密码均 `demo1234`）**
 
 | 账号 | 角色 | 套餐 | 说明 |
 |------|------|------|------|
-| `admin` | 平台超管 | — | 经营工作台：租户管理 / 套餐定价 / 订单 / 看板 |
-| `demo1` | 租户管理员 | 旗舰版 | 3 知识域（学生/教师/平台）+ 3 智能体独立链接 |
-| `demo2` | 租户管理员 | 标准版 | 限 3 智能体，能力开关锁定 |
-| `demo3` | 租户管理员 | 免费版 | 限 1 智能体，知识域/能力开关锁定，共 10 次对话 |
-
-**demo1 智能体前台链接**：学生课程顾问 `/b/a-34fe1a` · 教师培训顾问 `/b/a-be5745` · 平台服务顾问 `/b/a-cd9a53`
+| `admin` | 平台超管 | -- | 租户管理 / 套餐定价 / 订单 / 数据看板 |
+| `demo1` | 租户管理员 | 旗舰版 | 3 知识域 + 3 智能体，全部能力开放 |
+| `demo2` | 租户管理员 | 标准版 | 最多 3 智能体，知识域/RAG/本体/Skill |
+| `demo3` | 租户管理员 | 免费版 | 1 智能体，累计 10 次对话，功能锁定 |
 
 ---
 
-## SaaS 平台（A级测试单 · L3 交付）
+## A级测试单交付
 
-本仓库同时交付 **「AI 教育顾问 SaaS 平台」MVP**：将课程顾问能力产品化为可按机构授权的多租户 SaaS。
+评分维度：RAG 25% / Agent Skill 25% / 商业化支付 15% / Admin 后台 20% / AI 对话 10% / 部署 5%。加分项：真实支付 +3、Docker Compose +2、数据看板 +2、中英双语 +1。
 
-### 多租户与套餐
+### ① RAG 知识问答（25%）
 
-- **免费版（¥0）**：智能体设置（欢迎语/系统提示词/模型）；限 1 个智能体；累计 **10 次** AI 对话；知识域对接与业务功能锁定
-- **标准版（¥59/月）**：最多 3 个智能体；知识域/课程资料管理（RAG 带引用问答）、本体知识、Agent Skill
-- **旗舰版（¥199/月）**：智能体数量不限；能力开关（留资转线索/对话质检）、对话记录、线索转化、运营分析
+文档（.pdf/.docx/.doc/.txt）上传后经后台异步线程解析 → 按章节可配置切块（`CHUNK_SIZE`/`CHUNK_OVERLAP`）→ 火山方舟 Embedding 向量化，写入 `knowledge_chunks` + FTS5(trigram) + vec0 向量表。查询时 LLM 结构化改写 → 三路并行召回（向量 KNN / FTS5 关键词 / 本体精确事实）→ RRF 融合 → rerank → top-k 生成。
 
-注册即开通免费版；套餐在工作台「套餐订阅」选购支付后生效（真实微信支付 / 模拟支付）。每个智能体拥有独立前台链接 `/b/<slug>`，按各自配置（模型/知识域挂载/能力/提示词）运行。
+- 回答强制附 `出自《文档名》·章节` 结构化引用，前端以卡片渲染
+- 本体精确命中（价格/日期/营期）直取结构化事实，杜绝数字幻觉
+- 知识库外问题明确答「不在知识范围内」，不编造
+- sqlite-vec 不可用时向量路降级，主流程由 FTS5 + 本体支撑
+- 无素材 A/B/C 概念：身份体系以**知识域**为唯一单位，智能体在配置中声明对接哪些域，范围外不可见
 
-### RAG 链路设计
+<p align="center">
+  <img src="pics/学生咨询.png" alt="RAG 带引用问答" width="700" />
+</p>
 
-`文档上传（.pdf/.docx/.doc/.txt）→ 后台异步解析 → 可配置切块（CHUNK_SIZE/CHUNK_OVERLAP）→ 向量化（火山方舟 Embedding）→ 三路召回（向量 / FTS5 trigram 关键词 / 本体精确事实）→ RRF 融合 → rerank → 生成`，回答强制附 `出自《文档名》·章节` 引用；知识库外问题明确答「不在知识范围内」，不编造。文档更新/重传后索引自动重建。
+### ② Agent Skill（25%）
 
-### Agent Skill 设计（Function Calling）
+两个 A 级测试单要求的 Agent Skill，自描述元数据（含 JSON Schema）由 `GET /api/skills` 输出供评审查验：
 
-| Skill | 参数（JSON Schema） | 返回 |
+| Skill | 参数 | 返回 |
 |---|---|---|
-| `get_course_detail` 查询课程详情 | `product_name: string`（必填） | 时间/地点/费用/师资/大纲 + 引用 |
+| `get_course_detail` 查询课程详情 | `product_name: string`（必填） | 时间/地点/费用/师资/大纲 + 适用优惠规则 + 引用 |
 | `recommend_course_type` 推荐适合班型 | `city: string`、`time_preference: string` | 最匹配 1-2 个班型 + 理由 + 引用 |
 
-降级策略：参数缺失返回 `need` 列表由 Agent 追问；班型不存在返回 `available` 列表；模型异常固定降级文案。`GET /api/skills` 输出自描述。
+另有 6 个基础工具（`get_welcome`/`list_products`/`recommend_products`/`ask_knowledge`/`calculate_fee`/`get_enrollment_info`）+ `set_session_context` 会话上下文 + `capture_lead` 留资工具。**一份实现，三种暴露**：Agent 会话循环（function-calling 真流式 SSE）/ MCP server（3 个 streamable HTTP 端点 + stdio）/ REST（`POST /api/tool`）。
 
-### 支付流程
+降级策略：缺参返回 `need` 追问、实体不存在返回 `available` 列表、模型异常固定文案，Skill 调用失败降级为 LLM 直答，不报错终止。
 
-渠道注册表 `payments.CHANNELS`（模拟支付 / 微信 Native 扫码 / 支付宝电脑网站）。流程：选套餐 → 创建订单（`out_trade_no`）→ 微信返回 `code_url` 扫码、支付宝返回 `pay_url` 跳转 → 前端 2s 轮询查单 / 渠道异步回调验签 → 订单 paid → 订阅升级 → 功能解锁。未配置渠道的请求返回 400，不做静默回退。
+### ③ 商业化支付（15%，加分项真实支付 +3）
 
-### AI 辅助代码标注
+渠道注册表 `payments.CHANNELS`（`PaymentChannel` 基类），三种渠道：
 
-本仓库的 SaaS 层开发由 **Claude Code（Anthropic Claude）辅助生成**：包括多租户数据模型、认证（手机验证码/密码）、支付渠道封装、前端工作台等模块的代码与调试。所有 AI 生成代码均经过人工评审、端到端验证（25 组官方验收 + 20 项事实回归 + SaaS API 用例）后合入；业务数据（套餐价格、演示机构、课程素材）为竞赛模拟数据。
+| 渠道 | 实现 | 下单返回 |
+|------|------|----------|
+| 模拟支付 | `MockChannel`，确认即成功（演示标注不扣款） | 确认按钮 |
+| 微信 Native 扫码 | V2 API，MD5 签名，XML，回调验签 | `code_url` 二维码 |
+| 支付宝电脑网站 | `alipay.trade.page.pay`，RSA2 签名 | `pay_url` 跳转 |
 
----
-
-## 平台截图
+流程：选套餐 → 创建订单（`out_trade_no` 商户单号）→ 渠道支付 → 前端 2s 轮询查单 / 渠道异步回调验签 → 订单幂等置 paid → 订阅升级、功能解锁。`create_order` 对渠道严格校验，不静默回退；密钥经 `.env` 注入，PEM 字面 `\n` 自动归一化。
 
 <p align="center">
-  <img src="pics/总入口.png" alt="总入口" width="400" />
-  <img src="pics/学生咨询.png" alt="学生咨询" width="400" />
+  <img src="pics/测试单-套餐订阅.png" alt="套餐订阅与订单记录" width="440" />
+  <img src="pics/测试单-支付.png" alt="支付渠道选择" width="440" />
 </p>
-
-<details>
-<summary>📸 更多截图（管理工作台）</summary>
 <p align="center">
-  <img src="pics/管理工作台-知识域.png" alt="知识域管理" width="400" />
-  <img src="pics/管理工作台-本体知识.png" alt="本体图谱" width="400" />
-  <img src="pics/管理工作台-智能体设置.png" alt="智能体设置" width="400" />
-  <img src="pics/管理工作台-数据分析.png" alt="数据分析" width="400" />
-  <img src="pics/管理工作台-会话记录.png" alt="会话记录" width="400" />
-  <img src="pics/管理工作台-线索转化.png" alt="线索转化" width="400" />
+  <img src="pics/测试单-支付扫码.png" alt="微信扫码支付" width="440" />
+  <img src="pics/测试单-支付宝扫码.png" alt="支付宝电脑网站支付" width="440" />
 </p>
-</details>
+<p align="center">
+  <img src="pics/测试单-支付成功.png" alt="支付成功·订阅升级" width="440" />
+</p>
 
----
+**套餐三档**（价格为演示数据，可在后台在线调整）：
 
-## 核心理念
+| 套餐 | 月费 | 智能体数 | 对话 | 功能 |
+|------|------|----------|------|------|
+| 免费版 | ¥0 | 1 | 累计 10 次 | 智能体设置 |
+| 标准版 | ¥10/月 | 3 | 无限 | + 知识域管理 / RAG / 本体 / Agent Skill |
+| 旗舰版 | ¥20/月 | 不限 | 无限 | + 能力开关 / 对话记录 / 线索转化 / 运营分析 |
 
-### 1. 结构化本体，而非死记硬背
+注册即开通免费版；配额超额在 `done` 事件回传 `quota_exceeded` 引导升级。功能门禁按 `features_json` 布尔键校验，不硬编码套餐 code 比较。
 
-课程信息（班型、营期、地点、师资、费用）经 LLM 抽取为 **8 类对象 × 10 类链接** 的本体网络。同一实体在不同章节自动合并，派生关系（归属链路、前置链、规则适用）由引擎计算。portal 提供可视化图谱，支持搜索、筛选、编
+### ④ Admin 后台（20%，加分项数据看板 +2）
 
-辑、增删链接，全部操作可审计。
+`Portal.tsx` 是按身份自适应的单一工作台：超管经营视图 vs 租户运营视图，套餐不含的 tab 显示 `LockPanel` 引导升级。后端 49 个 `/api/portal/*` 端点 + `/api/tenant/*` + `/api/billing/*`。
 
-### 2. 规则全部对象化，代码零业务数值
+**平台超管经营视图：**
 
-```yaml
-# 任何一条业务规则都是库内一条记录，由通用解释引擎执行
-kind: early_bird
-params:
-  deadline: "2025-07-01"
-  discount: 1000          # 早鸟立减额
-scope:
-  applies_to: [北京线下班, 上海线下班]
+- **租户管理**：机构租户列表（套餐/用户数/会话数/累计用量/开通时间）
+- **套餐定价**：三档价格、对话限额、功能位在线维护，保存即生效
+- **订单管理**：全平台支付流水（订单号/租户/套餐/渠道/金额/状态/时间），支持按状态筛选
+- **租户看板**：租户数/用户数/会话数/对话数总量 + 近 14 日会话趋势 + 租户对话排行
 
-kind: stack_policy
-params:
-  strategy: best_one      # 叠加策略：取最高一项
+<p align="center">
+  <img src="pics/测试单-租户管理.png" alt="租户管理" width="440" />
+  <img src="pics/测试单-定价维护.png" alt="套餐定价维护" width="440" />
+</p>
+<p align="center">
+  <img src="pics/测试单-订单.png" alt="订单管理" width="440" />
+  <img src="pics/测试单-数据看板.png" alt="租户数据看板" width="440" />
+</p>
+
+**租户管理员运营视图：** 机构信息（含统一服务宗旨注入提示词）/ 智能体设置（模型·能力开关·知识域挂载·系统提示词，每个智能体独立前台链接 `/b/<slug>`）/ 知识域与课程资料 / 本体图谱（8 类对象 10 类链接可视化、7 种布局、在线编辑审计）/ 对话记录（脱敏）/ 线索转化工单 / 运营分析（高频问题·未答问题·推荐分布·LLM 洞察）/ 用量统计 / 套餐订阅。
+
+<p align="center">
+  <img src="pics/管理工作台-知识域.png" alt="知识域管理" width="330" />
+  <img src="pics/管理工作台-本体知识.png" alt="本体图谱" width="330" />
+  <img src="pics/管理工作台-智能体设置.png" alt="智能体设置" width="330" />
+</p>
+<p align="center">
+  <img src="pics/管理工作台-数据分析.png" alt="运营分析" width="330" />
+  <img src="pics/管理工作台-会话记录.png" alt="对话记录" width="330" />
+  <img src="pics/管理工作台-线索转换.png" alt="线索转换" width="330" />
+</p>
+
+**注册开通：** 机构名称 + 账户名 + 密码 + 手机号 + 短信验证码（阿里云 Dysmsapi，未配置时进演示模式验证码随响应返回），注册即开通免费版。
+
+<p align="center">
+  <img src="pics/测试单-注册.png" alt="机构注册开通" width="500" />
+</p>
+
+### ⑤ AI 对话（10%）
+
+SSE 真流式逐 token 输出，事件流 `start → tool(工具进度) → delta(回复分片) → done(引用/配额)`。Agent 会话循环按智能体能力动态装配工具（`lead_capture` 开启则纳入留资工具，`tenant_bot` 开启则追加两个 Agent Skill），`MAX_TOOL_ROUNDS` 限制工具轮数，会话状态持久化到 `sessions.state_json` 支持多轮继承。
+
+对话质检（旗舰版能力）：LLM 三维评分（准确性/规范性/体验）+ 红线检测，支持单条与批量；留资工具在用户表达报名意向时采集姓名/联系方式/意向写入 `leads` 工单，人工跟进流转。
+
+### ⑥ 部署（5%，加分项 Docker Compose +2）
+
+**Docker Compose 一键部署（评审路径）**：多阶段构建（`node:22-alpine` 编译前端 → `python:3.12-slim` 运行时），单进程 uvicorn 同时伺服 API/SPA/MCP，无 nginx 依赖。首启由 `docker/entrypoint.sh` 幂等初始化：建库 → 摄入官方三知识域 → 建演示账号，命名卷 `opc-data` 已初始化则跳过。
+
+```bash
+cp .env.example .env            # 至少填 VOLCANO_API_KEY
+docker compose up -d            # -> http://localhost:7000，首启约 6-10 分钟
+docker compose logs -f          # STATUS 变 healthy 即可用
 ```
 
-引擎读取规则 → 按约束匹配 → 确定性输出。**整个代码库中没有一行 "if 早鸟 then 减 1000" 的硬编码逻辑。**
+生产路径：单机 nginx → uvicorn/systemd + Let's Encrypt，`deploy/deploy.sh` 以 tar-over-ssh 同步代码并自动重启。两条路径互不干扰。
 
-### 3. 知识域为唯一边界，智能体隔离
+### 加分项汇总
 
-不再按「素材 A/B/C」分类。知识以 **Domain → Knowledge Base → Document** 三级结构组织，智能体在配置中声明对接哪些知识域——学生通道无法检索教师培训内容，教师通道无法看到学生课程。知识域可随时新建，边界配置秒级热生效。
+| 加分项 | 分值 | 实现 |
+|--------|------|------|
+| 真实支付 | +3 | 微信 Native（V2 MD5）+ 支付宝电脑网站（RSA2），回调验签幂等；Mock 渠道用于演示 |
+| Docker Compose | +2 | 多阶段镜像 + 首启自动初始化，`docker compose up -d` 一键 |
+| 数据看板 | +2 | 平台经营看板（总量/趋势/排行）+ 运营分析（高频/未答/推荐分布/质检均分/LLM 洞察） |
+| 中英双语 | +1 | 自研轻量 i18n（`web/src/i18n.tsx`），界面文案与后端数据文案全组件覆盖，一键切换 |
 
-### 4. 多路检索 + 引用溯源
-
-```
-用户问题 → LLM 结构化改写 → 三路并行召回
-                              ├─ 向量语义 (sqlite-vec, cos distance)
-                              ├─ 中文关键词 (FTS5 trigram, BM25)
-                              └─ 本体精确匹配 (价格/日期直取)
-                           → RRF 融合 → rerank → LLM 生成 + 引用卡片
-```
-
-本体精确命中（价格、日期）直接返回结构化事实，杜绝幻觉。回答末尾以卡片形式标注「出自《文档名》· 章节」。
-
-### 5. 一份工具，三种暴露
-
-6 个核心工具（`get_welcome` / `list_products` / `recommend_products` / `ask_knowledge` / `calculate_fee` / `get_enrollment_info`）**一份实现**，同时服务于：
-- **Agent 会话循环**（function-calling，真流式 SSE）
-- **MCP Server**（streamable HTTP + stdio，3 个独立端点按智能体收敛）
-- **REST API**（portal 与第三方按 REST 接入）
-
-### 6. 智能体运营平台
-
-管理后台不仅是一个配置面板——它覆盖了智能体从知识治理、质量检测、到人机协作的整个运营链路：
-
-| 模块 | 能力 |
-|------|------|
-| 知识域管理 | 三级结构，文档上传自动解析→切块→向量化→本体抽取 |
-| 本体图谱 | 8 类对象 10 类链接可视化，7 种布局，在线编辑审计 |
-| 智能体设置 | 按角色配置知识域、模型、能力开关（留资/质检） |
-| 数据分析 | 会话趋势、高频问题、知识缺口、推荐分布、LLM 洞察 |
-| 对话质检 | LLM 三维评分（准确性/规范性/体验）+ 红线检测，支持批量 |
-| 线索转化 | 留资工单流转（待跟进→已跟进→已转化/无效） |
-| 系统设置 | 模型参数、渠道令牌（MCP Bearer 鉴权），全部热生效 |
+<p align="center">
+  <img src="pics/测试单-英文.png" alt="中英双语界面" width="700" />
+</p>
 
 ---
 
 ## 架构总览
 
 ```
-   web/ (React + Vite · 移动优先 H5)
-   ├─ /s 学生 · /t 教师 · /c 平台机构 (三通道 SPA)
-   └─ /portal (管理工作台 · 7 大运营模块)
+   web/ (React 19 + Vite 8 · 移动优先 H5 · 自研 i18n 中英双语)
+   ├─ /portal (按身份自适应工作台)  · /b/<slug> (租户智能体前台)
+   └─ /login /register /pricing    · 三通道对话 /s /t /c
 
-                │ REST + SSE (真流式)
+                │ REST + SSE (真流式 function-calling)
                 ▼
    server/ (FastAPI 单服务)
-   ├─ api/chat         SSE 流式对话 (function-calling agent loop)
-   ├─ api/portal       管理后台 REST (知识域/本体/智能体/质检/工单/分析/设置)
-   ├─ /mcp · /mcp/student · /mcp/teacher  (MCP streamable HTTP · 渠道令牌鉴权)
+   ├─ api/saas.py      auth/billing/tenant/skills/usage
+   ├─ api/portal.py    49 个管理后台端点 (知识域/本体/智能体/质检/工单/分析/订单/渠道)
+   ├─ /mcp · /mcp/student · /mcp/teacher  (MCP streamable HTTP · Bearer 渠道令牌)
    └─ core/ (所有实现共享)
        ├─ ingest/      文档解析 → 切块 → 向量化 → LLM 本体抽取
-       ├─ ontology/    8 类对象 + 10 类链接 + 通用规则解释引擎
+       ├─ ontology/    8 类对象 + 10 类链接 + 通用规则引擎 (零业务数值)
        ├─ retrieval/   query 改写 → 三路召回 → RRF 融合 → rerank
-       ├─ quality.py   对话质检 (LLM 三维评分)
-       └─ llm.py       火山方舟 OpenAI 兼容客户端
+       ├─ tools.py     6 基础工具 + 2 Skill + 留资 (Agent/MCP/REST 共用)
+       ├─ payments.py  Mock / 微信 Native / 支付宝 渠道注册表
+       ├─ tenancy.py   多租户/套餐/配额/订阅/作用域
+       ├─ quality.py   对话质检 (LLM 三维评分 + 红线)
+       └─ llm.py       火山方舟 OpenAI 兼容客户端 (对话/embedding/rerank)
 
                 │
-   data/ (SQLite 单文件)
+   data/ (SQLite 单文件, WAL)
    ├─ domains · kbs · documents (知识域三级结构)
-   ├─ entities · relations · edges · rules (本体 + 规则)
-   ├─ knowledge_chunks + vec0 (向量) + FTS5 (全文检索)
-   └─ sessions · messages · quality_checks · leads (会话 + 运营)
+   ├─ entities · relations · edges · rules (本体 + 规则对象化)
+   ├─ knowledge_chunks + vec0 (向量) + FTS5 trigram (全文)
+   ├─ sessions · messages · quality_checks · leads · insights (会话 + 运营)
+   └─ tenants · users · plans · subscriptions · usage_monthly · payment_orders · sms_codes · tenant_agents · channel_tokens (SaaS)
 ```
 
-**技术选型：**
-- 后端：Python 3.11+ · FastAPI · MCP Python SDK · OpenAI 兼容接口（火山方舟/豆包）
-- 知识库：SQLite + sqlite-vec（向量）+ FTS5 trigram（中文）
-- 前端：React 19 + Vite 8 · TypeScript · Cytoscape（图谱）
-- LLM：豆包 seed 系列（对话 + embedding + rerank，密钥经环境变量注入）
-- 部署：单机 nginx → uvicorn · systemd · Let's Encrypt
+**技术选型：** Python 3.11+ · FastAPI · MCP Python SDK · SQLite + sqlite-vec + FTS5 · React 19 + Vite 8 + TypeScript + Cytoscape · 豆包 seed 系列（对话/embedding/rerank）· Docker Compose。
 
 ---
 
 ## 快速开始
 
-### 前置条件
-
-- Python 3.11+
-- Node.js 20+
-- 火山方舟 API Key（或任意 OpenAI 兼容接口）
-
-### 1. 克隆仓库
+### Docker Compose（推荐）
 
 ```bash
-git clone https://github.com/OpenNeo-AI/ai-course-agent-platform.git
-cd ai-course-agent-platform
+cp .env.example .env            # 至少填 VOLCANO_API_KEY
+docker compose up -d            # -> http://localhost:7000
+docker compose logs -f          # 等待 healthy
 ```
 
-### 2. 配置密钥
+演示账号 `admin` / `demo1` / `demo2` / `demo3`（密码 `demo1234`）。详见 [`docker/README.md`](docker/README.md)。
+
+### 本地开发
 
 ```bash
-cp .env.example .env
-# 编辑 .env，填入你的 API Key
+# 后端
+cd server
+python -m venv .venv && .venv/Scripts/pip install -e ".[dev]"
+.venv/Scripts/python scripts/build_kb.py                       # 摄入+抽取本体
+.venv/Scripts/python -m uvicorn app.main:app --port 7000
+
+# 前端（另开终端）
+cd web && npm install && npm run dev                           # :5173 代理到 :7000
 ```
 
-### 3. 安装依赖 & 构建知识库
+### 测试
 
 ```bash
 cd server
-python -m venv .venv
-.venv/Scripts/pip install -e ".[dev]"    # Windows
-# source .venv/bin/pip install -e ".[dev]"   # macOS / Linux
-
-# 摄入 doc/*.txt → 切块向量化 → LLM 抽取本体 (幂等)
-.venv/Scripts/python scripts/build_kb.py
-```
-
-### 4. 启动服务
-
-```bash
-.venv/Scripts/python -m uvicorn app.main:app --host 127.0.0.1 --port 7000
-```
-
-### 5. 启动前端（可选，开发模式）
-
-```bash
-cd web
-npm install
-npm run dev    # :5173，已配代理到 :7000
-```
-
-打开 `http://127.0.0.1:7000` 即可使用（后端自动伺服 `web/dist` 静态产物）。生产构建：`cd web && npm run build`。
-
-### 6. 运行测试
-
-```bash
-cd server
-.venv/Scripts/python -m pytest ../tests/test_ontology_facts.py -v   # 20 项事实回归
-.venv/Scripts/python ../tests/run_acceptance.py                     # 25 组验收用例
+.venv/Scripts/python -m pytest ../tests/test_ontology_facts.py -v  # 20 项事实回归
+.venv/Scripts/python ../tests/run_acceptance.py                    # 25 组官方验收
+.venv/Scripts/python ../tests/run_saas_checks.py                   # 17 组 SaaS API（A级口径）
+.venv/Scripts/python scripts/rag_accuracy_check.py                # RAG 准确率
 ```
 
 ---
 
 ## MCP 接入
 
-提供三个独立 MCP 端点，按智能体知识域收敛：
+三个独立 MCP 端点按智能体知识域收敛：`/mcp/student`（学生课程域）、`/mcp/teacher`（教师培训域）、`/mcp`（全知识域含身份分流）。stdio 调试：`python -m app.mcp_server stdio [platform|student|teacher]`。
 
-| 端点 | 知识域 | 用途 |
-|------|--------|------|
-| `/mcp/student` | 学生课程域 | 夏令营咨询 |
-| `/mcp/teacher` | 教师培训域 | 培训咨询 |
-| `/mcp` | 全知识域 | 通用（含身份分流） |
+渠道令牌鉴权（Bearer）：管理后台签发 `ak_` 前缀令牌后，MCP 连接须携带 `Authorization: Bearer ak_…`；系统尚无任何令牌时保持开放向后兼容。
 
-stdio 模式：`python -m app.mcp_server stdio [platform|student|teacher]`
-
-渠道令牌鉴权（Bearer）：portal 签发令牌后，MCP 连接须携带 `Authorization: Bearer ak_…`；无令牌时保持开放兼容。
-
-**工具清单：** `get_welcome` · `list_products` · `recommend_products` · `ask_knowledge` · `calculate_fee` · `get_enrollment_info` · `capture_lead`
+工具清单：`get_welcome` · `list_products` · `recommend_products` · `ask_knowledge` · `calculate_fee` · `get_enrollment_info` · `capture_lead` + 两个 Agent Skill。
 
 ---
 
@@ -299,24 +272,15 @@ stdio 模式：`python -m app.mcp_server stdio [platform|student|teacher]`
 │   │   ├── main.py              # FastAPI 主服务 + SSE + MCP 挂载 + SPA
 │   │   ├── mcp_server.py        # MCP streamable HTTP / stdio (3 端点)
 │   │   ├── agent/loop.py        # Agent 会话循环 (function calling)
-│   │   ├── api/portal.py        # 管理后台 REST
-│   │   └── core/
-│   │       ├── ingest/          # 文档解析 → 切块 → 向量化 → 本体抽取
-│   │       ├── ontology/        # 图谱计算 · 规则引擎 (零业务数值)
-│   │       ├── retrieval/       # 改写 · 三路召回 · RRF · rerank
-│   │       ├── tools.py         # 6 个工具 (Agent/MCP/REST 共用)
-│   │       ├── scope.py         # 智能体作用域
-│   │       ├── quality.py       # 对话质检
-│   │       ├── llm.py           # OpenAI 兼容客户端
-│   │       └── db.py / config.py
+│   │   ├── api/portal.py        # 管理后台 REST (49 端点)
+│   │   ├── api/saas.py          # auth/billing/tenant/skills
+│   │   └── core/                # ingest/ontology/retrieval/tools/payments/tenancy/quality/llm/db
 │   ├── data/config/             # YAML 配置 + Markdown 提示词 (热加载)
-│   └── scripts/                 # build_kb · reextract · verify · 测试
-├── web/
-│   ├── src/                     # React + Vite · 三通道 + Portal
-│   └── public/                  # 静态资源 (Vite 直接拷贝)
-├── tests/                       # 测试套件 (事实回归 + 验收用例)
+│   └── scripts/                 # build_kb · reset_demo_data · rag_accuracy · 测试
+├── web/src/                     # React + Vite · 三通道 + Portal + i18n
+├── tests/                       # 事实回归 + 25 验收 + 17 SaaS 检查
+├── docker/                      # Docker Compose (Dockerfile + entrypoint)
 ├── deploy/                      # nginx + systemd + deploy.sh
-├── skill/opc-course-advisor/    # OpenClaw / WorkBuddy skill
 └── doc/ · docs/                 # 竞赛素材 · 交付文档
 ```
 
@@ -326,9 +290,10 @@ stdio 模式：`python -m app.mcp_server stdio [platform|student|teacher]`
 
 - 不编造事实；无实时余位，**绝不声称满员/余位/付款成功/报名完成**
 - 课程回答必须经检索/引擎生成；固定模板仅限欢迎语/菜单/重置/错误提示
-- 知识域边界不可混用；平台资料缺失时如实回答「无法确认」
-- 人工服务统一话术「请联系人工课程顾问」，不提供任何真实联系方式
+- 知识域边界不可混用；范围外内容工具不可见
+- 人工服务统一话术「请联系模拟人工课程顾问」，不提供真实联系方式
 - 回答必须带引用——loop 中有兜底补回逻辑，不可删除
+- 知识库外问题明确说明「不在知识范围内」
 
 ---
 
@@ -339,5 +304,5 @@ MIT License
 ---
 
 <p align="center">
-  <sub>🤖 Built with Claude Code · Volcengine Ark (Doubao) · FastAPI · React · SQLite</sub>
+  <sub>🤖 Built with Claude Code · Volcengine Ark (Doubao) · FastAPI · React · SQLite · Docker</sub>
 </p>
