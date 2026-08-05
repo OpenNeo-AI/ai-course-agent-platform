@@ -249,8 +249,7 @@ export function TenantInstitutionTab({ onChanged }: {
       <div className="p-card">
         <h3>{t('inst.purpose')}</h3>
         <p className="p-scope-hint">
-          该机构所有智能体的共同服务导向,置于每个智能体系统提示词顶部,优先级最高;
-          留空则仅使用各智能体自身配置。保存后新会话即时生效。
+          {t('inst.purposeHint')}
         </p>
         <textarea className="p-scope-editor" rows={5} value={purpose} maxLength={500}
           onChange={e => setPurpose(e.target.value)}
