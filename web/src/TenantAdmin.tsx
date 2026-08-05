@@ -348,12 +348,12 @@ export function TenantAgentTab({ info }: { info: TenantInfo | null }) {
           )
           : (
             <button className="p-kb-new" disabled={overLimit}
-              title={overLimit ? `当前套餐最多 ${agentLimit} 个智能体` : ''}
+              title={overLimit ? `${t('agent.limitHint')} ${agentLimit}` : ''}
               onClick={() => setCreating(true)}>{t('btn.newAgent')}</button>
           )}
         {overLimit && (
           <p className="p-scope-hint" style={{ padding: '0 4px' }}>
-            已达当前套餐上限({agentLimit} 个),升级套餐可新建更多。
+            {t('agent.reachedLimit')}({agentLimit}), {t('agent.upgradeForMore')}
           </p>
         )}
         {err && <p className="p-err" style={{ padding: '0 4px' }}>{err}</p>}
@@ -548,7 +548,7 @@ export function TenantSubTab({ info, onChanged }: { info: TenantInfo | null; onC
       <div className="tadm-sub">
         <div>
           <b className="tadm-plan-name">
-            {sub?.plan_name || '—'}
+            {td(sub?.plan_name || '—'}
             <span className={`plan-pill ${active ? 'pro' : ''}`} style={{ marginLeft: 10 }}>
               {active ? t('sub.activatedTag') : t('sub.pendingActivation')}
             </span>
@@ -585,7 +585,7 @@ export function TenantSubTab({ info, onChanged }: { info: TenantInfo | null; onC
       </div>
       <h4>{t('sub.orders')}</h4>
       <table className="tadm-table">
-        <thead><tr><th>订单号</th><th>套餐</th><th>渠道</th><th>金额</th><th>{t('th.status')}</th><th>支付时间</th></tr></thead>
+        <thead><tr><th>{t('th.orderId')}</th><th>{t('th.plan')}</th><th>{t('th.channel')}</th><th>{t('th.amount')}</th><th>{t('th.status')}</th><th>{t('th.paidAt')}</th></tr></thead>
         <tbody>
           {orders.map(o => (
             <tr key={o.id}>
