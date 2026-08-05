@@ -884,7 +884,7 @@ function LeadsTab() {
   return (
     <div className="p-card">
       <p className="p-scope-hint">
-        智能体在对话中采集的用户报名意向(留资),在此转化为线索跟进。<b>仅做留资跟进流转,不做报名/支付管理。</b>
+        <>{t('lead.hint')}</>
       </p>
       <div className="p-toolbar">
         <select value={status} onChange={e => setStatus(e.target.value)}>
