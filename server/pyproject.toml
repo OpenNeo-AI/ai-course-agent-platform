@@ -12,8 +12,12 @@ dependencies = [
     "httpx>=0.27",
     "sse-starlette>=2.1",
     "python-multipart>=0.0.9",
-    "mcp>=1.2",
+    # mcp 2.0 移除了 mcp.server.fastmcp(FastMCP 类不再存在),而 app/mcp_server.py
+    # 依赖它暴露三个 MCP 端点。上限必须锁死,否则干净环境装到 2.x 直接启动失败。
+    "mcp>=1.2,<2",
     "pypdf>=4.0",
+    "pyjwt>=2.8",            # app/core/auth.py 签发/校验 JWT(此前仅由 mcp 间接带入)
+    "cryptography>=42.0",    # app/core/payments.py 支付宝 RSA2 签名与验签
 ]
 
 [project.optional-dependencies]

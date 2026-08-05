@@ -1,0 +1,34 @@
+# 一键部署:docker compose up -d  →  http://localhost:7000
+# 首次启动自动建库+摄入知识素材+建演示账号(见 deploy/docker-entrypoint.sh)
+# 前置:仓库根 .env 内至少配置 VOLCANO_API_KEY(参考 .env.example)
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: opc-edu:latest
+    container_name: opc-edu
+    restart: unless-stopped
+
+    # 密钥与运行参数统一走 .env(与非容器部署同源,不重复维护)
+    env_file:
+      - .env
+
+    environment:
+      HOST: 0.0.0.0
+      PORT: 7000
+      TZ: Asia/Shanghai
+      # 设为 1 则首次启动额外跑本体 LLM 抽取(耗时数分钟,RAG 问答不依赖)
+      DOCKER_FULL_EXTRACT: "${DOCKER_FULL_EXTRACT:-0}"
+
+    ports:
+      - "${DOCKER_PORT:-7000}:7000"
+
+    # 数据库/上传件/报告落在命名卷,容器重建不丢数据。
+    # 重新初始化:docker compose down -v && docker compose up -d
+    volumes:
+      - opc-data:/app/server/data
+
+volumes:
+  opc-data:

@@ -1,0 +1,39 @@
+# 密钥绝不进镜像层(运行时经 env_file 注入)
+.env
+wink.pem
+
+# 运行时数据:容器内由 entrypoint 初始化,卷挂载持久化
+# (排除本机 10MB app.db、上传件与报告,避免污染镜像并撑大构建上下文)
+server/data/*
+!server/data/config/
+
+# 依赖与产物:各 stage 内部重新安装/构建
+node_modules
+web/node_modules
+web/dist
+.venv
+__pycache__
+*.py[cod]
+.pytest_cache
+
+# 版本库与本地状态
+.git
+.gitignore
+.claude
+
+# 交付文档与演示素材(不参与运行;doc/ 例外,build_kb 需要素材)
+docs/
+pics/
+*.pptx
+*.pptx.js
+*.png
+*.mp4
+ai-course-advisor-roadshow/
+*.html
+build-geek-ppt.js
+deploy/deploy-saas.log
+
+# 编辑器/系统产物
+.DS_Store
+~$*
+.trae-html-share-packages/

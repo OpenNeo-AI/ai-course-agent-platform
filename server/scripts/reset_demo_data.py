@@ -13,6 +13,7 @@
 """
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -161,12 +162,19 @@ def make_agent(db, tid: int, name: str, domain_ids: list[int], welcome: str = ""
     return agent["slug"]
 
 
+# 本体抽取按章调 LLM,三份 PDF 合计数分钟。Docker 首启为压缩评审等待时间
+# 默认跳过(RAG 问答只依赖知识块,不依赖本体);设 DEMO_SKIP_EXTRACT=0 可强制完整抽取。
+SKIP_EXTRACT = os.environ.get("DEMO_SKIP_EXTRACT", "0") == "1"
+
+
 def ingest_pdf(db, kb_id: int, pdf_path: Path, title: str) -> None:
     text = parse_upload(pdf_path.name, pdf_path.read_bytes())
-    stats = ingest_text(db, kb_id, pdf_path.name, title, text)
+    stats = ingest_text(db, kb_id, pdf_path.name, title, text,
+                        do_extract=not SKIP_EXTRACT)
     ex = stats.get("extract") or {}
     print(f"    摄入 {pdf_path.name}: 块 {stats.get('chunks')} · "
-          f"实体 {ex.get('entities')} · 规则 {ex.get('rules')}")
+          f"实体 {ex.get('entities')} · 规则 {ex.get('rules')}"
+          + ("  (已跳过本体抽取)" if SKIP_EXTRACT else ""))
 
 
 def main() -> int:

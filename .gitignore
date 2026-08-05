@@ -5,6 +5,12 @@ wink.pem
 # 运行时数据(config/ 作为初始配置随库提交)
 server/data/*
 !server/data/config/
+# 上一行放开了整个 config/,但令牌是首启生成的密钥,必须重新排除
+server/data/config/portal_token.txt
+
+# 构建与运行产物
+*.egg-info/
+deploy/*.log
 
 # Python
 __pycache__/
