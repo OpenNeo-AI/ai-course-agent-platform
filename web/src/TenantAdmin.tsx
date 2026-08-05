@@ -548,7 +548,7 @@ export function TenantSubTab({ info, onChanged }: { info: TenantInfo | null; onC
       <div className="tadm-sub">
         <div>
           <b className="tadm-plan-name">
-            {td(sub?.plan_name || '—'}
+            {td(sub?.plan_name || '—')}
             <span className={`plan-pill ${active ? 'pro' : ''}`} style={{ marginLeft: 10 }}>
               {active ? t('sub.activatedTag') : t('sub.pendingActivation')}
             </span>
