@@ -129,30 +129,40 @@
   <img src="pics/测试单-数据看板.png" alt="租户数据看板" width="440" />
 </p>
 
-**租户管理员运营视图：** 机构信息（含统一服务宗旨注入提示词）/ 智能体设置（模型·能力开关·知识域挂载·系统提示词，每个智能体独立前台链接 `/b/<slug>`）/ 知识域与课程资料 / 本体图谱（8 类对象 10 类链接可视化、7 种布局、在线编辑审计）/ 对话记录（脱敏）/ 线索转化工单 / 运营分析（高频问题·未答问题·推荐分布·LLM 洞察）/ 用量统计 / 套餐订阅。
+**租户管理员运营视图：** 机构信息（含统一服务宗旨注入提示词）/ 智能体设置（模型·能力开关·知识域挂载·系统提示词，每个智能体独立前台链接 `/b/<slug>`）/ 知识域与课程资料（上传即异步解析切块向量化）/ 本体图谱（8 类对象 10 类链接可视化、7 种布局、在线编辑审计）/ 对话记录（脱敏·时间筛选·质检）/ 线索转化工单 / 运营分析（高频问题·未答问题·推荐分布·LLM 洞察）/ 用量统计 / 套餐订阅。
 
 <p align="center">
-  <img src="pics/管理工作台-知识域.png" alt="知识域管理" width="330" />
-  <img src="pics/管理工作台-本体知识.png" alt="本体图谱" width="330" />
-  <img src="pics/管理工作台-智能体设置.png" alt="智能体设置" width="330" />
+  <img src="pics/测试单-知识域.png" alt="知识域与课程资料" width="330" />
+  <img src="pics/测试单-本体知识.png" alt="本体图谱" width="330" />
+  <img src="pics/测试单-对话记录.png" alt="对话记录（脱敏）" width="330" />
 </p>
 <p align="center">
-  <img src="pics/管理工作台-数据分析.png" alt="运营分析" width="330" />
-  <img src="pics/管理工作台-会话记录.png" alt="对话记录" width="330" />
-  <img src="pics/管理工作台-线索转换.png" alt="线索转换" width="330" />
+  <img src="pics/测试单-运营分析.png" alt="运营分析" width="330" />
+  <img src="pics/测试单-用量统计.png" alt="用量统计" width="330" />
+  <img src="pics/测试单-线索转换.png" alt="线索转化工单" width="330" />
+</p>
+<p align="center">
+  <img src="pics/测试单-机构信息.png" alt="机构信息与统一服务宗旨" width="500" />
 </p>
 
-**注册开通：** 机构名称 + 账户名 + 密码 + 手机号 + 短信验证码（阿里云 Dysmsapi，未配置时进演示模式验证码随响应返回），注册即开通免费版。
+**认证：** 支持手机验证码登录、账户密码登录、机构注册开通（机构名称 + 账户名 + 密码 + 手机号 + 短信验证码，阿里云 Dysmsapi，未配置时进演示模式验证码随响应返回），注册即开通免费版。
 
 <p align="center">
-  <img src="pics/测试单-注册.png" alt="机构注册开通" width="500" />
+  <img src="pics/测试单-登录1.png" alt="验证码登录" width="320" />
+  <img src="pics/测试单-登录2.png" alt="密码登录" width="320" />
+  <img src="pics/测试单-注册.png" alt="机构注册开通" width="320" />
 </p>
 
 ### ⑤ AI 对话（10%）
 
 SSE 真流式逐 token 输出，事件流 `start → tool(工具进度) → delta(回复分片) → done(引用/配额)`。Agent 会话循环按智能体能力动态装配工具（`lead_capture` 开启则纳入留资工具，`tenant_bot` 开启则追加两个 Agent Skill），`MAX_TOOL_ROUNDS` 限制工具轮数，会话状态持久化到 `sessions.state_json` 支持多轮继承。
 
-对话质检（旗舰版能力）：LLM 三维评分（准确性/规范性/体验）+ 红线检测，支持单条与批量；留资工具在用户表达报名意向时采集姓名/联系方式/意向写入 `leads` 工单，人工跟进流转。
+租户智能体前台 `/b/<slug>` 对话，回答带「引用出处」卡片（文档名+章节+原文语句）；用户表达报名意向时 `capture_lead` 工具采集姓名/联系方式/意向班型，写入 `leads` 工单转人工跟进。对话质检（旗舰版能力）由 LLM 三维评分（准确性/规范性/体验）+ 红线检测，支持单条与批量。
+
+<p align="center">
+  <img src="pics/测试单-智能体对话.png" alt="租户智能体前台对话（富文本表格回答）" width="400" />
+  <img src="pics/测试单-线索跟进.png" alt="引用出处卡片 + 留资转人工" width="400" />
+</p>
 
 ### ⑥ 部署（5%，加分项 Docker Compose +2）
 
@@ -176,7 +186,8 @@ docker compose logs -f          # STATUS 变 healthy 即可用
 | 中英双语 | +1 | 自研轻量 i18n（`web/src/i18n.tsx`），界面文案与后端数据文案全组件覆盖，一键切换 |
 
 <p align="center">
-  <img src="pics/测试单-英文.png" alt="中英双语界面" width="700" />
+  <img src="pics/测试单-英文.png" alt="中英双语·智能体设置" width="440" />
+  <img src="pics/测试单-英文2.png" alt="中英双语·数据看板" width="440" />
 </p>
 
 ---
