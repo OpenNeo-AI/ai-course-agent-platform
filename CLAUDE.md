@@ -93,7 +93,7 @@ docker compose up -d      # → http://localhost:7000,首启后台初始化 6—
 docker compose logs -f    # STATUS 变 healthy 即可用
 ```
 
-多阶段构建(`node:22-alpine` 编译前端 → `python:3.12-slim` 运行时),单进程 uvicorn 同时伺服 API/SPA/MCP,无 nginx。首启由 `deploy/docker-entrypoint.sh` 建库 → `build_kb.py` 摄入官方三域 → `reset_demo_data.py` 建演示租户,幂等(命名卷 `opc-data` 已初始化则跳过)。改端口 `DOCKER_PORT=8080`,要本体图谱数据加 `DOCKER_FULL_EXTRACT=1`(默认跳过 LLM 抽取以压缩等待)。评审用法详见 `DOCKER.md`。
+多阶段构建(`node:22-alpine` 编译前端 → `python:3.12-slim` 运行时),单进程 uvicorn 同时伺服 API/SPA/MCP,无 nginx。Docker 相关文件集中在 `docker/`(`Dockerfile`/`entrypoint.sh`/`README.md`),`docker-compose.yml` 与 `.dockerignore` 留在仓库根——前者是一键入口,后者只在构建上下文根生效。首启由 `docker/entrypoint.sh` 建库 → `build_kb.py` 摄入官方三域 → `reset_demo_data.py` 建演示租户,幂等(命名卷 `opc-data` 已初始化则跳过)。改端口 `DOCKER_PORT=8080`,要本体图谱数据加 `DOCKER_FULL_EXTRACT=1`(默认跳过 LLM 抽取以压缩等待)。评审用法详见 `docker/README.md`。
 
 改依赖时注意:`server/pyproject.toml` 的 `mcp` **必须锁 `<2`**(2.0 移除了 `mcp.server.fastmcp`,`app/mcp_server.py` 依赖它);`pyjwt`/`cryptography` 已显式声明,勿依赖间接引入——本地 venv 装得上不代表干净环境装得上。
 

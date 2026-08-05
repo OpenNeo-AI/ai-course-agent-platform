@@ -12,6 +12,10 @@ server/data/config/portal_token.txt
 *.egg-info/
 deploy/*.log
 
+# 交付物:导出的镜像 tar(72MB 二进制,单独提交给比赛方,不进仓库)
+deliver/
+*.tar.gz
+
 # Python
 __pycache__/
 *.py[cod]

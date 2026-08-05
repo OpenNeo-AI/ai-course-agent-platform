@@ -4,6 +4,20 @@ AI 课程顾问 SaaS 平台的容器化部署方案：**一条命令**拉起完�
 
 镜像版本 `opc-edu:1.0.0` — 已通过 17 组 SaaS API 测试与 25 组官方验收用例。
 
+### 文件分布
+
+```
+opc-edu/
+├── docker-compose.yml     ← 一键入口，在这里执行 docker compose 命令
+├── .dockerignore          ← 必须在仓库根（只在构建上下文根目录生效）
+└── docker/
+    ├── Dockerfile         ← 多阶段构建定义
+    ├── entrypoint.sh      ← 首启初始化脚本（建库 → 摄入 → 演示账号）
+    └── README.md          ← 本文档
+```
+
+**所有命令都在仓库根执行**，不要 `cd docker/`。`docker-compose.yml` 已配 `context: .` + `dockerfile: docker/Dockerfile`，构建上下文是仓库根——Dockerfile 里的 `COPY server/ web/ doc/ tests/` 依赖这一点。
+
 ---
 
 ## 零、环境准备
@@ -116,8 +130,8 @@ docker exec opc-edu sh -c "cd /app/server && python /app/tests/run_saas_checks.p
 
 | 交付物 | 说明 | 必要性 |
 |---|---|---|
-| 源码仓库 | 含 `Dockerfile`、`docker-compose.yml`、`deploy/docker-entrypoint.sh` | **必需** |
-| 本文档 `DOCKER.md` | 一键部署操作说明 | **必需** |
+| 源码仓库 | 含 `docker/`(Dockerfile + entrypoint)与仓库根 `docker-compose.yml` | **必需** |
+| 本文档 `docker/README.md` | 一键部署操作说明 | **必需** |
 | `.env.example` | 全部环境变量说明（已在仓库根） | **必需** |
 | `opc-edu-1.0.0-image.tar.gz` | 预构建镜像（72MB），供不便构建的评委直接导入 | 可选附件 |
 

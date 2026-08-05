@@ -1,12 +1,13 @@
 # 一键部署:docker compose up -d  →  http://localhost:7000
-# 首次启动自动建库+摄入知识素材+建演示账号(见 deploy/docker-entrypoint.sh)
+# 首次启动自动建库+摄入知识素材+建演示账号(见 docker/entrypoint.sh)
 # 前置:仓库根 .env 内至少配置 VOLCANO_API_KEY(参考 .env.example)
 
 services:
   app:
     build:
+      # context 必须是仓库根:Dockerfile 内 COPY 引用 server/ web/ doc/ tests/
       context: .
-      dockerfile: Dockerfile
+      dockerfile: docker/Dockerfile
     # 默认构建/使用 latest;导入预构建镜像时用 IMAGE_TAG=1.0.0 指定版本
     image: "opc-edu:${IMAGE_TAG:-latest}"
     container_name: opc-edu

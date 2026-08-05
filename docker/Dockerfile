@@ -1,5 +1,7 @@
 # 多阶段构建:stage1 编译前端 → stage2 Python 运行时(内置前端产物)
-# 评审用法见 docker-compose.yml 与 DOCKER.md
+# 评审用法见仓库根 docker-compose.yml 与 docker/README.md
+# 注意:构建上下文是仓库根(compose 已配 context: . + dockerfile: docker/Dockerfile),
+# 故下方 COPY 路径均以仓库根为基准,不要改成相对 docker/ 的路径
 
 # ---------- stage 1: 前端 ----------
 FROM node:22-alpine AS web
@@ -53,7 +55,7 @@ COPY .env.example /app/.env.example
 # 前端产物 → main.py 的 WEB_DIST = server/../web/dist
 COPY --from=web /build/dist /app/web/dist
 
-COPY deploy/docker-entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 EXPOSE 7000
