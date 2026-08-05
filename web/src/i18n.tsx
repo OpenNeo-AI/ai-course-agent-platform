@@ -242,6 +242,63 @@ const DICT: Record<string, { zh: string; en: string }> = {
   'sub.failed': { zh: '失败', en: 'Failed' },
   'sub.activated': { zh: '已开通', en: 'Active' },
   'sub.pendingActivation': { zh: '待支付开通', en: 'Pending' },
+  // ---- 知识域管理 ----
+  'kb.title': { zh: '知识库', en: 'Knowledge Bases' },
+  'kb.newDomain': { zh: '+ 新建知识域', en: '+ New Domain' },
+  'kb.newKb': { zh: '+ 新建知识库', en: '+ New KB' },
+  'kb.edit': { zh: '编辑', en: 'Edit' },
+  'kb.delDomain': { zh: '删除知识域', en: 'Delete Domain' },
+  'kb.docs': { zh: '篇', en: 'docs' },
+  'kb.processing': { zh: '解析与知识抽取中(后台异步,可继续操作)…', en: 'Parsing & extracting (async, you can continue)…' },
+  'kb.noDocs': { zh: '该知识库暂无文档', en: 'No documents in this KB' },
+  'kb.selectKb': { zh: '请先创建或选择一个知识库', en: 'Create or select a knowledge base first' },
+  'kb.selectDomain': { zh: '请先创建或选择一个知识域', en: 'Create or select a domain first' },
+  'kb.domainName': { zh: '知识域名称', en: 'Domain name' },
+  'kb.desc': { zh: '描述(可选)', en: 'Description (optional)' },
+  'kb.kbName': { zh: '知识库名称', en: 'KB name' },
+  'kb.docTitle': { zh: '文档标题(可选)', en: 'Document title (optional)' },
+  'kb.domainCount': { zh: '知识域', en: 'domains' },
+  'kb.rules': { zh: '规则', en: 'rules' },
+  'th.file': { zh: '文件', en: 'File' },
+  // ---- Agent 平台版 ----
+  'agent.mcp': { zh: 'MCP 接入', en: 'MCP Integration' },
+  'agent.copyEndpoint': { zh: '复制地址', en: 'Copy URL' },
+  'agent.copyJson': { zh: '复制 JSON 配置', en: 'Copy JSON' },
+  'agent.promptHintPlatform': { zh: '定义该智能体的身份、服务流程、红线规则与回答风格;保存后热加载生效。', en: 'Define agent identity, workflow, rules, and style. Hot-reloaded on save.' },
+  'agent.welcomeHintPlatform': { zh: '新会话第一条消息(固定模板);保存后热加载生效。', en: 'First message in new sessions. Hot-reloaded on save.' },
+  // ---- 消息 ----
+  'msg.copied': { zh: '已复制到剪贴板', en: 'Copied to clipboard' },
+  'msg.copyFailed': { zh: '复制失败,请手动选择', en: 'Copy failed, please select manually' },
+  'msg.saved': { zh: '已保存', en: 'Saved' },
+  // ---- 线索 ----
+  'lead.title': { zh: '报名意向 · 留资工单', en: 'Enrollment Intent · Leads' },
+  'lead.allStatus': { zh: '全部状态', en: 'All Status' },
+  // ---- 会话记录(平台) ----
+  'sess.portalTitle': { zh: '会话记录', en: 'Conversations' },
+  // ---- 数据分析 ----
+  'analytics.title': { zh: '数据分析', en: 'Analytics' },
+  // ---- LLM 配置 ----
+  'llm.embeddingModel': { zh: '向量模型(全平台统一)', en: 'Embedding Model' },
+  'llm.rerankModel': { zh: '重排模型(全平台统一)', en: 'Rerank Model' },
+  'llm.rerankStrategy': { zh: '重排策略', en: 'Rerank Strategy' },
+  'llm.rerankUrl': { zh: '重排端点地址', en: 'Rerank Endpoint' },
+  'llm.timeout': { zh: '请求超时(秒)', en: 'Timeout (s)' },
+  'llm.contextTurns': { zh: '上下文轮次', en: 'Context Turns' },
+  'llm.maxTokens': { zh: '最大输出 max_tokens', en: 'Max Tokens' },
+  // ---- 看板 ----
+  'board.tenants': { zh: '租户数', en: 'Tenants' },
+  'board.users': { zh: '用户数', en: 'Users' },
+  'board.sessions': { zh: '会话数', en: 'Sessions' },
+  'board.chats': { zh: '对话次数', en: 'Chats' },
+  'board.trendTitle': { zh: '近 14 日会话趋势(全平台)', en: '14-Day Session Trend (Platform)' },
+  'board.topTenants': { zh: '租户对话数排行', en: 'Top Tenants by Chats' },
+  'th.slug': { zh: '标识', en: 'Slug' },
+  // ---- 套餐定价 ----
+  'plans.title': { zh: '套餐定价', en: 'Plan Pricing' },
+  'plans.hint': { zh: '演示数据,可在线调整;功能范围由套餐定义决定(标准版=知识域智能体,旗舰版=全部功能)。', en: 'Demo pricing, editable online. Standard=knowledge agent, Flagship=all features.' },
+  'orders.title': { zh: '支付订单', en: 'Payment Orders' },
+  'orders.allStatus': { zh: '全部状态', en: 'All Status' },
+  'empty.noTenants': { zh: '暂无租户', en: 'No tenants' },
 }
 
 const I18nCtx = createContext<{ lang: Lang; t: (k: string) => string; setLang: (l: Lang) => void }>({

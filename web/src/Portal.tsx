@@ -48,6 +48,7 @@ const CAPABILITIES = [
 
 /* ---------- 知识域 / 知识库 / 文档 ---------- */
 function DomainsTab() {
+  const { t } = useI18n()
   const [domains, setDomains] = useState<any[]>([])
   const [selDom, setSelDom] = useState<number | null>(null)
   const [kbs, setKbs] = useState<any[]>([])
@@ -180,21 +181,21 @@ function DomainsTab() {
             <b>{d.name}</b>
             <small>{d.description || '—'}</small>
             <span className="meta">
-              <span className="p-mat">{d.kbs} 知识库</span>
-              <span className="p-count">{d.entities} 实体 · {d.rules} 规则</span>
+              <span className="p-mat">{d.kbs} {t('kb.domainCount')}</span>
+              <span className="p-count">{d.entities} {t('th.entities')} · {d.rules} {t('kb.rules')}</span>
             </span>
           </button>
         ))}
         {creatingDom
           ? (
             <div className="p-kbform">
-              <input placeholder="知识域名称" value={domForm.name}
+              <input placeholder={t('kb.domainName')} value={domForm.name}
                 onChange={e => setDomForm({ ...domForm, name: e.target.value })} />
-              <input placeholder="描述(可选)" value={domForm.description}
+              <input placeholder={t('kb.desc')} value={domForm.description}
                 onChange={e => setDomForm({ ...domForm, description: e.target.value })} />
               <div className="p-kbform-btns">
-                <button onClick={createDom}>创建</button>
-                <button className="ghost" onClick={() => setCreatingDom(false)}>取消</button>
+                <button onClick={createDom}>{t('btn.create')}</button>
+                <button className="ghost" onClick={() => setCreatingDom(false)}>{t('btn.cancel')}</button>
               </div>
             </div>
           )
@@ -216,8 +217,8 @@ function DomainsTab() {
                       onChange={e => setDomEdit({ ...domEdit, description: e.target.value })} />
                   </label>
                   <div className="p-kbform-btns">
-                    <button onClick={saveDom}>保存</button>
-                    <button className="ghost" onClick={() => setEditingDom(false)}>取消</button>
+                    <button onClick={saveDom}>{t('btn.save')}</button>
+                    <button className="ghost" onClick={() => setEditingDom(false)}>{t('btn.cancel')}</button>
                   </div>
                 </div>
               ) : (
@@ -227,28 +228,28 @@ function DomainsTab() {
                     <small>{dom.description || '—'} · {dom.code}</small>
                   </div>
                   <span>
-                    <button className="p-mini" onClick={renameDom}>编辑</button>
-                    <button className="p-mini danger" onClick={delDom}>删除知识域</button>
+                    <button className="p-mini" onClick={renameDom}>{t('kb.edit')}</button>
+                    <button className="p-mini danger" onClick={delDom}>{t('kb.delDomain')}</button>
                   </span>
                 </div>
               )}
 
-              <h3>知识库</h3>
+              <h3>{t('kb.title')}</h3>
               <div className="p-kbchips">
                 {kbs.map(k => (
                   <button key={k.id} className={`p-kbchip ${k.id === selKb ? 'on' : ''}`}
                     onClick={() => setSelKb(k.id)}>
-                    <b>{k.name}</b><span>{k.docs} 篇</span>
+                    <b>{k.name}</b><span>{k.docs} {t('kb.docs')}</span>
                     <i onClick={e => { e.stopPropagation(); delKb(k) }}>×</i>
                   </button>
                 ))}
                 {creatingKb
                   ? (
                     <span className="p-kbform-inline">
-                      <input placeholder="知识库名称" value={kbForm.name}
+                      <input placeholder={t('kb.kbName')} value={kbForm.name}
                         onChange={e => setKbForm({ ...kbForm, name: e.target.value })} />
-                      <button onClick={createKb}>创建</button>
-                      <button className="ghost" onClick={() => setCreatingKb(false)}>取消</button>
+                      <button onClick={createKb}>{t('btn.create')}</button>
+                      <button className="ghost" onClick={() => setCreatingKb(false)}>{t('btn.cancel')}</button>
                     </span>
                   )
                   : <button className="p-kbchip add" onClick={() => setCreatingKb(true)}>+ 新建知识库</button>}
@@ -259,12 +260,12 @@ function DomainsTab() {
                   <>
                     <div className="p-toolbar">
                       <input ref={fileRef} type="file" accept=".txt,.docx,.doc,.pdf" />
-                      <input placeholder="文档标题(可选)" value={title} onChange={e => setTitle(e.target.value)} />
-                      <button onClick={upload} disabled={!!processing}>上传并摄入</button>
-                      {processing && <span className="p-busy">解析与知识抽取中(后台异步,可继续操作)…</span>}
+                      <input placeholder={t('kb.docTitle')} value={title} onChange={e => setTitle(e.target.value)} />
+                      <button onClick={upload} disabled={!!processing}>{t('btn.upload')}</button>
+                      {processing && <span className="p-busy">{t('kb.processing')}</span>}
                     </div>
                     <table className="p-table">
-                      <thead><tr><th>ID</th><th>文件</th><th>状态</th><th>知识块</th><th>实体</th><th>上传时间</th><th></th></tr></thead>
+                      <thead><tr><th>ID</th><th>{t('th.file')}</th><th>{t('th.status')}</th><th>{t('th.chunks')}</th><th>{t('th.entities')}</th><th>{t('th.uploaded')}</th><th></th></tr></thead>
                       <tbody>
                         {docs.map(d => (
                           <tr key={d.id}>
@@ -272,18 +273,18 @@ function DomainsTab() {
                             <td>{d.filename}</td><td>{d.status}</td>
                             <td>{d.chunks}</td><td>{d.entities}</td>
                             <td className="p-src">{d.uploaded_at}</td>
-                            <td><button className="p-mini danger" onClick={() => removeDoc(d.id, d.filename)}>删除</button></td>
+                            <td><button className="p-mini danger" onClick={() => removeDoc(d.id, d.filename)}>{t('btn.delete')}</button></td>
                           </tr>
                         ))}
-                        {!docs.length && <tr><td colSpan={7} className="p-src">该知识库暂无文档</td></tr>}
+                        {!docs.length && <tr><td colSpan={7} className="p-src">{t('kb.noDocs')}</td></tr>}
                       </tbody>
                     </table>
                   </>
                 )
-                : <div className="p-empty">请先创建或选择一个知识库</div>}
+                : <div className="p-empty">{t('kb.selectKb')}</div>}
             </>
           )
-          : <div className="p-empty">请先创建或选择一个知识域</div>}
+          : <div className="p-empty">{t('kb.selectDomain')}</div>}
       </div>
     </div>
   )
@@ -395,7 +396,7 @@ export function AgentsTab() {
   }, null, 2)
 
   function copy(text: string) {
-    navigator.clipboard?.writeText(text).then(() => flash('已复制到剪贴板')).catch(() => flash('复制失败,请手动选择'))
+    navigator.clipboard?.writeText(text).then(() => flash(t('msg.copied'))).catch(() => flash(t('msg.copyFailed')))
   }
 
   const selected: string[] = agents[sel]?.domains || []
@@ -410,7 +411,7 @@ export function AgentsTab() {
               <small>{a.sub}</small>
               <span className="meta">
                 <span className="p-mono">{a.endpoint}</span>
-                <span className="p-count">{(agents[a.key]?.domains || []).length} 知识域</span>
+                <span className="p-count">{(agents[a.key]?.domains || []).length} {t('kb.domainCount')}</span>
               </span>
             </button>
           ))}
@@ -418,7 +419,7 @@ export function AgentsTab() {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
           <div className="p-card">
-            <h3>推理模型</h3>
+            <h3>{t('agent.model')}</h3>
             <p className="p-scope-hint">
               为该智能体选择对话模型(选项来自「模型及参数 → 支持的模型」);不选则跟随系统默认模型。
               切换即时生效,仅影响本智能体的对话生成。
@@ -440,7 +441,7 @@ export function AgentsTab() {
           </div>
 
           <div className="p-card">
-            <h3>能力配置</h3>
+            <h3>{t('agent.caps')}</h3>
             <p className="p-scope-hint">
               按智能体启用的扩展能力(留资转人工 / 对话质检 / 早鸟截止提醒),保存后即时生效。
             </p>
@@ -459,7 +460,7 @@ export function AgentsTab() {
           </div>
 
           <div className="p-card">
-            <h3>知识域对接</h3>
+            <h3>{t('agent.domains')}</h3>
             <p className="p-scope-hint">
               勾选 {agent.label} 可引用的知识域。<b>未勾选知识域的内容不参与该智能体的检索、推荐与计算</b>;
               勾选变更立即保存并生效。
@@ -477,27 +478,27 @@ export function AgentsTab() {
 
           <div className="p-card">
             <h3>系统提示词(prompts/{sel}.md)</h3>
-            <p className="p-scope-hint">定义该智能体的身份、服务流程、红线规则与回答风格;保存后热加载生效。</p>
+            <p className="p-scope-hint">{t('agent.promptHintPlatform')}</p>
             <textarea className="p-scope-editor" rows={16} value={prompt}
               onChange={e => setPrompt(e.target.value)} />
             <div className="p-toolbar" style={{ marginTop: 12 }}>
-              <button onClick={savePrompt}>保存提示词</button>
+              <button onClick={savePrompt}>{t('btn.savePrompt')}</button>
               {msg && <span className="p-ok">{msg}</span>}
             </div>
           </div>
 
           <div className="p-card">
             <h3>欢迎词(prompts/{agent.welcomeFile})</h3>
-            <p className="p-scope-hint">新会话第一条消息(固定模板);保存后热加载生效。</p>
+            <p className="p-scope-hint">{t('agent.welcomeHintPlatform')}</p>
             <textarea className="p-scope-editor" rows={9} value={welcome}
               onChange={e => setWelcome(e.target.value)} />
             <div className="p-toolbar" style={{ marginTop: 12 }}>
-              <button onClick={saveWelcome}>保存欢迎词</button>
+              <button onClick={saveWelcome}>{t('btn.saveWelcome')}</button>
             </div>
           </div>
 
           <div className="p-card">
-            <h3>MCP 接入</h3>
+            <h3>{t('agent.mcp')}</h3>
             <p className="p-scope-hint">
               {agent.label}的独立 MCP 端点(HTTP),工具调用自动限定在上述知识域内,
               经渠道令牌(Bearer)鉴权。将以下条目粘贴进 TRAE / WorkBuddy / OpenClaw 等
@@ -510,11 +511,11 @@ export function AgentsTab() {
             )}
             <div className="p-endpoint">
               <code>{endpoint}</code>
-              <button className="p-mini" onClick={() => copy(endpoint)}>复制地址</button>
+              <button className="p-mini" onClick={() => copy(endpoint)}>{t('agent.copyEndpoint')}</button>
             </div>
             <pre className="p-json">{mcpJson}</pre>
             <div className="p-toolbar">
-              <button onClick={() => copy(mcpJson)}>复制 JSON 配置</button>
+              <button onClick={() => copy(mcpJson)}>{t('agent.copyJson')}</button>
               <span className="p-count">Authorization 中的令牌可在「系统设置 → 渠道令牌」更换或禁用</span>
             </div>
           </div>
@@ -536,6 +537,7 @@ function SystemTab() {
 
 /* ---------- 渠道令牌(MCP 接入鉴权) ---------- */
 function ChannelsCard() {
+  const { t } = useI18n()
   const [channels, setChannels] = useState<any[]>([])
   const [name, setName] = useState('')
   const [msg, setMsg] = useState('')
@@ -595,7 +597,7 @@ function ChannelsCard() {
         {msg && <span className="p-ok">{msg}</span>}
       </div>
       <table className="p-table">
-        <thead><tr><th>渠道</th><th>令牌</th><th>状态</th><th>最近使用</th><th>操作</th></tr></thead>
+        <thead><tr><th>{t('th.channel')}</th><th>令牌</th><th>{t('th.status')}</th><th>最近使用</th><th>操作</th></tr></thead>
         <tbody>
           {channels.map(c => (
             <tr key={c.id}>
@@ -612,7 +614,7 @@ function ChannelsCard() {
               <td className="p-ops">
                 <button className="p-mini" onClick={() => copyCfg(c)}>复制配置</button>
                 <button className="p-mini" onClick={() => toggle(c)}>{c.disabled ? '启用' : '禁用'}</button>
-                <button className="p-mini danger" onClick={() => remove(c)}>删除</button>
+                <button className="p-mini danger" onClick={() => remove(c)}>{t('btn.delete')}</button>
               </td>
             </tr>
           ))}
@@ -624,18 +626,19 @@ function ChannelsCard() {
 }
 
 /* ---------- 模型及参数(llm.yaml 结构化配置) ---------- */
-const LLM_FIELDS: { key: string; label: string; type: 'text' | 'number' | 'select'; hint?: string; options?: string[] }[] = [
-  { key: 'embedding_model', label: '向量模型(全平台统一)', type: 'text', hint: '文档向量化与对话检索向量化共用,不按智能体单独设置' },
-  { key: 'rerank_model', label: '重排模型(全平台统一)', type: 'text', hint: '检索结果重排序' },
-  { key: 'rerank_strategy', label: '重排策略', type: 'select', options: ['llm', 'endpoint'], hint: 'llm=模型打分(任意环境可用);endpoint=调用重排端点' },
-  { key: 'rerank_url', label: '重排端点地址', type: 'text', hint: '仅策略为 endpoint 时生效' },
+const LLM_FIELDS = (t: (k: string) => string): { key: string; label: string; type: 'text' | 'number' | 'select'; hint?: string; options?: string[] }[] => [
+  { key: 'embedding_model', label: t('llm.embeddingModel'), type: 'text', hint: '文档向量化与对话检索向量化共用,不按智能体单独设置' },
+  { key: 'rerank_model', label: t('llm.rerankModel'), type: 'text', hint: '检索结果重排序' },
+  { key: 'rerank_strategy', label: t('llm.rerankStrategy'), type: 'select', options: ['llm', 'endpoint'], hint: 'llm=模型打分(任意环境可用);endpoint=调用重排端点' },
+  { key: 'rerank_url', label: t('llm.rerankUrl'), type: 'text', hint: '仅策略为 endpoint 时生效' },
   { key: 'temperature', label: 'Temperature', type: 'number', hint: '生成随机性,0–2' },
-  { key: 'max_tokens', label: '最大输出 max_tokens', type: 'number' },
-  { key: 'request_timeout', label: '请求超时(秒)', type: 'number' },
-  { key: 'context_turns', label: '上下文轮次', type: 'number', hint: '每轮注入的历史消息条数;0 或负数 = 不限制' },
+  { key: 'max_tokens', label: t('llm.maxTokens'), type: 'number' },
+  { key: 'request_timeout', label: t('llm.timeout'), type: 'number' },
+  { key: 'context_turns', label: t('llm.contextTurns'), type: 'number', hint: '每轮注入的历史消息条数;0 或负数 = 不限制' },
 ]
 
 function LlmConfigCard() {
+  const { t } = useI18n()
   const [cfg, setCfg] = useState<Record<string, any>>({})
   const [models, setModels] = useState<{ model: string; name: string }[]>([])
   const [showKey, setShowKey] = useState(false)
@@ -666,7 +669,7 @@ function LlmConfigCard() {
       api_key: (cfg.api_key ?? '').trim(),
       base_url: (cfg.base_url ?? '').trim(),
     }
-    for (const f of LLM_FIELDS) {
+    for (const f of LLM_FIELDS(t)) {
       const raw = cfg[f.key]
       if (raw === '' || raw == null) continue
       body[f.key] = f.type === 'number' ? Number(raw) : raw
@@ -726,7 +729,7 @@ function LlmConfigCard() {
           </div>
           <h4 className="p-subhead">生成与检索参数</h4>
           <div className="p-llmgrid">
-            {LLM_FIELDS.map(f => (
+            {LLM_FIELDS(t).map(f => (
               <label key={f.key} className="p-llmfield">
                 <span className="p-llmlabel">{f.label}</span>
                 {f.type === 'select' ? (
@@ -742,7 +745,7 @@ function LlmConfigCard() {
             ))}
           </div>
         </>
-      ) : <div className="p-empty">加载中…</div>}
+      ) : <div className="p-empty">{t('wb.loading')}</div>}
       <div className="p-toolbar" style={{ marginTop: 12 }}>
         <button onClick={save}>保存模型参数</button>
         {msg && <span className="p-ok">{msg}</span>}
@@ -753,6 +756,7 @@ function LlmConfigCard() {
 
 /* ---------- 会话查看 ---------- */
 export function SessionsTab() {
+  const { t } = useI18n()
   const [sessions, setSessions] = useState<any[]>([])
   const [sid, setSid] = useState('')
   const [msgs, setMsgs] = useState<any[]>([])
@@ -797,7 +801,7 @@ export function SessionsTab() {
           <button onClick={checkBatch} disabled={batching}>{batching ? '质检中…' : '批量质检(最近10个)'}</button>
         </div>
         <table className="p-table">
-          <thead><tr><th>会话</th><th>入口</th><th>消息</th><th>质检分</th><th>更新时间</th></tr></thead>
+          <thead><tr><th>{t('th.sessions')}</th><th>入口</th><th>消息</th><th>质检分</th><th>更新时间</th></tr></thead>
           <tbody>
             {sessions.map(s => (
               <tr key={s.id} className={s.id === sid ? 'on' : ''} onClick={() => open(s.id)}>
@@ -850,13 +854,15 @@ export function SessionsTab() {
 
 /* ---------- 主组件:左侧导航布局 ---------- */
 /* ---------- 线索转化(留资转线索工单) ---------- */
-const LEAD_STATUS: Record<string, { label: string; cls: string }> = {
-  pending: { label: '待跟进', cls: 'pending' },
-  followed: { label: '已跟进', cls: 'followed' },
-  converted: { label: '已转化', cls: 'converted' },
-  invalid: { label: '无效', cls: 'invalid' },
-}
+const LEAD_STATUS = (t: (k: string) => string): Record<string, { label: string; cls: string }> => ({
+  pending: { label: t('lead.pending'), cls: 'pending' },
+  followed: { label: t('lead.followed'), cls: 'followed' },
+  converted: { label: t('lead.converted'), cls: 'converted' },
+  invalid: { label: t('lead.invalid'), cls: 'invalid' },
+})
+
 function LeadsTab() {
+  const { t } = useI18n()
   const [leads, setLeads] = useState<any[]>([])
   const [status, setStatus] = useState('')
   const load = useCallback(() => {
@@ -882,16 +888,16 @@ function LeadsTab() {
       </p>
       <div className="p-toolbar">
         <select value={status} onChange={e => setStatus(e.target.value)}>
-          <option value="">全部状态</option>
-          <option value="pending">待跟进</option>
-          <option value="followed">已跟进</option>
-          <option value="converted">已转化</option>
-          <option value="invalid">无效</option>
+          <option value="">{t('orders.allStatus')}</option>
+          <option value="pending">{t('lead.pending')}</option>
+          <option value="followed">{t('lead.followed')}</option>
+          <option value="converted">{t('lead.converted')}</option>
+          <option value="invalid">{t('lead.invalid')}</option>
         </select>
         <button onClick={load}>刷新</button>
       </div>
       <table className="p-table">
-        <thead><tr><th>姓名</th><th>联系方式</th><th>意向</th><th>来源</th><th>状态</th><th>时间</th><th>操作</th></tr></thead>
+        <thead><tr><th>姓名</th><th>联系方式</th><th>意向</th><th>来源</th><th>{t('th.status')}</th><th>时间</th><th>操作</th></tr></thead>
         <tbody>
           {leads.map(l => (
             <tr key={l.id}>
@@ -899,12 +905,12 @@ function LeadsTab() {
               <td className="p-mono">{l.phone || '—'}</td>
               <td title={l.note || ''}>{l.intent || '—'}</td>
               <td><span className="p-mat">{roleZh(l.agent_role)}</span></td>
-              <td><span className={`p-lead-st ${LEAD_STATUS[l.status]?.cls}`}>{LEAD_STATUS[l.status]?.label}</span></td>
+              <td><span className={`p-lead-st ${LEAD_STATUS(t)[l.status]?.cls}`}>{LEAD_STATUS(t)[l.status]?.label}</span></td>
               <td className="p-src">{l.created_at}</td>
               <td className="p-ops">
                 {l.status === 'pending' && <button className="p-mini" onClick={() => follow(l.id)}>跟进</button>}
-                {l.status !== 'converted' && <button className="p-mini" onClick={() => patch(l.id, { status: 'converted' })}>已转化</button>}
-                {l.status !== 'invalid' && <button className="p-mini danger" onClick={() => patch(l.id, { status: 'invalid' })}>无效</button>}
+                {l.status !== 'converted' && <button className="p-mini" onClick={() => patch(l.id, { status: 'converted' })}>{t('lead.converted')}</button>}
+                {l.status !== 'invalid' && <button className="p-mini danger" onClick={() => patch(l.id, { status: 'invalid' })}>{t('lead.invalid')}</button>}
               </td>
             </tr>
           ))}
@@ -1045,6 +1051,7 @@ function loadEcharts(): Promise<void> {
 }
 
 function BoardTab() {
+  const { t } = useI18n()
   const [data, setData] = useState<any>(null)
   const [tenants, setTenants] = useState<any[]>([])
   const trendRef = useRef<HTMLDivElement>(null)
@@ -1083,7 +1090,7 @@ function BoardTab() {
           grid: { left: 130, right: 24, top: 24, bottom: 30 },
           xAxis: { type: 'value', minInterval: 1 },
           yAxis: { type: 'category', data: rows.map((x: any) => x.name) },
-          series: [{ name: '对话数', type: 'bar', barWidth: 16,
+          series: [{ name: t('th.chats'), type: 'bar', barWidth: 16,
             itemStyle: { color: '#1B2942', borderRadius: 4 },
             data: rows.map((x: any) => x.chats) }],
         })
@@ -1100,23 +1107,23 @@ function BoardTab() {
   return (
     <div>
       <div className="p-statrow">
-        {[['租户机构', totals.tenants], ['用户数', totals.users],
-          ['会话数', totals.sessions], ['对话次数', totals.chats]].map(([k, v]) => (
+        {[['租户机构', totals.tenants], [t('board.users'), totals.users],
+          [t('board.sessions'), totals.sessions], [t('board.chats'), totals.chats]].map(([k, v]) => (
           <div className="p-stat" key={k as string}><em>{v ?? '—'}</em><span>{k}</span></div>
         ))}
       </div>
       <div className="board-charts">
         <div className="board-chart-box">
-          <h4>近 14 日会话趋势(全平台)</h4>
+          <h4>{t('board.trendTitle')}</h4>
           <div ref={trendRef} className="board-chart" />
         </div>
         <div className="board-chart-box">
-          <h4>租户对话数排行</h4>
+          <h4>{t('board.topTenants')}</h4>
           <div ref={barRef} className="board-chart" />
         </div>
       </div>
       <table className="board-table">
-        <thead><tr><th>租户</th><th>标识</th><th>套餐</th><th>用户</th><th>会话</th><th>对话数</th><th>开通时间</th></tr></thead>
+        <thead><tr><th>{t('th.tenant')}</th><th>{t('th.slug')}</th><th>{t('th.plan')}</th><th>{t('th.users')}</th><th>{t('th.sessions')}</th><th>{t('th.chats')}</th><th>{t('th.created')}</th></tr></thead>
         <tbody>
           {tenants.map(x => (
             <tr key={x.id}>
@@ -1136,12 +1143,13 @@ function BoardTab() {
 /* ---------- 平台经营:租户管理 / 套餐定价 / 订单管理 ---------- */
 
 function TenantsTab() {
+  const { t } = useI18n()
   const [rows, setRows] = useState<any[]>([])
   const load = useCallback(() => { api('/api/portal/tenants').then(setRows).catch(() => {}) }, [])
   useEffect(load, [load])
   return (
     <table className="board-table">
-      <thead><tr><th>ID</th><th>机构</th><th>标识</th><th>套餐</th><th>用户</th><th>会话</th><th>对话数</th><th>累计用量</th><th>开通时间</th></tr></thead>
+      <thead><tr><th>ID</th><th>机构</th><th>{t('th.slug')}</th><th>{t('th.plan')}</th><th>{t('th.users')}</th><th>{t('th.sessions')}</th><th>{t('th.chats')}</th><th>{t('th.usage')}</th><th>{t('th.created')}</th></tr></thead>
       <tbody>
         {rows.map(x => (
           <tr key={x.id}>
@@ -1153,13 +1161,14 @@ function TenantsTab() {
             <td>{x.created_at}</td>
           </tr>
         ))}
-        {!rows.length && <tr><td colSpan={9} className="tadm-empty">暂无租户</td></tr>}
+        {!rows.length && <tr><td colSpan={9} className="tadm-empty">{t('empty.noTenants')}</td></tr>}
       </tbody>
     </table>
   )
 }
 
 function PlansTab() {
+  const { t } = useI18n()
   const [rows, setRows] = useState<any[]>([])
   const [msg, setMsg] = useState('')
   const load = useCallback(() => { api('/api/portal/plans').then(setRows).catch(() => {}) }, [])
@@ -1171,7 +1180,7 @@ function PlansTab() {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(patch),
       })
-      setMsg('已保存')
+      setMsg(t('msg.saved'))
       load()
     } catch (e: any) { setMsg(e.message || '保存失败') }
   }
@@ -1179,7 +1188,7 @@ function PlansTab() {
     <div>
       {msg && <div className="tadm-ok" style={{ marginBottom: 10 }}>{msg}</div>}
       <table className="board-table">
-        <thead><tr><th>套餐</th><th>月价(¥)</th><th>对话限额</th><th>开通租户数</th><th>功能</th><th /></tr></thead>
+        <thead><tr><th>{t('th.plan')}</th><th>{t('th.price')}</th><th>{t('th.limit')}</th><th>{t('th.activeSubs')}</th><th>{t('th.features')}</th><th /></tr></thead>
         <tbody>
           {rows.map(p => (
             <PlanRow key={p.code} plan={p} onSave={save} />
@@ -1194,10 +1203,11 @@ function PlansTab() {
 }
 
 function PlanRow({ plan, onSave }: { plan: any; onSave: (code: string, patch: Record<string, unknown>) => void }) {
+  const { t } = useI18n()
   const [name, setName] = useState(plan.name)
   const [price, setPrice] = useState(String(plan.price_monthly))
   const FEATURE_LABELS: Record<string, string> = {
-    agent_settings: '智能体设置', agent_caps: '能力开关', domains: '知识域管理',
+    agent_settings: t('tab.agents'), agent_caps: '能力开关', domains: '知识域管理',
     rag_manage: '课程资料管理', ontology: '本体图谱', sessions: '对话记录',
     leads: '线索转化', analytics: '运营分析', skills: 'Agent Skill',
   }
@@ -1220,13 +1230,14 @@ function PlanRow({ plan, onSave }: { plan: any; onSave: (code: string, patch: Re
       <td style={{ fontSize: 12 }}>{feats.join(' · ')}</td>
       <td>
         <button className="tadm-del" style={{ color: 'var(--ink)' }}
-          onClick={() => onSave(plan.code, { name, price_monthly: Number(price) })}>保存</button>
+          onClick={() => onSave(plan.code, { name, price_monthly: Number(price) })}>{t('btn.save')}</button>
       </td>
     </tr>
   )
 }
 
 function OrdersTab() {
+  const { t } = useI18n()
   const [rows, setRows] = useState<any[]>([])
   const [status, setStatus] = useState('')
   const load = useCallback(() => { api('/api/portal/orders').then(setRows).catch(() => {}) }, [])
@@ -1239,15 +1250,15 @@ function OrdersTab() {
         <div className="tadm-range">
           <select value={status} onChange={e => setStatus(e.target.value)}
             style={{ padding: '6px 10px', border: '1px solid var(--line)', borderRadius: 8 }}>
-            <option value="">全部状态</option>
-            <option value="paid">已支付</option>
-            <option value="pending">待支付</option>
-            <option value="failed">失败</option>
+            <option value="">{t('orders.allStatus')}</option>
+            <option value="paid">{t('sub.paid')}</option>
+            <option value="pending">{t('sub.pending')}</option>
+            <option value="failed">{t('sub.failed')}</option>
           </select>
         </div>
       </div>
       <table className="board-table">
-        <thead><tr><th>订单号</th><th>租户</th><th>套餐</th><th>渠道</th><th>金额</th><th>状态</th><th>创建时间</th><th>支付时间</th></tr></thead>
+        <thead><tr><th>{t('th.orderId')}</th><th>{t('th.tenant')}</th><th>{t('th.plan')}</th><th>{t('th.channel')}</th><th>{t('th.amount')}</th><th>{t('th.status')}</th><th>创建时间</th><th>{t('th.paidAt')}</th></tr></thead>
         <tbody>
           {shown.map(o => (
             <tr key={o.id}>
@@ -1256,11 +1267,11 @@ function OrdersTab() {
               <td>{o.plan_code}</td><td>{o.channel}</td>
               <td>¥{Number(o.amount).toFixed(2)}</td>
               <td><span className={`st-${o.status === 'paid' ? 'ingested' : 'failed'}`}>
-                {o.status === 'paid' ? '已支付' : o.status === 'pending' ? '待支付' : '失败'}</span></td>
+                {o.status === 'paid' ? t('sub.paid') : o.status === 'pending' ? t('sub.pending') : t('sub.failed')}</span></td>
               <td>{o.created_at}</td><td>{o.paid_at || '—'}</td>
             </tr>
           ))}
-          {!shown.length && <tr><td colSpan={8} className="tadm-empty">暂无订单</td></tr>}
+          {!shown.length && <tr><td colSpan={8} className="tadm-empty">{t('sub.noOrders')}</td></tr>}
         </tbody>
       </table>
     </div>
@@ -1378,7 +1389,7 @@ export default function Portal() {
   }
 
 const active = tabs.find(t => t.key === tab) || tabs[0]
-  if (!active) return <div className="portal"><main className="p-main" style={{ padding: 40 }}>加载中…</main></div>
+  if (!active) return <div className="portal"><main className="p-main" style={{ padding: 40 }}>{t('wb.loading')}</main></div>
   const subActive = tinfo?.subscription?.status === 'active'
   return (
     <div className="portal">
@@ -1386,7 +1397,7 @@ const active = tabs.find(t => t.key === tab) || tabs[0]
         <div className="p-brand">
           <img className="p-logo" src="/logo.png" alt="AI 课程顾问" />
           <div>
-            <b>{isTenant ? (tinfo?.tenant?.name || '机构工作台') : 'SaaS 运营工作台'}</b>
+            <b>{isTenant ? (tinfo?.tenant?.name || t('wb.tenantWs')) : t('wb.platformOps')}</b>
             <small>{isTenant ? t('wb.tenantWs') : t('wb.platformOps')}</small>
           </div>
         </div>
