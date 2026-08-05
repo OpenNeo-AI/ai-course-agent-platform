@@ -550,12 +550,12 @@ export function TenantSubTab({ info, onChanged }: { info: TenantInfo | null; onC
           <b className="tadm-plan-name">
             {sub?.plan_name || '—'}
             <span className={`plan-pill ${active ? 'pro' : ''}`} style={{ marginLeft: 10 }}>
-              {active ? t('sub.activatedTag') : '待支付开通'}
+              {active ? t('sub.activatedTag') : t('sub.pendingActivation')}
             </span>
           </b>
           <small>{sub?.plan_code === 'flagship'
             ? t('sub.flagshipFull')
-            : '知识域智能体:知识域与资料管理 + RAG 问答 + 班型推荐'}</small>
+            : t('sub.standardDesc')}</small>
         </div>
       </div>
       <div className="pricing-cards" style={{ margin: '16px 0 6px' }}>
